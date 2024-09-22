@@ -219,7 +219,18 @@ Eval("stagehand", {
     ];
   },
   task: async (input) => {
-    return await tasks[input.name](input);
+    try {
+      const result = await tasks[input.name](input);
+      if (result) {
+        console.log(`✅ ${input.name}: Passed`);
+      } else {
+        console.log(`❌ ${input.name}: Failed`);
+      }
+      return result;
+    } catch (error) {
+      console.error(`❌ ${input.name}: Error - ${error}`);
+      return false;
+    }
   },
   scores: [exactMatch],
 });
