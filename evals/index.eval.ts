@@ -45,6 +45,23 @@ const vanta_h = async () => {
   return observation === null;
 };
 
+const simpleGoogleSearch = async () => {
+  const stagehand = new Stagehand({ env: "LOCAL" });
+  await stagehand.init();
+
+  await stagehand.page.goto("https://www.google.com");
+
+  await stagehand.act({
+    action: 'Search for "OpenAI"',
+  });
+
+  const expectedUrl = "https://www.google.com/search?q=OpenAI";
+  const currentUrl = await stagehand.page.url();
+  await stagehand.context.close();
+
+  return currentUrl.startsWith(expectedUrl);
+};
+
 const peeler_simple = async () => {
   const stagehand = new Stagehand({ env: "LOCAL" });
   await stagehand.init();
@@ -110,7 +127,14 @@ const wikipedia = async () => {
   return currentUrl === url;
 };
 
-const tasks = { vanta, vanta_h, peeler_simple, peeler_complex, wikipedia };
+const tasks = {
+  vanta,
+  vanta_h,
+  peeler_simple,
+  peeler_complex,
+  wikipedia,
+  simpleGoogleSearch,
+};
 
 const exactMatch = (args: { input; output; expected? }) => {
   return {
@@ -141,6 +165,7 @@ Eval("stagehand", {
         input: { name: "wikipedia" },
       },
       { input: { name: "peeler_complex" } },
+      { input: { name: "simpleGoogleSearch" } },
     ];
   },
   task: async (input) => {
