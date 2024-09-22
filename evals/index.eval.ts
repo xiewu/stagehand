@@ -45,7 +45,7 @@ const vanta_h = async () => {
   return observation === null;
 };
 
-const simpleGoogleSearch = async () => {
+const simple_google_search = async () => {
   const stagehand = new Stagehand({ env: "LOCAL" });
   await stagehand.init();
 
@@ -108,6 +108,37 @@ const peeler_complex = async () => {
   return price !== null;
 };
 
+const extract_collaborators_from_github_repository = async () => {
+  const stagehand = new Stagehand({ env: "LOCAL", verbose: 1 });
+  await stagehand.init();
+
+  await stagehand.page.goto("https://github.com/facebook/react");
+  await stagehand.act({
+    action: "find the contributors section",
+  });
+
+  await stagehand.waitForSettledDom();
+
+  const { contributors } = await stagehand.extract({
+    instruction: "Extract top 20 contributors of this repository",
+    schema: z.object({
+      contributors: z.array(
+        z.object({
+          github_username: z.string(),
+          information: z.string(),
+        }),
+      ),
+    }),
+    modelName: "gpt-4o-2024-08-06",
+  });
+
+  await stagehand.context.close();
+
+  console.log("Extracted collaborators:", contributors);
+
+  return contributors.length === 20;
+};
+
 const wikipedia = async () => {
   const stagehand = new Stagehand({
     env: "LOCAL",
@@ -127,13 +158,31 @@ const wikipedia = async () => {
   return currentUrl === url;
 };
 
+const promptOptimziation = async () => {
+  const stagehand = new Stagehand({ env: "LOCAL" });
+  await stagehand.init();
+
+  await stagehand.page.goto("https://www.google.com");
+  await stagehand.act({
+    action: 'Search for "OpenAI"',
+    optimizePrompt: true,
+  });
+
+  const expectedUrl = "https://www.google.com/search?q=OpenAI";
+  const currentUrl = await stagehand.page.url();
+  await stagehand.context.close();
+
+  return currentUrl.startsWith(expectedUrl);
+};
+
 const tasks = {
   vanta,
   vanta_h,
   peeler_simple,
   peeler_complex,
   wikipedia,
-  simpleGoogleSearch,
+  simple_google_search,
+  extract_collaborators_from_github_repository,
 };
 
 const exactMatch = (args: { input; output; expected? }) => {
@@ -165,7 +214,8 @@ Eval("stagehand", {
         input: { name: "wikipedia" },
       },
       { input: { name: "peeler_complex" } },
-      { input: { name: "simpleGoogleSearch" } },
+      { input: { name: "simple_google_search" } },
+      { input: { name: "extract_collaborators_from_github_repository" } },
     ];
   },
   task: async (input) => {
