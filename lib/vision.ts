@@ -52,15 +52,50 @@ export class ScreenshotService {
     }
   }
 
-  async getScreenshot(): Promise<Buffer> {
-    return await this.page.screenshot();
+  async getScreenshot(fullpage: boolean, quality?: number): Promise<Buffer> {
+    if (quality && (quality < 0 || quality > 100)) {
+      throw new Error("quality must be between 0 and 100");
+    }
+
+    const screenshot = await this.page.screenshot({
+      fullPage: fullpage,
+      quality,
+      type: "jpeg",
+    });
+
+    // ScreenshotService.saveAndOpenScreenshot(screenshot);
+    // const pixelCount = await this.getScreenshotPixelCount(screenshot);
+    // console.log("pixelCount", pixelCount);
+    return screenshot;
   }
 
-  async getAnnotatedScreenshot(): Promise<Buffer> {
+  async getScreenshotPixelCount(screenshot: Buffer): Promise<number> {
+    const image = sharp(screenshot);
+    const metadata = await image.metadata();
+
+    if (!metadata.width || !metadata.height) {
+      this.log({
+        category: "Error",
+        message: "Unable to determine image dimensions.",
+        level: 0,
+      });
+      throw new Error("Unable to determine image dimensions.");
+    }
+
+    const pixelCount = metadata.width * metadata.height;
+    this.log({
+      category: "Info",
+      message: `Screenshot pixel count: ${pixelCount}`,
+      level: 1,
+    });
+    return pixelCount;
+  }
+
+  async getAnnotatedScreenshot(fullpage: boolean): Promise<Buffer> {
     this.annotationBoxes = [];
     this.numberPositions = [];
 
-    const screenshot = await this.getScreenshot();
+    const screenshot = await this.getScreenshot(fullpage);
     const image = sharp(screenshot);
 
     const { width, height } = await image.metadata();

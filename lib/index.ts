@@ -3,7 +3,7 @@ import { expect } from "@playwright/test";
 import crypto from "crypto";
 import { z } from "zod";
 import fs from "fs";
-import { act, ask, extract, observe } from "./inference";
+import { act, ask, extract, observe, verifyActCompletion } from "./inference";
 import { LLMProvider } from "./llm/LLMProvider";
 const merge = require("deepmerge");
 import path from "path";
@@ -31,6 +31,7 @@ async function getBrowser(
     env = "LOCAL";
   }
 
+  let debugUrl: string | undefined = undefined;
   if (env === "BROWSERBASE") {
     console.log("Connecting you to broswerbase...");
     const browserbase = new Browserbase();
@@ -39,7 +40,7 @@ async function getBrowser(
       `wss://connect.browserbase.com?apiKey=${process.env.BROWSERBASE_API_KEY}&sessionId=${sessionId}`,
     );
 
-    const debugUrl = await browserbase.retrieveDebugConnectionURL(sessionId);
+    debugUrl = await browserbase.retrieveDebugConnectionURL(sessionId);
     console.log(
       `Browserbase session started, live debug accessible here: ${debugUrl}.`,
     );
@@ -89,8 +90,8 @@ async function getBrowser(
           "--enable-webgl",
           "--use-gl=swiftshader",
           "--enable-accelerated-2d-canvas",
+          "--disable-blink-features=AutomationControlled",
         ],
-        excludeSwitches: "enable-automation",
         userDataDir: "./user_data",
       },
     );
@@ -99,7 +100,11 @@ async function getBrowser(
 
     await applyStealthScripts(context);
 
-    return { context };
+    if (debugUrl) {
+      return { context, debugUrl };
+    } else {
+      return { context };
+    }
   }
 }
 
@@ -210,10 +215,18 @@ export class Stagehand {
   }
 
   async init({ modelName = "gpt-4o" }: { modelName?: string } = {}) {
-    const { context } = await getBrowser(this.env, this.headless);
+    const { context, debugUrl } = await getBrowser(this.env, this.headless);
     this.context = context;
     this.page = context.pages()[0];
     this.defaultModelName = modelName;
+
+    // Overload the page.goto method
+    const originalGoto = this.page.goto.bind(this.page);
+    this.page.goto = async (url: string, options?: any) => {
+      const result = await originalGoto(url, options);
+      await this.waitForSettledDom();
+      return result;
+    };
 
     // Set the browser to headless mode if specified
     if (this.headless) {
@@ -233,6 +246,8 @@ export class Stagehand {
     await this.page.addInitScript({
       path: path.join(__dirname, "..", "dist", "dom", "build", "debug.js"),
     });
+
+    return { debugUrl };
   }
 
   async waitForSettledDom() {
@@ -285,7 +300,7 @@ export class Stagehand {
     return crypto.createHash("sha256").update(operation).digest("hex");
   }
 
-  async extract<T extends z.AnyZodObject>({
+  private async _extract<T extends z.AnyZodObject>({
     instruction,
     schema,
     progress = "",
@@ -327,6 +342,7 @@ export class Stagehand {
       schema,
       modelName: modelName || this.defaultModelName,
     });
+
     const {
       metadata: { progress: newProgress, completed },
       ...output
@@ -358,7 +374,7 @@ export class Stagehand {
         level: 1,
       });
       await this.waitForSettledDom();
-      return this.extract({
+      return this._extract({
         instruction,
         schema,
         progress: progress + newProgress + ", ",
@@ -367,6 +383,22 @@ export class Stagehand {
         modelName,
       });
     }
+  }
+
+  async extract<T extends z.AnyZodObject>({
+    instruction,
+    schema,
+    modelName,
+  }: {
+    instruction: string;
+    schema: T;
+    modelName?: string;
+  }): Promise<z.infer<T>> {
+    return this._extract({
+      instruction,
+      schema,
+      modelName,
+    });
   }
 
   async observe(
@@ -428,7 +460,10 @@ export class Stagehand {
 
     return observationId;
   }
+
   async ask(question: string, modelName?: string): Promise<string | null> {
+    await this.waitForSettledDom();
+
     return ask({
       question,
       llmProvider: this.llmProvider,
@@ -455,20 +490,21 @@ export class Stagehand {
     return id;
   }
 
-  async act({
+  private async _act({
     action,
     steps = "",
     chunksSeen = [],
     modelName,
-    useVision = "fallback",
+    useVision,
+    verifierUseVision,
   }: {
     action: string;
     steps?: string;
     chunksSeen?: Array<number>;
     modelName?: string;
-    useVision?: boolean | "fallback";
+    useVision: boolean | "fallback";
+    verifierUseVision: boolean;
   }): Promise<{ success: boolean; message: string; action: string }> {
-    useVision = useVision ?? "fallback";
     const model = modelName ?? this.defaultModelName;
 
     if (!modelsWithVision.includes(model) && useVision !== false) {
@@ -482,7 +518,7 @@ export class Stagehand {
     this.log({
       category: "action",
       message: `Starting action: ${action}`,
-      level: 1,
+      level: 2,
     });
 
     await this.waitForSettledDom();
@@ -496,14 +532,15 @@ export class Stagehand {
 
     // New code to add bounding boxes and element numbers
     let annotatedScreenshot: Buffer | undefined = undefined;
-    if (useVision === true) {
-      const screenshotService = new ScreenshotService(
-        this.page,
-        selectorMap,
-        this.verbose,
-      );
+    const screenshotService = new ScreenshotService(
+      this.page,
+      selectorMap,
+      this.verbose,
+    );
 
-      annotatedScreenshot = await screenshotService.getAnnotatedScreenshot();
+    if (useVision === true) {
+      annotatedScreenshot =
+        await screenshotService.getAnnotatedScreenshot(false);
     }
 
     this.log({
@@ -539,8 +576,7 @@ export class Stagehand {
           message: `No response from act. Chunks seen: ${chunksSeen.length}, Total chunks: ${chunks.length}`,
           level: 1,
         });
-        await this.waitForSettledDom();
-        return this.act({
+        return this._act({
           action,
           steps:
             steps +
@@ -549,8 +585,12 @@ export class Stagehand {
           chunksSeen,
           modelName: model,
           useVision,
+          verifierUseVision,
         });
       } else {
+        console.log(
+          "[BROWSERBASE] [Debug] No response from act with no chunks left to check",
+        );
         this.log({
           category: "action",
           message: "No response from act with no chunks left to check",
@@ -558,15 +598,19 @@ export class Stagehand {
         });
 
         if (useVision === "fallback") {
-          return this.act({
+          await this.page.evaluate(() => window.scrollToHeight(0));
+          return this._act({
             action,
             steps,
             chunksSeen: [],
             modelName: model,
             useVision: true,
+            verifierUseVision,
           });
         }
         this.recordAction(action, null);
+
+        await this.waitForSettledDom();
         return {
           success: false,
           message:
@@ -594,8 +638,11 @@ export class Stagehand {
       level: 1,
     });
 
+    let urlChangeString = "";
+
     const locator = await this.page.locator(`xpath=${path}`).first();
     try {
+      const initialUrl = this.page.url();
       if (method === "scrollIntoView") {
         this.log({
           category: "action",
@@ -606,6 +653,8 @@ export class Stagehand {
           element.scrollIntoView({ behavior: "smooth", block: "center" });
         });
       } else if (method === "fill" || method === "type") {
+        await locator.fill("");
+
         // Stimulate typing like a human (just in case)
         await locator.click();
 
@@ -642,6 +691,11 @@ export class Stagehand {
         // @ts-ignore
         await locator[method](...args);
 
+        const finalUrl = this.page.url();
+        if (finalUrl !== initialUrl) {
+          urlChangeString = `Page url changed to ${finalUrl} after this step`;
+        }
+
         // Log current URL after action
         this.log({
           category: "action",
@@ -671,8 +725,8 @@ export class Stagehand {
                 message: `New page detected with URL: ${newUrl}`,
                 level: 1,
               });
-              await newPage.close(); // Close the new page/tab
-              await this.page.goto(newUrl); // Navigate to the new URL in the current tab
+              await newPage.close();
+              await this.page.goto(newUrl);
               await this.page.waitForLoadState("domcontentloaded");
               await this.waitForSettledDom();
             } else {
@@ -688,24 +742,55 @@ export class Stagehand {
         throw new Error(`stagehand: chosen method ${method} is invalid`);
       }
 
-      if (!response.completed) {
+      let newSteps =
+        steps +
+        (!steps.endsWith("\n") ? "\n" : "") +
+        `## Step: ${response.step}\n` +
+        `  Element: ${elementText}\n` +
+        `  Action: ${response.method}\n` +
+        `  Reasoning: ${response.why}\n`;
+
+      if (urlChangeString) {
+        newSteps += `  Result (Important): ${urlChangeString}\n\n`;
+      }
+
+      let domElements: string | undefined = undefined;
+      let fullpageScreenshot: Buffer | undefined = undefined;
+      await this.waitForSettledDom();
+
+      if (verifierUseVision) {
+        fullpageScreenshot = await screenshotService.getScreenshot(true, 15);
+      } else {
+        domElements = (
+          await this.page.evaluate(() => {
+            return window.processAllOfDom();
+          })
+        ).outputString;
+      }
+
+      const actionComplete = response.completed
+        ? await verifyActCompletion({
+            goal: action,
+            steps: newSteps,
+            llmProvider: this.llmProvider,
+            modelName: model,
+            screenshot: fullpageScreenshot,
+            domElements: domElements,
+          })
+        : false;
+
+      if (!actionComplete) {
         this.log({
           category: "action",
           message: "Continuing to next sub action",
           level: 1,
         });
-        await this.waitForSettledDom();
-        const nextResult = await this.act({
+        const nextResult = await this._act({
           action,
-          steps:
-            steps +
-            (!steps.endsWith("\n") ? "\n" : "") +
-            `## Step: ${response.step}\n` +
-            `  Element: ${elementText}\n` +
-            `  Action: ${response.method}\n\n`,
-          // chunksSeen,
+          steps: newSteps,
           modelName: model,
           useVision,
+          verifierUseVision,
         });
         return nextResult;
       }
@@ -716,6 +801,7 @@ export class Stagehand {
         action: action,
       };
     } catch (error) {
+      console.trace(error);
       this.log({
         category: "action",
         message: `Error performing action: ${error.message}`,
@@ -728,9 +814,35 @@ export class Stagehand {
       };
     }
   }
+
+  async act({
+    action,
+    modelName,
+    useVision = "fallback",
+  }: {
+    action: string;
+    modelName?: string;
+    useVision?: "fallback" | boolean;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    action: string;
+  }> {
+    useVision = useVision ?? "fallback";
+
+    return this._act({
+      action,
+      modelName,
+      useVision,
+      // verifierUseVision: useVision === true,
+      verifierUseVision: true,
+    });
+  }
+
   setPage(page: Page) {
     this.page = page;
   }
+
   setContext(context: BrowserContext) {
     this.context = context;
   }

@@ -1,12 +1,45 @@
-async function processDom(chunksSeen: Array<number>) {
+export async function processDom(chunksSeen: Array<number>) {
+  console.log("[BROWSERBASE] Processing DOM");
   const { chunk, chunksArray } = await pickChunk(chunksSeen);
+  console.log("[BROWSERBASE] Picked chunk", chunk, chunksArray);
+  console.log("[BROWSERBASE] Processing elements");
   const { outputString, selectorMap } = await processElements(chunk);
+  console.log("[BROWSERBASE] Processed elements", outputString);
 
   return {
     outputString,
     selectorMap,
     chunk,
     chunks: chunksArray,
+  };
+}
+
+export async function processAllOfDom() {
+  console.log("[BROWSERBASE] Processing all of DOM");
+
+  let allOutputString = "";
+  let allSelectorMap = {};
+  let chunk = 0;
+
+  while (true) {
+    const { outputString, selectorMap } = await processElements(chunk);
+
+    if (!outputString && Object.keys(selectorMap).length === 0) {
+      // No more content to process
+      break;
+    }
+
+    allOutputString += outputString;
+    allSelectorMap = { ...allSelectorMap, ...selectorMap };
+
+    console.log(`[BROWSERBASE] Processed chunk ${chunk}`);
+    chunk++;
+  }
+
+  console.log("[BROWSERBASE] Processed all elements");
+  return {
+    outputString: allOutputString,
+    selectorMap: allSelectorMap,
   };
 }
 
@@ -95,7 +128,7 @@ export async function processElements(chunk: number) {
   candidateElements.forEach((element, index) => {
     const xpath = generateXPath(element);
     if (isTextNode(element)) {
-      outputString += `${index}:${element.textContent}\n`;
+      outputString += `${index}:${element.textContent.trim()}\n`;
     } else if (isElementNode(element)) {
       const tagName = element.tagName.toLowerCase();
 
@@ -164,10 +197,11 @@ export async function processElements(chunk: number) {
 }
 
 window.processDom = processDom;
+window.processAllOfDom = processAllOfDom;
 window.processElements = processElements;
 window.scrollToHeight = scrollToHeight;
 
-function generateXPath(element: ChildNode): string {
+export function generateXPath(element: ChildNode): string {
   if (isElementNode(element) && element.id) {
     return `//*[@id='${element.id}']`;
   }
@@ -252,11 +286,11 @@ const interactiveRoles = [
 ];
 const interactiveAriaRoles = ["menu", "menuitem", "button"];
 
-function isElementNode(node: Node): node is Element {
+export function isElementNode(node: Node): node is Element {
   return node.nodeType === Node.ELEMENT_NODE;
 }
 
-function isTextNode(node: Node): node is Text {
+export function isTextNode(node: Node): node is Text {
   // trim all white space and make sure the text node is non empty to consider it legit
   const trimmedText = node.textContent?.trim().replace(/\s/g, "");
   return node.nodeType === Node.TEXT_NODE && trimmedText !== "";
@@ -269,7 +303,7 @@ function isTextNode(node: Node): node is Text {
  * - opacity
  * If the element is a child of a previously hidden element, it should not be included, so we don't consider downstream effects of a parent element here
  */
-const isVisible = (element: Element) => {
+export const isVisible = (element: Element) => {
   const rect = element.getBoundingClientRect();
   // this number is relative to scroll, so we shouldn't be using an absolute offset, we can use the viewport height
   if (
@@ -293,7 +327,7 @@ const isVisible = (element: Element) => {
   return isVisible;
 };
 
-const isTextVisible = (element: ChildNode) => {
+export const isTextVisible = (element: ChildNode) => {
   const range = document.createRange();
   range.selectNodeContents(element);
   const rect = range.getBoundingClientRect();
@@ -323,7 +357,7 @@ const isTextVisible = (element: ChildNode) => {
   return isVisible;
 };
 
-function isTopElement(elem: ChildNode, rect: DOMRect) {
+export function isTopElement(elem: ChildNode, rect: DOMRect) {
   const points = [
     { x: rect.left + rect.width * 0.25, y: rect.top + rect.height * 0.25 },
     { x: rect.left + rect.width * 0.75, y: rect.top + rect.height * 0.25 },
@@ -345,7 +379,7 @@ function isTopElement(elem: ChildNode, rect: DOMRect) {
   });
 }
 
-const isActive = async (element: Element) => {
+export const isActive = async (element: Element) => {
   if (
     element.hasAttribute("disabled") ||
     element.hasAttribute("hidden") ||
@@ -356,7 +390,7 @@ const isActive = async (element: Element) => {
 
   return true;
 };
-const isInteractiveElement = (element: Element) => {
+export const isInteractiveElement = (element: Element) => {
   const elementType = element.tagName;
   const elementRole = element.getAttribute("role");
   const elementAriaRole = element.getAttribute("aria-role");
@@ -368,7 +402,7 @@ const isInteractiveElement = (element: Element) => {
   );
 };
 
-const isLeafElement = (element: Element) => {
+export const isLeafElement = (element: Element) => {
   if (element.textContent === "") {
     return false;
   }
@@ -385,7 +419,7 @@ const isLeafElement = (element: Element) => {
   return false;
 };
 
-async function pickChunk(chunksSeen: Array<number>) {
+export async function pickChunk(chunksSeen: Array<number>) {
   const viewportHeight = window.innerHeight;
   const documentHeight = document.documentElement.scrollHeight;
 

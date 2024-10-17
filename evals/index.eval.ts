@@ -15,18 +15,20 @@ const vanta = async () => {
     env,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   await stagehand.page.goto("https://www.vanta.com/");
-  await stagehand.waitForSettledDom();
 
-  const observation = await stagehand.observe("find the request demo button");
+  const observation = await stagehand.observe(
+    "find the request demo button text",
+  );
 
   if (!observation) {
     await stagehand.context.close();
     return {
       _success: false,
       observation,
+      debugUrl,
     };
   }
 
@@ -48,6 +50,7 @@ const vanta = async () => {
     _success: observationResult == expectedResult,
     expected: expectedResult,
     actual: observationResult,
+    debugUrl,
   };
 };
 
@@ -56,10 +59,9 @@ const vanta_h = async () => {
     env,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   await stagehand.page.goto("https://www.vanta.com/");
-  await stagehand.waitForSettledDom();
 
   const observation = await stagehand.observe("find the buy now button");
 
@@ -69,6 +71,7 @@ const vanta_h = async () => {
   return {
     _success: observation === null,
     observation,
+    debugUrl,
   };
 };
 
@@ -77,7 +80,7 @@ const simple_google_search = async () => {
     env,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   await stagehand.page.goto("https://www.google.com");
 
@@ -93,6 +96,7 @@ const simple_google_search = async () => {
   return {
     _success: currentUrl.startsWith(expectedUrl),
     currentUrl,
+    debugUrl,
   };
 };
 
@@ -101,10 +105,9 @@ const peeler_simple = async () => {
     env: "LOCAL",
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   await stagehand.page.goto(`file://${process.cwd()}/evals/assets/peeler.html`);
-  await stagehand.waitForSettledDom();
 
   await stagehand.act({ action: "add the peeler to cart" });
 
@@ -116,6 +119,7 @@ const peeler_simple = async () => {
   await stagehand.context.close();
   return {
     _success: isVisible,
+    debugUrl,
   };
 };
 
@@ -125,7 +129,7 @@ const peeler_complex = async () => {
     verbose: 1,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   await stagehand.page.goto(`https://chefstoys.com/`);
 
@@ -148,6 +152,7 @@ const peeler_complex = async () => {
   return {
     _success: price !== null,
     price,
+    debugUrl,
   };
 };
 
@@ -157,23 +162,18 @@ const homedepot = async () => {
     verbose: 1,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   try {
     await stagehand.page.goto("https://www.homedepot.com/");
-    await stagehand.waitForSettledDom();
 
     await stagehand.act({ action: "search for gas grills" });
-    await stagehand.waitForSettledDom();
 
     await stagehand.act({ action: "click on the best selling gas grill" });
-    await stagehand.waitForSettledDom();
 
     await stagehand.act({ action: "click on the Product Details" });
-    await stagehand.waitForSettledDom();
 
     await stagehand.act({ action: "find the Primary Burner BTU" });
-    await stagehand.waitForSettledDom();
 
     const productSpecs = await stagehand.extract({
       instruction: "Extract the Primary exact Burner BTU of the product",
@@ -198,6 +198,7 @@ const homedepot = async () => {
       return {
         _success: false,
         productSpecs,
+        debugUrl,
       };
     }
 
@@ -208,11 +209,13 @@ const homedepot = async () => {
       return {
         _success: true,
         productSpecs,
+        debugUrl,
       };
     } else {
       return {
         _success: false,
         productSpecs,
+        debugUrl,
       };
     }
   } catch (error) {
@@ -220,6 +223,7 @@ const homedepot = async () => {
     return {
       _success: false,
       error: JSON.parse(JSON.stringify(error, null, 2)),
+      debugUrl,
     };
   } finally {
     await stagehand.context.close();
@@ -232,15 +236,13 @@ const extract_collaborators_from_github_repository = async () => {
     verbose: 1,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   try {
     await stagehand.page.goto("https://github.com/facebook/react");
     await stagehand.act({
       action: "find the contributors section",
     });
-
-    await stagehand.waitForSettledDom();
 
     const { contributors } = await stagehand.extract({
       instruction: "Extract top 20 contributors of this repository",
@@ -260,6 +262,7 @@ const extract_collaborators_from_github_repository = async () => {
     return {
       _success: contributors.length === 20,
       contributors,
+      debugUrl,
     };
   } catch (error) {
     console.error("Error or timeout occurred:", error);
@@ -267,6 +270,7 @@ const extract_collaborators_from_github_repository = async () => {
     return {
       _success: false,
       error: JSON.parse(JSON.stringify(error, null, 2)),
+      debugUrl,
     };
   }
 };
@@ -277,12 +281,10 @@ const extract_last_twenty_github_commits = async () => {
     verbose: 1,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   try {
     await stagehand.page.goto("https://github.com/facebook/react");
-
-    await stagehand.waitForSettledDom();
 
     const { commits } = await stagehand.extract({
       instruction: "Extract last 20 commits",
@@ -303,6 +305,7 @@ const extract_last_twenty_github_commits = async () => {
     return {
       _success: commits.length === 20,
       commits,
+      debugUrl,
     };
   } catch (error) {
     console.error("Error or timeout occurred:", error);
@@ -310,6 +313,7 @@ const extract_last_twenty_github_commits = async () => {
     return {
       _success: false,
       error: JSON.parse(JSON.stringify(error, null, 2)),
+      debugUrl,
     };
   }
 };
@@ -320,7 +324,7 @@ const wikipedia = async () => {
     verbose: 2,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   await stagehand.page.goto(`https://en.wikipedia.org/wiki/Baseball`);
   await stagehand.act({
@@ -335,6 +339,7 @@ const wikipedia = async () => {
     _success: currentUrl === url,
     expected: url,
     actual: currentUrl,
+    debugUrl,
   };
 };
 
@@ -346,13 +351,14 @@ const nonsense_action = async () => {
     debugDom: true,
     headless: true,
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   try {
     await stagehand.page.goto("https://www.homedepot.com/");
-    await stagehand.waitForSettledDom();
 
-    const result = await stagehand.act({ action: "click on the first banana" });
+    const result = await stagehand.act({
+      action: "click on the first banana",
+    });
     console.log("result", result);
 
     // Assert the output
@@ -366,12 +372,16 @@ const nonsense_action = async () => {
     const isResultCorrect =
       JSON.stringify(result) === JSON.stringify(expectedResult);
 
-    return isResultCorrect;
+    return {
+      _success: isResultCorrect,
+      debugUrl,
+    };
   } catch (error) {
     console.error(`Error in nonsense_action function: ${error.message}`);
     return {
       _success: false,
       error: JSON.parse(JSON.stringify(error, null, 2)),
+      debugUrl,
     };
   } finally {
     await stagehand.context.close();
@@ -385,7 +395,7 @@ const costar = async () => {
     debugDom: true,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
   // TODO: fix this eval - does not work in headless mode
   try {
     await Promise.race([
@@ -394,7 +404,6 @@ const costar = async () => {
         setTimeout(() => reject(new Error("Navigation timeout")), 30000),
       ),
     ]);
-    await stagehand.waitForSettledDom();
 
     await stagehand.act({ action: "click on the first article" });
 
@@ -402,7 +411,6 @@ const costar = async () => {
       action: "click on the learn more button for the first job",
     });
 
-    await stagehand.waitForSettledDom();
     const articleTitle = await stagehand.extract({
       instruction: "extract the title of the article",
       schema: z.object({
@@ -419,10 +427,10 @@ const costar = async () => {
 
     await stagehand.context.close();
 
-    return { title: articleTitle.title, _success: isTitleValid };
+    return { title: articleTitle.title, _success: isTitleValid, debugUrl };
   } catch (error) {
     console.error(`Error in costar function: ${error.message}`);
-    return { title: null, _success: false } as any;
+    return { title: null, _success: false, debugUrl } as any;
   } finally {
     await stagehand.context.close();
   }
@@ -435,10 +443,9 @@ const google_jobs = async () => {
     debugDom: true,
     headless: process.env.HEADLESS !== "false",
   });
-  await stagehand.init({ modelName: "gpt-4o-2024-08-06" });
+  const { debugUrl } = await stagehand.init({ modelName: "gpt-4o-2024-08-06" });
 
   await stagehand.page.goto("https://www.google.com/");
-  await stagehand.waitForSettledDom();
 
   await stagehand.act({ action: "click on the about page" });
 
@@ -497,7 +504,7 @@ const google_jobs = async () => {
 
   console.log("Job Details valid:", isJobDetailsValid);
 
-  return { _success: isJobDetailsValid, jobDetails };
+  return { _success: isJobDetailsValid, jobDetails, debugUrl };
 };
 
 const arxiv = async () => {
@@ -525,13 +532,11 @@ const arxiv = async () => {
 
   try {
     await stagehand.page.goto("https://arxiv.org/search/");
-    await stagehand.waitForSettledDom();
 
     await stagehand.act({
       action:
         "search for the recent papers about web agents with multimodal models",
     });
-    await stagehand.waitForSettledDom();
 
     const paper_links = await stagehand.extract({
       instruction:
@@ -643,10 +648,9 @@ const expedia = async () => {
     debugDom: true,
   });
 
-  await stagehand.init();
+  const { debugUrl } = await stagehand.init();
 
   await stagehand.page.goto("https://www.expedia.com");
-  await stagehand.waitForSettledDom();
 
   await stagehand.act({
     action:
@@ -657,9 +661,6 @@ const expedia = async () => {
 
   await stagehand.context.close();
   console.log("Found flights");
-
-  // Wait for the page to settle after flight search
-  await stagehand.waitForSettledDom();
 
   // Get the current URL
   const finalUrl = await stagehand.page.url();
@@ -692,7 +693,7 @@ const expedia = async () => {
   const urlValid = isUrlValid(finalUrl);
   console.log("URL is valid:", urlValid);
 
-  return { _success: urlValid, finalUrl };
+  return { _success: urlValid, finalUrl, debugUrl };
 };
 
 const tasks = {
