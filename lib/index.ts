@@ -9,7 +9,7 @@ const merge = require("deepmerge");
 import path from "path";
 import Browserbase from "./browserbase";
 import { ScreenshotService } from "./vision";
-import { modelsWithVision } from "./llm/LLMClient";
+import { LLMClient, modelsWithVision } from "./llm/LLMClient";
 
 require("dotenv").config({ path: ".env" });
 
@@ -235,6 +235,10 @@ export class Stagehand {
     });
   }
 
+  getLLMClient(modelName: string): LLMClient {
+    return this.llmProvider.getClient(modelName);
+  }
+
   async waitForSettledDom() {
     try {
       await this.page.waitForSelector("body");
@@ -276,11 +280,13 @@ export class Stagehand {
       console.log("Error in startDomDebug:", e);
     }
   }
+
   async cleanupDomDebug() {
     if (this.debugDom) {
       await this.page.evaluate(() => window.cleanupDebug());
     }
   }
+
   getId(operation: string) {
     return crypto.createHash("sha256").update(operation).digest("hex");
   }
@@ -312,6 +318,7 @@ export class Stagehand {
       (chunksSeen?: number[]) => window.processDom(chunksSeen ?? []),
       chunksSeen,
     );
+
     this.log({
       category: "extraction",
       message: `Received output from processDom. Chunk: ${chunk}, Chunks left: ${chunks.length - chunksSeen.length}`,
