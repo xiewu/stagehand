@@ -224,6 +224,7 @@ export class Stagehand {
     const originalGoto = this.page.goto.bind(this.page);
     this.page.goto = async (url: string, options?: any) => {
       const result = await originalGoto(url, options);
+      await this.page.waitForLoadState("domcontentloaded");
       await this.waitForSettledDom();
       return result;
     };
@@ -602,7 +603,6 @@ export class Stagehand {
           return this._act({
             action,
             steps,
-            chunksSeen: [],
             modelName: model,
             useVision: true,
             verifierUseVision,
@@ -640,7 +640,7 @@ export class Stagehand {
 
     let urlChangeString = "";
 
-    const locator = await this.page.locator(`xpath=${path}`).first();
+    const locator = this.page.locator(`xpath=${path}`).first();
     try {
       const initialUrl = this.page.url();
       if (method === "scrollIntoView") {
@@ -649,9 +649,17 @@ export class Stagehand {
           message: `Scrolling element into view`,
           level: 2,
         });
-        await locator.evaluate((element) => {
-          element.scrollIntoView({ behavior: "smooth", block: "center" });
-        });
+        await locator
+          .evaluate((element) => {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+          })
+          .catch(() => {
+            this.log({
+              category: "action",
+              message: `Error scrolling element into view`,
+              level: 1,
+            });
+          });
       } else if (method === "fill" || method === "type") {
         await locator.fill("");
 
@@ -667,12 +675,21 @@ export class Stagehand {
       } else if (
         typeof locator[method as keyof typeof locator] === "function"
       ) {
-        const isLink = await locator.evaluate((element) => {
-          return (
-            element.tagName.toLowerCase() === "a" &&
-            element.hasAttribute("href")
-          );
-        });
+        const isLink = await locator
+          .evaluate((element) => {
+            return (
+              element.tagName.toLowerCase() === "a" &&
+              element.hasAttribute("href")
+            );
+          })
+          .catch(() => {
+            this.log({
+              category: "action",
+              message: `Error checking if element is a link`,
+              level: 1,
+            });
+            return false;
+          });
 
         this.log({
           category: "action",
@@ -727,8 +744,6 @@ export class Stagehand {
               });
               await newPage.close();
               await this.page.goto(newUrl);
-              await this.page.waitForLoadState("domcontentloaded");
-              await this.waitForSettledDom();
             } else {
               this.log({
                 category: "action",
@@ -736,7 +751,32 @@ export class Stagehand {
                 level: 1,
               });
             }
+          } else {
+            this.log({
+              category: "action",
+              message: `Clicking element, waiting for network to be idle`,
+              level: 1,
+            });
+
+            // In case the click causes a navigation, wait for the network to be idle
+            await this.page
+              .waitForLoadState("networkidle", {
+                timeout: 3_000,
+              })
+              .catch(() => {
+                this.log({
+                  category: "action",
+                  message: `Network idle timeout`,
+                  level: 1,
+                });
+              });
           }
+
+          this.log({
+            category: "action",
+            message: `Navigation detected to URL: ${this.page.url()}`,
+            level: 1,
+          });
         }
       } else {
         throw new Error(`stagehand: chosen method ${method} is invalid`);
@@ -756,16 +796,13 @@ export class Stagehand {
 
       let domElements: string | undefined = undefined;
       let fullpageScreenshot: Buffer | undefined = undefined;
-      await this.waitForSettledDom();
 
       if (verifierUseVision) {
         fullpageScreenshot = await screenshotService.getScreenshot(true, 15);
       } else {
-        domElements = (
-          await this.page.evaluate(() => {
-            return window.processAllOfDom();
-          })
-        ).outputString;
+        ({ outputString: domElements } = await this.page.evaluate(() => {
+          return window.processAllOfDom();
+        }));
       }
 
       const actionComplete = response.completed
@@ -834,8 +871,7 @@ export class Stagehand {
       action,
       modelName,
       useVision,
-      // verifierUseVision: useVision === true,
-      verifierUseVision: true,
+      verifierUseVision: useVision === true,
     });
   }
 
