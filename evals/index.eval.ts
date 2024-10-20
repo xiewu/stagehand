@@ -10,6 +10,36 @@ const env =
     ? "BROWSERBASE"
     : "LOCAL";
 
+const expedia = async () => {
+  const stagehand = new Stagehand({
+    env,
+    headless: false,
+    debugDom: true,
+  });
+
+  await stagehand.init();
+
+  await stagehand.page.goto("https://www.expedia.com/flights");
+
+  await stagehand.act({
+    action:
+      "find round-trip flights from San Francisco (SFO) to Toronto (YYZ) for Jan 1, 2025 (up to one to two weeks)",
+  });
+
+  await stagehand.act({ action: "Go to the first non-stop flight" });
+
+  await stagehand.act({ action: "select the cheapest flight" });
+
+  await stagehand.act({ action: "click on the first non-stop flight" });
+
+  await stagehand.act({
+    action: "Take me to the checkout page",
+  });
+
+  const url = await stagehand.page.url();
+  return url.startsWith("https://www.expedia.com/Checkout/");
+};
+
 const vanta = async () => {
   const stagehand = new Stagehand({
     env,
@@ -20,7 +50,7 @@ const vanta = async () => {
   await stagehand.page.goto("https://www.vanta.com/");
 
   const observation = await stagehand.observe(
-    "find the request demo button text",
+    "find the text for the request demo button",
   );
 
   if (!observation) {
@@ -131,29 +161,38 @@ const peeler_complex = async () => {
   });
   const { debugUrl } = await stagehand.init();
 
-  await stagehand.page.goto(`https://chefstoys.com/`);
+  try {
+    await stagehand.page.goto(`https://chefstoys.com/`);
 
-  await stagehand.act({
-    action: "search for peelers",
-  });
+    await stagehand.act({
+      action: "search for peelers",
+    });
 
-  await stagehand.act({
-    action: 'click on the first "OXO" brand peeler',
-  });
+    await stagehand.act({
+      action: 'click on the first "OXO" brand peeler',
+    });
 
-  const { price } = await stagehand.extract({
-    instruction: "get the price of the peeler",
-    schema: z.object({ price: z.number().nullable() }),
-    modelName: "gpt-4o-2024-08-06",
-  });
+    const { price } = await stagehand.extract({
+      instruction: "get the price of the peeler",
+      schema: z.object({ price: z.number().nullable() }),
+      modelName: "gpt-4o-2024-08-06",
+    });
 
-  await stagehand.context.close();
-
-  return {
-    _success: price !== null,
-    price,
-    debugUrl,
-  };
+    return {
+      _success: price !== null,
+      price,
+      debugUrl,
+    };
+  } catch (error) {
+    console.error(`Error in peeler_complex function: ${error.message}`);
+    return {
+      _success: false,
+      error: JSON.parse(JSON.stringify(error, null, 2)),
+      debugUrl,
+    };
+  } finally {
+    await stagehand.context.close();
+  }
 };
 
 const homedepot = async () => {
@@ -232,7 +271,7 @@ const homedepot = async () => {
 
 const extract_collaborators_from_github_repository = async () => {
   const stagehand = new Stagehand({
-    env: "LOCAL",
+    env,
     verbose: 1,
     headless: process.env.HEADLESS !== "false",
   });
@@ -277,7 +316,7 @@ const extract_collaborators_from_github_repository = async () => {
 
 const extract_last_twenty_github_commits = async () => {
   const stagehand = new Stagehand({
-    env: "LOCAL",
+    env,
     verbose: 1,
     headless: process.env.HEADLESS !== "false",
   });
@@ -443,68 +482,78 @@ const google_jobs = async () => {
     debugDom: true,
     headless: process.env.HEADLESS !== "false",
   });
-  const { debugUrl } = await stagehand.init({ modelName: "gpt-4o-2024-08-06" });
 
-  await stagehand.page.goto("https://www.google.com/");
+  const { debugUrl } = await stagehand.init();
 
-  await stagehand.act({ action: "click on the about page" });
+  try {
+    await stagehand.page.goto("https://www.google.com/");
 
-  await stagehand.act({ action: "click on the careers page" });
+    await stagehand.act({ action: "click on the about page" });
 
-  await stagehand.act({ action: "input data scientist into role" });
+    await stagehand.act({ action: "click on the careers page" });
 
-  await stagehand.act({ action: "input new york city into location" });
+    await stagehand.act({ action: "input data scientist into role" });
 
-  await stagehand.act({ action: "click on the search button" });
+    await stagehand.act({ action: "input new york city into location" });
 
-  // NOTE: "click on the first Learn More button" is not working - the span for learn more is not clickable and the a href is after it
-  await stagehand.act({ action: "click on the first job link" });
+    await stagehand.act({ action: "click on the search button" });
 
-  const jobDetails = await stagehand.extract({
-    instruction:
-      "Extract the following details from the job posting: application deadline, minimum qualifications (degree and years of experience), and preferred qualifications (degree and years of experience)",
-    schema: z.object({
-      applicationDeadline: z
-        .string()
-        .describe("The date until which the application window will be open"),
-      minimumQualifications: z.object({
-        degree: z.string().describe("The minimum required degree"),
-        yearsOfExperience: z
-          .number()
-          .describe("The minimum required years of experience"),
+    // NOTE: "click on the first Learn More button" is not working - the span for learn more is not clickable and the a href is after it
+    await stagehand.act({ action: "click on the first job link" });
+
+    const jobDetails = await stagehand.extract({
+      instruction:
+        "Extract the following details from the job posting: application deadline, minimum qualifications (degree and years of experience), and preferred qualifications (degree and years of experience)",
+      schema: z.object({
+        applicationDeadline: z
+          .string()
+          .describe("The date until which the application window will be open"),
+        minimumQualifications: z.object({
+          degree: z.string().describe("The minimum required degree"),
+          yearsOfExperience: z
+            .number()
+            .describe("The minimum required years of experience"),
+        }),
+        preferredQualifications: z.object({
+          degree: z.string().describe("The preferred degree"),
+          yearsOfExperience: z
+            .number()
+            .describe("The preferred years of experience"),
+        }),
       }),
-      preferredQualifications: z.object({
-        degree: z.string().describe("The preferred degree"),
-        yearsOfExperience: z
-          .number()
-          .describe("The preferred years of experience"),
-      }),
-    }),
-    modelName: "gpt-4o-2024-08-06",
-  });
+      modelName: "gpt-4o-2024-08-06",
+    });
 
-  console.log("Job Details:", jobDetails);
+    console.log("Job Details:", jobDetails);
 
-  const isJobDetailsValid =
-    jobDetails &&
-    Object.values(jobDetails).every(
-      (value) =>
-        value !== null &&
-        value !== undefined &&
-        (typeof value !== "object" ||
-          Object.values(value).every(
-            (v) =>
-              v !== null &&
-              v !== undefined &&
-              (typeof v === "number" || typeof v === "string"),
-          )),
-    );
+    const isJobDetailsValid =
+      jobDetails &&
+      Object.values(jobDetails).every(
+        (value) =>
+          value !== null &&
+          value !== undefined &&
+          (typeof value !== "object" ||
+            Object.values(value).every(
+              (v) =>
+                v !== null &&
+                v !== undefined &&
+                (typeof v === "number" || typeof v === "string"),
+            )),
+      );
 
-  await stagehand.context.close();
+    console.log("Job Details valid:", isJobDetailsValid);
 
-  console.log("Job Details valid:", isJobDetailsValid);
-
-  return { _success: isJobDetailsValid, jobDetails, debugUrl };
+    return { _success: isJobDetailsValid, jobDetails, debugUrl };
+  } catch (error) {
+    console.error(`Error in google_jobs function: ${error.message}`);
+    return {
+      _success: false,
+      debugUrl,
+      error: JSON.parse(JSON.stringify(error, null, 2)),
+    };
+  } finally {
+    await stagehand.context.close();
+  }
 };
 
 const arxiv = async () => {
@@ -640,62 +689,6 @@ const arxiv = async () => {
   }
 };
 
-const expedia = async () => {
-  const stagehand = new Stagehand({
-    // env: "BROWSERBASE",
-    env: "LOCAL",
-    headless: false,
-    debugDom: true,
-  });
-
-  const { debugUrl } = await stagehand.init();
-
-  await stagehand.page.goto("https://www.expedia.com");
-
-  await stagehand.act({
-    action:
-      "find round-trip flights from San Francisco (SFO) to Toronto (YYZ) for Jan 1, 2024 (up to one to two weeks)",
-    useVision: true,
-    modelName: "claude-3-5-sonnet-20240620",
-  });
-
-  await stagehand.context.close();
-  console.log("Found flights");
-
-  // Get the current URL
-  const finalUrl = await stagehand.page.url();
-  console.log("Final URL:", finalUrl);
-
-  // Check if the URL matches the expected format
-  const isUrlValid = (url: string) => {
-    const urlObj = new URL(url);
-    const searchParams = urlObj.searchParams;
-
-    // Check for correct airports
-    const hasCorrectAirports =
-      url.includes("SFO-San%20Francisco") &&
-      url.includes("YYZ-Pearson") &&
-      url.includes("Toronto,%20ON,%20Canada") &&
-      url.includes("San%20Francisco,%20CA,%20United%20States");
-
-    // Check for correct dates
-    const fromDate = searchParams.get("fromDate");
-    const toDate = searchParams.get("toDate");
-    const isFromDateValid = fromDate === "1/1/2025";
-    const isToDateValid =
-      toDate &&
-      new Date(toDate) >= new Date("2025-01-06") &&
-      new Date(toDate) <= new Date("2025-01-15");
-
-    return hasCorrectAirports && isFromDateValid && isToDateValid;
-  };
-
-  const urlValid = isUrlValid(finalUrl);
-  console.log("URL is valid:", urlValid);
-
-  return { _success: urlValid, finalUrl, debugUrl };
-};
-
 const tasks = {
   vanta,
   vanta_h,
@@ -760,6 +753,7 @@ const testcases = [
   { input: { name: "google_jobs" } },
   { input: { name: "homedepot" } },
   { input: { name: "arxiv" } },
+  { input: { name: "expedia" } },
   ...chosenBananalyzerEvals.map((evalItem: any) => ({
     input: {
       name: evalItem.name,
