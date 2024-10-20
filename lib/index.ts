@@ -498,6 +498,7 @@ export class Stagehand {
     modelName,
     useVision,
     verifierUseVision,
+    retries = 0,
   }: {
     action: string;
     steps?: string;
@@ -505,6 +506,7 @@ export class Stagehand {
     modelName?: string;
     useVision: boolean | "fallback";
     verifierUseVision: boolean;
+    retries?: number;
   }): Promise<{ success: boolean; message: string; action: string }> {
     const model = modelName ?? this.defaultModelName;
 
@@ -761,7 +763,7 @@ export class Stagehand {
             // In case the click causes a navigation, wait for the network to be idle
             await this.page
               .waitForLoadState("networkidle", {
-                timeout: 3_000,
+                timeout: 5_000,
               })
               .catch(() => {
                 this.log({
@@ -779,7 +781,27 @@ export class Stagehand {
           });
         }
       } else {
-        throw new Error(`stagehand: chosen method ${method} is invalid`);
+        this.log({
+          category: "action",
+          message: `Internal error: Chosen method ${method} is invalid`,
+          level: 1,
+        });
+        if (retries < 2) {
+          return this._act({
+            action,
+            steps,
+            modelName: model,
+            useVision,
+            verifierUseVision,
+            retries: retries + 1,
+          });
+        } else {
+          return {
+            success: false,
+            message: `Internal error: Chosen method ${method} is invalid`,
+            action: action,
+          };
+        }
       }
 
       let newSteps =
