@@ -549,7 +549,7 @@ async function pickChunk(chunksSeen: Array<number>, chunkPriorities?: Array<numb
 
   if (chunksRemaining.length === 0) {
     throw new Error(`no chunks remaining to check ${chunksRemaining}, `);
-  } else if (chunkPriorities.length > 0) {
+  } else if (chunkPriorities && chunkPriorities.length > 0) {
     const sortedChunks = chunksRemaining.sort((a, b) => chunkPriorities.indexOf(a) - chunkPriorities.indexOf(b));
     return {
       chunk: sortedChunks[0],

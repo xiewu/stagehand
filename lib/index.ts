@@ -155,6 +155,7 @@ export class Stagehand {
   public verbose: 0 | 1 | 2;
   public debugDom: boolean;
   public defaultModelName: string;
+  public defaultEmbeddingModel: string;
   public headless: boolean;
   private logger: (message: { category?: string; message: string }) => void;
   private pageElementMap: PageElementMap;
@@ -212,11 +213,14 @@ export class Stagehand {
     await download.delete();
   }
 
-  async init({ modelName = "gpt-4o" }: { modelName?: string } = {}) {
+  async init({ modelName = "gpt-4o", embeddingModel = "text-embedding-3-small" }: { modelName?: string, embeddingModel?: string } = {}) {
     const { context } = await getBrowser(this.env, this.headless);
     this.context = context;
     this.page = context.pages()[0];
     this.defaultModelName = modelName;
+    this.defaultEmbeddingModel = embeddingModel;
+
+    await this.setupParseSemanticDomOnLoad();
 
     // Set the browser to headless mode if specified
     if (this.headless) {
@@ -238,11 +242,12 @@ export class Stagehand {
     });
   }
 
-  async goto(url: string) {
-    await this.page.goto(url);
-    await this.waitForSettledDom();
-    this.pageElementMap = {};
-    this.computePageElementMap();
+  private async setupParseSemanticDomOnLoad() {
+    this.page.on('load', async () => {
+      console.log('Page loaded. Parsing semantic DOM...');
+      this.pageElementMap = {};
+      this.computePageElementMap();
+    });
   }
 
   getLLMClient(modelName: string): LLMClient {
@@ -344,7 +349,7 @@ export class Stagehand {
       let embedding: number[];
       if (!allOutputMap[key].embedding) {
         embedding = await llmClient.createEmbedding({
-          model: "text-embedding-3-small",
+          model: this.defaultEmbeddingModel,
           input: allOutputMap[key].string,
         }).then(res => res.data[0].embedding);
         allOutputMap[key].embedding = embedding;
@@ -391,10 +396,16 @@ export class Stagehand {
 
     const embeddingPromises = Object.entries(allOutputMap).map(async ([key, value]) => {
       const embedding = await llmClient.createEmbedding({
-        model: "text-embedding-3-small",
+        model: this.defaultEmbeddingModel,
         input: value.string,
       });
       return { key, embedding };
+    });
+
+    this.log({
+      category: "dom",
+      message: `Computing page element map with ${totalKeys} keys`,
+      level: 1,
     });
 
     const embeddings = await Promise.all(embeddingPromises);
@@ -405,9 +416,8 @@ export class Stagehand {
         chunk: allOutputMap[key].chunk,
         embedding: embedding,
       };
-
       processedKeys++;
-      const progress = (processedKeys / totalKeys) * 100;
+      // const progress = (processedKeys / totalKeys) * 100;
       // console.log(`Progress: ${progress.toFixed(2)}%`);
     });
     this.log({
@@ -417,6 +427,58 @@ export class Stagehand {
     });
   }
 
+  async generateTargetElement(instruction: string): Promise<string> {
+    const llmClient = this.getLLMClient(this.defaultModelName);
+    const schema = z.object({
+      targetElementDescription: z.string().describe("A concise phrase describing the target HTML element to look for based on the given action")
+    });
+
+    const result = await llmClient.createExtraction({
+      instruction: `Based on the following action, generate a concise phrase describing the target HTML element to look for:
+      
+      Action: ${instruction}`,
+      schema,
+      response_model: {
+        name: "targetElementDescription",
+        schema: schema
+      },
+      model: this.defaultModelName,
+      messages: [
+        {
+          role: "user",
+          content: `Based on the following action, generate a concise phrase describing the target HTML element to look for:
+      
+      Action: ${instruction}`
+        }
+      ]
+    });
+
+    return result.targetElementDescription;
+  }
+
+  async computeChunkPriorities(targetElement: string, modelName?: string) {
+    let chunkPriorities: Array<number> = [];
+
+    this.log({
+      category: "dom",
+      message: `Target element: ${targetElement}`,
+      level: 1,
+    });
+
+    if (this.pageElementMap) {
+      const llmClient = this.getLLMClient(modelName || this.defaultModelName);
+      const targetEmbedding = await llmClient.createEmbedding({
+        model: this.defaultEmbeddingModel,
+        input: targetElement,
+      });
+
+      const sortedChunks = await this.findSimilarChunks(targetEmbedding, this.pageElementMap);
+      chunkPriorities = sortedChunks.map(chunk => chunk.chunk);
+      console.log("chunkPriorities", chunkPriorities);
+    }
+
+    return chunkPriorities;
+  }
 
   async extract<T extends z.AnyZodObject>({
     instruction,
@@ -439,19 +501,8 @@ export class Stagehand {
       level: 1,
     });
 
-    let chunkPriorities: Array<number> = [];
-
-    if (this.pageElementMap) {
-      const llmClient = this.getLLMClient(modelName || this.defaultModelName);
-      const targetEmbedding = await llmClient.createEmbedding({
-        model: "text-embedding-3-small",
-        input: instruction,
-      });
-
-      const sortedChunks = await this.findSimilarChunks(targetEmbedding, this.pageElementMap);
-      chunkPriorities = sortedChunks.map(chunk => chunk.chunk);
-      // console.log("chunkPriorities", chunkPriorities);
-    }
+    // const chunkPriorities = await this.computeChunkPriorities(instruction, modelName);
+    const chunkPriorities: Array<number> = [];
 
     await this.waitForSettledDom();
     await this.startDomDebug();
@@ -459,9 +510,9 @@ export class Stagehand {
       (args: { chunksSeen: number[], chunkPriorities?: number[] }) => window.processDom(args.chunksSeen, args.chunkPriorities),
       { chunksSeen, chunkPriorities }
     );
-    // console.log("chosen chunk", chunk);
-    // console.log("chunksSeen", chunksSeen);
-    // console.log("all chunks", chunks);
+    console.log("chosen chunk", chunk);
+    console.log("chunksSeen", chunksSeen);
+    console.log("all chunks", chunks);
 
     this.log({
       category: "extraction",
@@ -579,6 +630,7 @@ export class Stagehand {
 
     return observationId;
   }
+
   async ask(question: string, modelName?: string): Promise<string | null> {
     return ask({
       question,
@@ -640,11 +692,18 @@ export class Stagehand {
 
     await this.startDomDebug();
 
-    const { outputString, selectorMap, chunk, chunks } =
-      await this.page.evaluate((chunksSeen) => {
-        return window.processDom(chunksSeen);
-      }, chunksSeen);
+    const targetElement = await this.generateTargetElement(action);
+    const chunkPriorities = await this.computeChunkPriorities(targetElement, modelName);
 
+    const { outputString, selectorMap, chunk, chunks } =
+      await this.page.evaluate((args: { chunksSeen: number[], chunkPriorities?: number[] }) => {
+        return window.processDom(args.chunksSeen, args.chunkPriorities);
+      }, { chunksSeen, chunkPriorities });
+
+    console.log("chosen chunk", chunk);
+    console.log("chunksSeen", chunksSeen);
+    console.log("all chunks", chunks);
+  
     // New code to add bounding boxes and element numbers
     let annotatedScreenshot: Buffer | undefined = undefined;
     if (useVision === true) {
