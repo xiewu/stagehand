@@ -190,6 +190,27 @@ export class AnthropicClient implements LLMClient {
       (msg) => msg.role !== "system",
     );
 
+    // Add image support
+    if (options.image) {
+      const imageMessage: any = {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: "image/jpeg",
+              data: options.image.buffer.toString("base64"),
+            },
+          },
+          ...(options.image.description
+            ? [{ type: "text", text: options.image.description }]
+            : []),
+        ],
+      };
+      userMessages.push(imageMessage);
+    }
+
     const response = await this.client.messages.create({
       model: options.model || "claude-3-opus-20240229",
       max_tokens: options.max_tokens || 1000,
@@ -199,7 +220,7 @@ export class AnthropicClient implements LLMClient {
       })),
       system:
         systemMessage?.content ||
-        "You are an AI assistant capable of extracting structured data from text.",
+        "You are an AI assistant capable of extracting structured data from text and images.",
       temperature: options.temperature || 0.1,
       tools: [toolDefinition],
     });

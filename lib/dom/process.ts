@@ -21,11 +21,15 @@ export async function processAllOfDom() {
   const documentHeight = document.documentElement.scrollHeight;
   const totalChunks = Math.ceil(documentHeight / viewportHeight);
 
-  const chunkPromises = Array.from({ length: totalChunks }, (_, chunk) =>
-    processElements(chunk, false),
-  );
+  let index = 0;
+  const results = [];
+  for (let chunk = 0; chunk < totalChunks; chunk++) {
+    const result = await processElements(chunk, index);
+    results.push(result);
+    index += Object.keys(result.selectorMap).length;
+  }
 
-  const results = await Promise.all(chunkPromises);
+  await scrollToHeight(0);
 
   const allOutputString = results.map((result) => result.outputString).join("");
   const allSelectorMap = results.reduce(
@@ -61,7 +65,7 @@ export async function scrollToHeight(height: number) {
 
 export async function processElements(
   chunk: number,
-  scrollToChunk: boolean = true,
+  indexOffset: number = 0,
 ) {
   const viewportHeight = window.innerHeight;
   const chunkHeight = viewportHeight * chunk;
@@ -73,9 +77,7 @@ export async function processElements(
   // Adjust the offsetTop to not exceed the maximum scrollable offset
   const offsetTop = Math.min(chunkHeight, maxScrollTop);
 
-  if (scrollToChunk) {
   await scrollToHeight(offsetTop);
-  }
 
   const candidateElements: Array<ChildNode> = [];
   const xpathCache: Map<Node, string> = new Map();
@@ -119,7 +121,7 @@ export async function processElements(
     if (isTextNode(element)) {
       const textContent = element.textContent?.trim();
       if (textContent) {
-        outputArray.push(`${index}:${textContent}`);
+        outputArray.push(`${index + indexOffset}:${textContent}`);
       }
     } else if (isElementNode(element)) {
       const tagName = element.tagName.toLowerCase();
@@ -129,10 +131,10 @@ export async function processElements(
       const closingTag = `</${tagName}>`;
       const textContent = element.textContent?.trim() || "";
 
-      outputArray.push(`${index}:${openingTag}${textContent}${closingTag}`);
+      outputArray.push(`${index + indexOffset}:${openingTag}${textContent}${closingTag}`);
     }
 
-    selectorMap[index] = xpath;
+    selectorMap[index + indexOffset] = xpath;
   });
 
   const outputString = outputArray.join("\n");
