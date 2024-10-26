@@ -286,28 +286,54 @@ export function isTextNode(node: Node): node is Text {
  * - opacity
  * If the element is a child of a previously hidden element, it should not be included, so we don't consider downstream effects of a parent element here
  */
+// export const isVisible = (element: Element) => {
+//   const rect = element.getBoundingClientRect();
+//   // this number is relative to scroll, so we shouldn't be using an absolute offset, we can use the viewport height
+//   if (
+//     rect.width === 0 ||
+//     rect.height === 0 ||
+//     // we take elements by their starting top. so if you start before our offset, or after our offset, you don't count!
+//     rect.top < 0 ||
+//     rect.top > window.innerHeight
+//   ) {
+//     return false;
+//   }
+//   if (!isTopElement(element, rect)) {
+//     return false;
+//   }
+
+//   const isVisible = element.checkVisibility({
+//     checkOpacity: true,
+//     checkVisibilityCSS: true,
+//   });
+
+//   return isVisible;
+// };
+
 export const isVisible = (element: Element) => {
   const rect = element.getBoundingClientRect();
-  // this number is relative to scroll, so we shouldn't be using an absolute offset, we can use the viewport height
+
+  // Remove checks for rect.top and window.innerHeight
+  if (rect.width === 0 || rect.height === 0) {
+    return false;
+  }
+
+  // Check if the element or any of its parents are hidden
   if (
-    rect.width === 0 ||
-    rect.height === 0 ||
-    // we take elements by their starting top. so if you start before our offset, or after our offset, you don't count!
-    rect.top < 0 ||
-    rect.top > window.innerHeight
+    element.offsetParent === null ||
+    getComputedStyle(element).visibility === 'hidden' ||
+    getComputedStyle(element).display === 'none'
   ) {
     return false;
   }
-  if (!isTopElement(element, rect)) {
+
+  // Optional: Check for opacity
+  const opacity = parseFloat(getComputedStyle(element).opacity);
+  if (opacity === 0) {
     return false;
   }
 
-  const isVisible = element.checkVisibility({
-    checkOpacity: true,
-    checkVisibilityCSS: true,
-  });
-
-  return isVisible;
+  return true;
 };
 
 export const isTextVisible = (element: ChildNode) => {
