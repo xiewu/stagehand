@@ -21,7 +21,9 @@ export class StagehandActHandler {
     message: string;
     level: 0 | 1 | 2;
   }) => void;
-  private readonly waitForSettledDom: () => Promise<void>;
+  private readonly waitForSettledDom: (
+    domSettleTimeoutMs?: number,
+  ) => Promise<void>;
   private readonly actionCache: ActionCache;
   private readonly defaultModelName: AvailableModel;
   private readonly startDomDebug: () => Promise<void>;
@@ -48,7 +50,7 @@ export class StagehandActHandler {
       message: string;
       level: 0 | 1 | 2;
     }) => void;
-    waitForSettledDom: () => Promise<void>;
+    waitForSettledDom: (domSettleTimeoutMs?: number) => Promise<void>;
     defaultModelName: AvailableModel;
     startDomDebug: () => Promise<void>;
     cleanupDomDebug: () => Promise<void>;
@@ -81,6 +83,7 @@ export class StagehandActHandler {
     action,
     steps,
     model,
+    domSettleTimeoutMs,
   }: {
     completed: boolean;
     verifierUseVision: boolean;
@@ -88,8 +91,9 @@ export class StagehandActHandler {
     action: string;
     steps: string;
     model: AvailableModel;
+    domSettleTimeoutMs?: number;
   }): Promise<boolean> {
-    await this.waitForSettledDom();
+    await this.waitForSettledDom(domSettleTimeoutMs);
 
     const { selectorMap } = await this.stagehand.page.evaluate(() => {
       return window.processAllOfDom();
@@ -164,6 +168,7 @@ export class StagehandActHandler {
     method: string,
     args: string[],
     xpath: string,
+    domSettleTimeoutMs?: number,
   ) {
     const locator = this.stagehand.page.locator(`xpath=${xpath}`).first();
     const initialUrl = this.stagehand.page.url();
@@ -283,11 +288,11 @@ export class StagehandActHandler {
           await newOpenedTab.close();
           await this.stagehand.page.goto(newOpenedTab.url());
           await this.stagehand.page.waitForLoadState("domcontentloaded");
-          await this.waitForSettledDom();
+          await this.waitForSettledDom(domSettleTimeoutMs);
         }
 
         // Wait for the network to be idle with timeout of 5s (will only wait if loading a new page)
-        // await this.waitForSettledDom();
+        // await this.waitForSettledDom(domSettleTimeoutMs);
         await Promise.race([
           this.stagehand.page.waitForLoadState("networkidle"),
           new Promise((resolve) => setTimeout(resolve, 5_000)),
@@ -325,7 +330,7 @@ export class StagehandActHandler {
       );
     }
 
-    await this.waitForSettledDom();
+    await this.waitForSettledDom(domSettleTimeoutMs);
   }
 
   private async _getComponentString(locator: Locator) {
@@ -518,6 +523,7 @@ export class StagehandActHandler {
     retries,
     variables,
     model,
+    domSettleTimeoutMs,
   }: {
     action: string;
     previousSelectors: string[];
@@ -530,6 +536,7 @@ export class StagehandActHandler {
     retries: number;
     variables: Record<string, string>;
     model: AvailableModel;
+    domSettleTimeoutMs?: number;
   }) {
     const cacheObj = {
       url: this.stagehand.page.url(),
@@ -604,6 +611,7 @@ export class StagehandActHandler {
         cachedStep.playwrightCommand.method,
         cachedStep.playwrightCommand.args,
         validXpath,
+        domSettleTimeoutMs,
       );
 
       steps = steps + cachedStep.newStepString;
@@ -624,6 +632,7 @@ export class StagehandActHandler {
           steps,
           requestId,
           action,
+          domSettleTimeoutMs,
         });
 
         this.logger({
@@ -653,6 +662,7 @@ export class StagehandActHandler {
         variables,
         previousSelectors: [...previousSelectors, cachedStep.xpaths[0]],
         skipActionCacheForThisStep: false,
+        domSettleTimeoutMs,
       });
     } catch (exception) {
       this.logger({
@@ -678,6 +688,7 @@ export class StagehandActHandler {
     variables,
     previousSelectors,
     skipActionCacheForThisStep = false,
+    domSettleTimeoutMs,
   }: {
     action: string;
     steps?: string;
@@ -690,9 +701,10 @@ export class StagehandActHandler {
     variables: Record<string, string>;
     previousSelectors: string[];
     skipActionCacheForThisStep: boolean;
+    domSettleTimeoutMs?: number;
   }): Promise<{ success: boolean; message: string; action: string }> {
     try {
-      await this.waitForSettledDom();
+      await this.waitForSettledDom(domSettleTimeoutMs);
 
       await this.startDomDebug();
 
@@ -711,6 +723,7 @@ export class StagehandActHandler {
           retries,
           variables,
           model,
+          domSettleTimeoutMs,
         });
 
         if (response !== null) {
@@ -728,6 +741,7 @@ export class StagehandActHandler {
             variables,
             previousSelectors,
             skipActionCacheForThisStep: true,
+            domSettleTimeoutMs,
           });
         }
       }
@@ -839,6 +853,7 @@ export class StagehandActHandler {
             variables,
             previousSelectors,
             skipActionCacheForThisStep,
+            domSettleTimeoutMs,
           });
         } else if (useVision === "fallback") {
           this.logger({
@@ -858,6 +873,7 @@ export class StagehandActHandler {
             variables,
             previousSelectors,
             skipActionCacheForThisStep,
+            domSettleTimeoutMs,
           });
         } else {
           if (this.enableCaching) {
@@ -909,7 +925,12 @@ export class StagehandActHandler {
             }
           });
         }
-        await this._performPlaywrightMethod(method, args, xpaths[0]);
+        await this._performPlaywrightMethod(
+          method,
+          args,
+          xpaths[0],
+          domSettleTimeoutMs,
+        );
 
         const newStepString =
           (!steps.endsWith("\n") ? "\n" : "") +
@@ -956,6 +977,7 @@ export class StagehandActHandler {
           action,
           steps,
           model,
+          domSettleTimeoutMs,
         });
 
         if (!actionCompleted) {
@@ -976,6 +998,7 @@ export class StagehandActHandler {
             variables,
             previousSelectors: [...previousSelectors, xpaths[0]],
             skipActionCacheForThisStep: false,
+            domSettleTimeoutMs,
           });
         } else {
           this.logger({
@@ -1010,6 +1033,7 @@ export class StagehandActHandler {
             variables,
             previousSelectors,
             skipActionCacheForThisStep,
+            domSettleTimeoutMs,
           });
         }
 
