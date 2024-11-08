@@ -705,6 +705,7 @@ export class Stagehand {
     verifierUseVision,
     retries = 0,
     requestId,
+    variables,
   }: {
     action: string;
     steps?: string;
@@ -714,6 +715,7 @@ export class Stagehand {
     verifierUseVision: boolean;
     retries?: number;
     requestId?: string;
+    variables: Record<string, string>;
   }): Promise<{ success: boolean; message: string; action: string }> {
     const model = modelName ?? this.defaultModelName;
 
@@ -793,6 +795,7 @@ export class Stagehand {
       screenshot: annotatedScreenshot,
       logger: this.logger,
       requestId,
+      variables,
     });
 
     this.log({
@@ -824,6 +827,7 @@ export class Stagehand {
           useVision,
           verifierUseVision,
           requestId,
+          variables,
         });
       } else if (useVision === "fallback") {
         this.log({
@@ -840,6 +844,7 @@ export class Stagehand {
           useVision: true,
           verifierUseVision,
           requestId,
+          variables,
         });
       } else {
         if (this.enableCaching) {
@@ -915,6 +920,7 @@ export class Stagehand {
               retries: retries + 1,
               chunksSeen,
               requestId,
+              variables,
             });
           }
         }
@@ -945,6 +951,7 @@ export class Stagehand {
               retries: retries + 1,
               chunksSeen,
               requestId,
+              variables,
             });
           }
         }
@@ -969,6 +976,7 @@ export class Stagehand {
               retries: retries + 1,
               chunksSeen,
               requestId,
+              variables,
             });
           }
         }
@@ -1005,6 +1013,7 @@ export class Stagehand {
               retries: retries + 1,
               chunksSeen,
               requestId,
+              variables,
             });
           }
         }
@@ -1088,6 +1097,7 @@ export class Stagehand {
             retries: retries + 1,
             chunksSeen,
             requestId,
+            variables,
           });
         } else {
           if (this.enableCaching) {
@@ -1194,6 +1204,7 @@ export class Stagehand {
           useVision,
           verifierUseVision,
           requestId,
+          variables,
         });
       } else {
         this.log({
@@ -1224,6 +1235,7 @@ export class Stagehand {
           retries: retries + 1,
           chunksSeen,
           requestId,
+          variables,
         });
       }
 
@@ -1244,10 +1256,12 @@ export class Stagehand {
     action,
     modelName,
     useVision = "fallback",
+    variables = {},
   }: {
     action: string;
     modelName?: AvailableModel;
     useVision?: "fallback" | boolean;
+    variables?: Record<string, string>;
   }): Promise<{
     success: boolean;
     message: string;
@@ -1269,6 +1283,7 @@ export class Stagehand {
       useVision,
       verifierUseVision: useVision !== false,
       requestId,
+      variables,
     }).catch((e) => {
       this.logger({
         category: "act",
