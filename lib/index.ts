@@ -293,8 +293,9 @@ export class Stagehand {
       llmProvider || new LLMProvider(this.logger, this.enableCaching);
     this.env = env;
     this.observations = {};
-    this.apiKey = apiKey || process.env.BROWSERBASE_API_KEY;
-    this.projectId = projectId || process.env.BROWSERBASE_PROJECT_ID;
+    this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
+    this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
+    this.actions = {};
     this.verbose = verbose ?? 0;
     this.debugDom = debugDom ?? false;
     this.defaultModelName = "gpt-4o";
@@ -325,7 +326,6 @@ export class Stagehand {
     debugUrl: string;
     sessionUrl: string;
   }> {
-    console.log("haha fucker");
     const { context, debugUrl, sessionUrl } = await getBrowser(
       this.apiKey,
       this.projectId,
