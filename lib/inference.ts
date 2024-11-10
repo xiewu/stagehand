@@ -153,13 +153,6 @@ export async function act({
       return null;
     }
 
-    if (variables) {
-      toolCalls[0].function.arguments = fillInVariables(
-        toolCalls[0].function.arguments,
-        variables,
-      );
-    }
-
     return JSON.parse(toolCalls[0].function.arguments);
   } else {
     if (retries >= 2) {
