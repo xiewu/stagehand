@@ -325,6 +325,7 @@ export class Stagehand {
     debugUrl: string;
     sessionUrl: string;
   }> {
+    console.log("haha fucker");
     const { context, debugUrl, sessionUrl } = await getBrowser(
       this.apiKey,
       this.projectId,
@@ -339,6 +340,9 @@ export class Stagehand {
     });
     this.context = context;
     this.page = context.pages()[0];
+    // Redundant but needed for users who are re-connecting to a previously-created session
+    await this.page.waitForLoadState("domcontentloaded");
+    await this._waitForSettledDom();
     this.defaultModelName = modelName;
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? this.domSettleTimeoutMs;
 
@@ -358,16 +362,25 @@ export class Stagehand {
 
     // This can be greatly improved, but the tldr is we put our built web scripts in dist, which should always
     // be one level above our running directly across evals, example, and as a package
-    await this.page.addInitScript({
-      path: path.join(__dirname, "..", "dist", "dom", "build", "process.js"),
+    await this.context.addInitScript({
+      content: fs.readFileSync(
+        path.join(__dirname, "..", "dist", "dom", "build", "process.js"),
+        "utf8",
+      ),
     });
 
-    await this.page.addInitScript({
-      path: path.join(__dirname, "..", "dist", "dom", "build", "utils.js"),
+    await this.context.addInitScript({
+      content: fs.readFileSync(
+        path.join(__dirname, "..", "dist", "dom", "build", "utils.js"),
+        "utf8",
+      ),
     });
 
-    await this.page.addInitScript({
-      path: path.join(__dirname, "..", "dist", "dom", "build", "debug.js"),
+    await this.context.addInitScript({
+      content: fs.readFileSync(
+        path.join(__dirname, "..", "dist", "dom", "build", "debug.js"),
+        "utf8",
+      ),
     });
 
     return { debugUrl, sessionUrl };
