@@ -75,24 +75,28 @@ export class StagehandActHandler {
   }
 
   private async _verifyActionCompletion({
-    response,
+    completed,
     verifierUseVision,
-    selectorMap,
     requestId,
     action,
     steps,
     model,
   }: {
-    response: any;
+    completed: boolean;
     verifierUseVision: boolean;
-    selectorMap: Record<string, string>;
     requestId: string;
     action: string;
     steps: string;
     model: AvailableModel;
-  }) {
+  }): Promise<boolean> {
+    await this.waitForSettledDom();
+
+    const { selectorMap } = await this.stagehand.page.evaluate(() => {
+      return window.processAllOfDom();
+    });
+
     let actionCompleted = false;
-    if (response.completed) {
+    if (completed) {
       // Run action completion verifier
       this.stagehand.log({
         category: "action",
@@ -412,7 +416,7 @@ export class StagehandActHandler {
     }
   }
 
-  private async _checkIfCachedStepIsValid(cachedStep: {
+  private async _checkIfCachedStepIsValid_oneXpath(cachedStep: {
     xpath: string;
     savedComponentString: string;
   }) {
@@ -484,6 +488,24 @@ export class StagehandActHandler {
     }
   }
 
+  private async _getValidCachedStepXpath(cachedStep: {
+    xpaths: string[];
+    savedComponentString: string;
+  }) {
+    const reversedXpaths = [...cachedStep.xpaths].reverse(); // We reverse the xpaths to try the most specific ones first
+    for (const xpath of reversedXpaths) {
+      const isValid = await this._checkIfCachedStepIsValid_oneXpath({
+        xpath,
+        savedComponentString: cachedStep.savedComponentString,
+      });
+
+      if (isValid) {
+        return xpath;
+      }
+    }
+    return null;
+  }
+
   private async _runCachedActionIfAvailable({
     action,
     previousSelectors,
@@ -542,18 +564,18 @@ export class StagehandActHandler {
     });
 
     try {
-      const isCacheStepValid = await this._checkIfCachedStepIsValid({
-        xpath: cachedStep.xpath,
+      const validXpath = await this._getValidCachedStepXpath({
+        xpaths: cachedStep.xpaths,
         savedComponentString: cachedStep.componentString,
       });
 
       this.logger({
         category: "action",
-        message: `Cached action step is valid: ${isCacheStepValid}`,
+        message: `Cached action step is valid: ${validXpath !== null}`,
         level: 1,
       });
 
-      if (!isCacheStepValid) {
+      if (!validXpath) {
         this.logger({
           category: "action",
           message: `Cached action step is invalid, removing...`,
@@ -581,7 +603,7 @@ export class StagehandActHandler {
       await this._performPlaywrightMethod(
         cachedStep.playwrightCommand.method,
         cachedStep.playwrightCommand.args,
-        cachedStep.xpath,
+        validXpath,
       );
 
       steps = steps + cachedStep.newStepString;
@@ -595,15 +617,13 @@ export class StagehandActHandler {
 
       if (cachedStep.completed) {
         // Verify the action was completed successfully
-        let actionCompleted = await verifyActCompletion({
-          goal: action,
+        let actionCompleted = await this._verifyActionCompletion({
+          completed: true,
+          verifierUseVision,
+          model,
           steps,
-          llmProvider: this.llmProvider,
-          modelName: model,
-          screenshot: null,
-          domElements: outputString,
-          logger: this.logger,
           requestId,
+          action,
         });
 
         this.logger({
@@ -631,7 +651,7 @@ export class StagehandActHandler {
         retries,
         requestId,
         variables,
-        previousSelectors: [...previousSelectors, cachedStep.xpath],
+        previousSelectors: [...previousSelectors, cachedStep.xpaths[0]],
         skipActionCacheForThisStep: false,
       });
     } catch (exception) {
@@ -855,7 +875,7 @@ export class StagehandActHandler {
 
       // Action found, proceed to execute
       const elementId = response["element"];
-      const xpath = selectorMap[elementId];
+      const xpaths = selectorMap[elementId];
       const method = response["method"];
       const args = response["args"];
 
@@ -868,15 +888,17 @@ export class StagehandActHandler {
 
       this.logger({
         category: "action",
-        message: `Executing method: ${method} on element: ${elementId} (xpath: ${xpath}) with args: ${JSON.stringify(
-          args,
-        )}`,
+        message: `Executing method: ${method} on element: ${elementId} (xpaths: ${xpaths.join(
+          ", ",
+        )}) with args: ${JSON.stringify(args)}`,
         level: 1,
       });
 
       try {
         const initialUrl = this.stagehand.page.url();
-        const locator = this.stagehand.page.locator(`xpath=${xpath}`).first();
+        const locator = this.stagehand.page
+          .locator(`xpath=${xpaths[0]}`)
+          .first();
         const originalUrl = this.stagehand.page.url();
         const componentString = await this._getComponentString(locator);
         const responseArgs = [...args];
@@ -887,7 +909,7 @@ export class StagehandActHandler {
             }
           });
         }
-        await this._performPlaywrightMethod(method, args, xpath);
+        await this._performPlaywrightMethod(method, args, xpaths[0]);
 
         const newStepString =
           (!steps.endsWith("\n") ? "\n" : "") +
@@ -910,7 +932,7 @@ export class StagehandActHandler {
               },
               componentString,
               requestId,
-              xpath,
+              xpaths: xpaths,
               newStepString,
               completed: response.completed,
             })
@@ -928,9 +950,8 @@ export class StagehandActHandler {
         }
 
         const actionCompleted = await this._verifyActionCompletion({
-          response,
+          completed: response.completed,
           verifierUseVision,
-          selectorMap,
           requestId,
           action,
           steps,
@@ -953,7 +974,7 @@ export class StagehandActHandler {
             verifierUseVision,
             requestId,
             variables,
-            previousSelectors: [...previousSelectors, xpath],
+            previousSelectors: [...previousSelectors, xpaths[0]],
             skipActionCacheForThisStep: false,
           });
         } else {

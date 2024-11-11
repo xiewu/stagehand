@@ -19,7 +19,7 @@ type NumberPosition = {
 
 export class ScreenshotService {
   private page: Page;
-  private selectorMap: Record<number, string>;
+  private selectorMap: Record<number, string[]>;
   private annotationBoxes: AnnotationBox[] = [];
   private numberPositions: NumberPosition[] = [];
   private isDebugEnabled: boolean;
@@ -27,7 +27,7 @@ export class ScreenshotService {
 
   constructor(
     page: Page,
-    selectorMap: Record<number, string>,
+    selectorMap: Record<number, string[]>,
     verbose: 0 | 1 | 2,
     isDebugEnabled: boolean = false,
   ) {
@@ -104,8 +104,8 @@ export class ScreenshotService {
     // });
 
     const svgAnnotations = await Promise.all(
-      Object.entries(this.selectorMap).map(async ([id, selector]) =>
-        this.createElementAnnotation(id, selector),
+      Object.entries(this.selectorMap).map(async ([id, selectors]) =>
+        this.createElementAnnotation(id, selectors),
       ),
     );
 
@@ -135,19 +135,25 @@ export class ScreenshotService {
 
   private async createElementAnnotation(
     id: string,
-    selector: string,
+    selectors: string[],
   ): Promise<string> {
     try {
-      const element = await this.page.locator(`xpath=${selector}`).first();
-      const box = await element.boundingBox();
+      let element = null;
+      let box = null;
+
+      // Try each selector until one works
+      for (const selector of selectors) {
+        try {
+          element = await this.page.locator(`xpath=${selector}`).first();
+          box = await element.boundingBox({ timeout: 1000 });
+          if (box) break;
+        } catch (e) {
+          continue;
+        }
+      }
 
       if (!box) {
-        this.log({
-          category: "Debug",
-          message: `No bounding box for element ${id}`,
-          level: 2,
-        });
-        return "";
+        throw new Error(`No bounding box found for element ${id}`);
       }
 
       const scrollPosition = await this.page.evaluate(() => ({
@@ -181,7 +187,7 @@ export class ScreenshotService {
     } catch (error) {
       this.log({
         category: "Error",
-        message: `Failed to create annotation for element ${id}: ${error}`,
+        message: `Failed to create annotation for element ${id}: ${error}, trace: ${error.stack}`,
         level: 0,
       });
       return "";

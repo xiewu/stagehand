@@ -326,6 +326,10 @@ export class Stagehand {
 
     // Add initialization scripts
     await this.page.addInitScript({
+      path: path.join(__dirname, "..", "dist", "dom", "build", "xpathUtils.js"),
+    });
+
+    await this.page.addInitScript({
       path: path.join(__dirname, "..", "dist", "dom", "build", "process.js"),
     });
 
@@ -677,7 +681,7 @@ export class Stagehand {
 
         return {
           ...rest,
-          selector: `xpath=${selectorMap[elementId]}`,
+          selector: `xpath=${selectorMap[elementId][0]}`,
         };
       },
     );

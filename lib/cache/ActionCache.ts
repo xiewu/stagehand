@@ -9,7 +9,7 @@ export interface ActionEntry extends CacheEntry {
   data: {
     playwrightCommand: PlaywrightCommand;
     componentString: string;
-    xpath: string;
+    xpaths: string[];
     newStepString: string;
     completed: boolean;
     previousSelectors: string[];
@@ -39,7 +39,7 @@ export class ActionCache extends BaseCache<ActionEntry> {
     previousSelectors,
     playwrightCommand,
     componentString,
-    xpath,
+    xpaths,
     newStepString,
     completed,
     requestId,
@@ -50,7 +50,7 @@ export class ActionCache extends BaseCache<ActionEntry> {
     playwrightCommand: PlaywrightCommand;
     componentString: string;
     requestId: string;
-    xpath: string;
+    xpaths: string[];
     newStepString: string;
     completed: boolean;
   }): Promise<void> {
@@ -65,7 +65,7 @@ export class ActionCache extends BaseCache<ActionEntry> {
       {
         playwrightCommand,
         componentString,
-        xpath,
+        xpaths,
         newStepString,
         completed,
         previousSelectors,
