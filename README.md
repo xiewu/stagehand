@@ -33,7 +33,8 @@
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
 
-> [!NOTE] > `Stagehand` is currently available as an early release, and we're actively seeking feedback from the community. Please join our [Slack community](https://join.slack.com/t/stagehand-dev/shared_invite/zt-2tdncfgkk-fF8y5U0uJzR2y2_M9c9OJA) to stay updated on the latest developments and provide feedback.
+> [!NOTE]
+> `Stagehand` is currently available as an early release, and we're actively seeking feedback from the community. Please join our [Slack community](https://join.slack.com/t/stagehand-dev/shared_invite/zt-2tdncfgkk-fF8y5U0uJzR2y2_M9c9OJA) to stay updated on the latest developments and provide feedback.
 
 ## Intro
 
@@ -136,7 +137,7 @@ This constructor is used to create an instance of Stagehand.
     - `1`: SDK-level logging
     - `2`: LLM-client level logging (most granular)
   - `debugDom`: a `boolean` that draws bounding boxes around elements presented to the LLM during automation.
-  - `domSettleTimeoutMs`: an `integer` that specifies the timeout in milliseconds for waiting for the DOM to settle. Defaults to 30000 (30 seconds).
+  - `domSettleTimeoutMs`: an `integer` that specifies the timeout in milliseconds for waiting for the DOM to settle. It can be overriden in individual function calls if needed. Defaults to 30000 (30 seconds).
   - `enableCaching`: a `boolean` that enables caching of LLM responses. When set to `true`, the LLM requests will be cached on disk and reused for identical requests. Defaults to `false`.
 
 - **Returns:**
@@ -178,6 +179,7 @@ This constructor is used to create an instance of Stagehand.
   - `action`: a `string` describing the action to perform, e.g., `"search for 'x'"`.
   - `modelName`: (optional) an `AvailableModel` string to specify the model to use.
   - `useVision`: (optional) a `boolean` or `"fallback"` to determine if vision-based processing should be used. Defaults to `"fallback"`.
+  - `domSettleTimeoutMs`: (optional) an `integer` that specifies the timeout in milliseconds for waiting for the DOM to settle. If not set, defaults to the timeout value specified during initialization.
 
 - **Returns:**
 
@@ -200,6 +202,7 @@ This constructor is used to create an instance of Stagehand.
   - `instruction`: a `string` providing instructions for extraction.
   - `schema`: a `z.AnyZodObject` defining the structure of the data to extract.
   - `modelName`: (optional) an `AvailableModel` string to specify the model to use.
+  - `domSettleTimeoutMs`: (optional) an `integer` that specifies the timeout in milliseconds for waiting for the DOM to settle. If not set, defaults to the timeout value specified during initialization.
 
 - **Returns:**
 
@@ -217,7 +220,8 @@ This constructor is used to create an instance of Stagehand.
 
 #### `observe()`
 
-> [!NOTE] > `observe()` currently only evaluates the first chunk in the page.
+> [!NOTE]
+> `observe()` currently only evaluates the first chunk in the page.
 
 `observe()` is used to get a list of actions that can be taken on the current page. It's useful for adding context to your planning step, or if you unsure of what page you're on.
 
@@ -227,6 +231,7 @@ If you are looking for a specific element, you can also pass in an instruction t
 
   - `instruction`: a `string` providing instructions for the observation.
   - `useVision`: (optional) a `boolean` or `"fallback"` to determine if vision-based processing should be used. Defaults to `"fallback"`.
+  - `domSettleTimeoutMs`: (optional) an `integer` that specifies the timeout in milliseconds for waiting for the DOM to settle. If not set, defaults to the timeout value specified during initialization.
 
 - **Returns:**
 
