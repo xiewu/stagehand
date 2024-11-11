@@ -112,7 +112,7 @@ const vanta = async () => {
   for (const observation of observations) {
     try {
       const observationResult = await stagehand.page
-        .locator(observation.selector[0])
+        .locator(observation.selector)
         .first()
         .innerHTML();
 
