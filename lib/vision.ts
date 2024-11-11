@@ -139,21 +139,25 @@ export class ScreenshotService {
   ): Promise<string> {
     try {
       let element = null;
-      let box = null;
 
       // Try each selector until one works
-      for (const selector of selectors) {
-        try {
-          element = await this.page.locator(`xpath=${selector}`).first();
-          box = await element.boundingBox({ timeout: 1000 });
-          if (box) break;
-        } catch (e) {
-          continue;
-        }
-      }
+      const selectorPromises: Promise<any | null>[] = selectors.map(
+        async (selector) => {
+          try {
+            element = await this.page.locator(`xpath=${selector}`).first();
+            const box = await element.boundingBox({ timeout: 5_000 });
+            return box;
+          } catch (e) {
+            return null;
+          }
+        },
+      );
+
+      const boxes = await Promise.all(selectorPromises);
+      const box = boxes.find((b) => b !== null);
 
       if (!box) {
-        throw new Error(`No bounding box found for element ${id}`);
+        throw new Error(`Unable to create annotation for element ${id}`);
       }
 
       const scrollPosition = await this.page.evaluate(() => ({
@@ -186,8 +190,8 @@ export class ScreenshotService {
       `;
     } catch (error) {
       this.log({
-        category: "Error",
-        message: `Failed to create annotation for element ${id}: ${error}, trace: ${error.stack}`,
+        category: "Vision",
+        message: `Warning: Failed to create annotation for element ${id}: ${error}, trace: ${error.stack}`,
         level: 0,
       });
       return "";
