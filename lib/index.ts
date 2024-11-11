@@ -317,7 +317,11 @@ export class Stagehand {
 
   async init({
     modelName = "gpt-4o",
-  }: { modelName?: AvailableModel } = {}): Promise<{
+    domSettleTimeoutMs,
+  }: {
+    modelName?: AvailableModel;
+    domSettleTimeoutMs?: number;
+  } = {}): Promise<{
     debugUrl: string;
     sessionUrl: string;
   }> {
@@ -336,6 +340,7 @@ export class Stagehand {
     this.context = context;
     this.page = context.pages()[0];
     this.defaultModelName = modelName;
+    this.domSettleTimeoutMs = domSettleTimeoutMs ?? this.domSettleTimeoutMs;
 
     // Overload the page.goto method
     const originalGoto = this.page.goto.bind(this.page);
