@@ -1,15 +1,15 @@
-import { Stagehand } from "./index";
-import { AvailableModel, LLMProvider } from "./llm/LLMProvider";
-import { ScreenshotService } from "./vision";
-import { verifyActCompletion, act, fillInVariables } from "./inference";
+import { Stagehand } from "../index";
+import { AvailableModel, LLMProvider } from "../llm/LLMProvider";
+import { ScreenshotService } from "../vision";
+import { verifyActCompletion, act, fillInVariables } from "../inference";
 import {
   PlaywrightCommandException,
   PlaywrightCommandMethodNotSupportedException,
-} from "./types";
+} from "../types";
 import { Locator, Page } from "@playwright/test";
-import { ActionCache } from "./cache/ActionCache";
-import { modelsWithVision } from "./llm/LLMClient";
-import { generateId } from "./utils";
+import { ActionCache } from "../cache/ActionCache";
+import { modelsWithVision } from "../llm/LLMClient";
+import { generateId } from "../utils";
 
 export class StagehandActHandler {
   private readonly stagehand: Stagehand;

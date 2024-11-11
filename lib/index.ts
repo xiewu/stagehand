@@ -8,7 +8,7 @@ import path from "path";
 import { ScreenshotService } from "./vision";
 import { modelsWithVision } from "./llm/LLMClient";
 import { ActionCache } from "./cache/ActionCache";
-import { StagehandActHandler } from "./act";
+import { StagehandActHandler } from "./handlers/act";
 import { generateId } from "./utils";
 
 require("dotenv").config({ path: ".env" });
