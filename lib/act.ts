@@ -492,7 +492,7 @@ export class StagehandActHandler {
     xpaths: string[];
     savedComponentString: string;
   }) {
-    const reversedXpaths = [...cachedStep.xpaths].reverse(); // We reverse the xpaths to try the most specific ones first
+    const reversedXpaths = [...cachedStep.xpaths].reverse(); // We reverse the xpaths to try the most cachable ones first
     for (const xpath of reversedXpaths) {
       const isValid = await this._checkIfCachedStepIsValid_oneXpath({
         xpath,
