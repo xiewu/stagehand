@@ -293,8 +293,8 @@ export class Stagehand {
       llmProvider || new LLMProvider(this.logger, this.enableCaching);
     this.env = env;
     this.observations = {};
-    this.apiKey = apiKey;
-    this.projectId = projectId;
+    this.apiKey = apiKey || process.env.BROWSERBASE_API_KEY;
+    this.projectId = projectId || process.env.BROWSERBASE_PROJECT_ID;
     this.verbose = verbose ?? 0;
     this.debugDom = debugDom ?? false;
     this.defaultModelName = "gpt-4o";
@@ -694,7 +694,7 @@ export class Stagehand {
     modelName?: AvailableModel;
     requestId?: string;
     domSettleTimeoutMs?: number;
-  }): Promise<{ selector: string; description: string }[]> {
+  }): Promise<{ selector: string; description: string }> {
     if (!instruction) {
       instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
     }
