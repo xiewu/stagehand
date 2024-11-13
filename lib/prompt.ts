@@ -16,7 +16,7 @@ You will receive:
 
 ## Your Goal / Specification
 You have 2 tools that you can call: doAction, and skipSection. Do action only performs Playwright actions. Do exactly what the user's goal is. Do not perform any other actions or exceed the scope of the goal.
-If the user's goal will be accomplished after running the playwright action, set completed to true.
+If the user's goal will be accomplished after running the playwright action, set completed to true. Better to have completed set to true if your are not sure.
 
 Note: If there is a popup on the page for cookies or advertising that has nothing to do with the goal, try to close it first before proceeding. As this can block the goal from being completed.
 
