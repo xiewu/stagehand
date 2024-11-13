@@ -212,34 +212,28 @@ async function generateStandardXPath(element: ChildNode): Promise<string> {
     const siblings = element.parentElement
       ? Array.from(element.parentElement.childNodes)
       : [];
-
     for (let i = 0; i < siblings.length; i++) {
       const sibling = siblings[i];
-
       if (
         sibling.nodeType === element.nodeType &&
         sibling.nodeName === element.nodeName
       ) {
         index = index + 1;
         hasSameTypeSiblings = true;
-
         if (sibling.isSameNode(element)) {
           break;
         }
       }
     }
-
     // text "nodes" are selected differently than elements with xPaths
     if (element.nodeName !== "#text") {
       const tagName = element.nodeName.toLowerCase();
       const pathIndex = hasSameTypeSiblings ? `[${index}]` : "";
       parts.unshift(`${tagName}${pathIndex}`);
     }
-
     element = element.parentElement as HTMLElement;
   }
-
-  return parts.length ? `//${parts.join("//")}` : "";
+  return parts.length ? `/${parts.join("/")}` : "";
 }
 
 async function generatedIdBasedXPath(
