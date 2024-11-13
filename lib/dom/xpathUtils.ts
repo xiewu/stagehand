@@ -114,7 +114,7 @@ export async function generateXPathsForElement(
   // This should return in order from most accurate on current page to most cachable.
   // Do not change the order if you are not sure what you are doing.
   // Contact Navid if you need help understanding it.
-  return [...(idBasedXPath ? [idBasedXPath] : []), standardXPath, complexXPath];
+  return [standardXPath, ...(idBasedXPath ? [idBasedXPath] : []), complexXPath];
 }
 
 async function generateComplexXPath(element: ChildNode): Promise<string> {
