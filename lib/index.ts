@@ -362,6 +362,15 @@ export class Stagehand {
     // This can be greatly improved, but the tldr is we put our built web scripts in dist, which should always
     // be one level above our running directly across evals, example, and as a package
     await this.context.addInitScript({
+      path: path.join(__dirname, "..", "dist", "dom", "build", "xpathUtils.js"),
+      content: fs.readFileSync(
+        path.join(__dirname, "..", "dist", "dom", "build", "xpathUtils.js"),
+        "utf8",
+      ),
+    });
+
+    await this.context.addInitScript({
+      path: path.join(__dirname, "..", "dist", "dom", "build", "process.js"),
       content: fs.readFileSync(
         path.join(__dirname, "..", "dist", "dom", "build", "process.js"),
         "utf8",
@@ -369,6 +378,7 @@ export class Stagehand {
     });
 
     await this.context.addInitScript({
+      path: path.join(__dirname, "..", "dist", "dom", "build", "utils.js"),
       content: fs.readFileSync(
         path.join(__dirname, "..", "dist", "dom", "build", "utils.js"),
         "utf8",
@@ -376,6 +386,7 @@ export class Stagehand {
     });
 
     await this.context.addInitScript({
+      path: path.join(__dirname, "..", "dist", "dom", "build", "debug.js"),
       content: fs.readFileSync(
         path.join(__dirname, "..", "dist", "dom", "build", "debug.js"),
         "utf8",
@@ -407,20 +418,36 @@ export class Stagehand {
     }
 
     // Add initialization scripts
-    await this.page.addInitScript({
+    await this.context.addInitScript({
       path: path.join(__dirname, "..", "dist", "dom", "build", "xpathUtils.js"),
+      content: fs.readFileSync(
+        path.join(__dirname, "..", "dist", "dom", "build", "xpathUtils.js"),
+        "utf8",
+      ),
     });
 
-    await this.page.addInitScript({
+    await this.context.addInitScript({
       path: path.join(__dirname, "..", "dist", "dom", "build", "process.js"),
+      content: fs.readFileSync(
+        path.join(__dirname, "..", "dist", "dom", "build", "process.js"),
+        "utf8",
+      ),
     });
 
-    await this.page.addInitScript({
+    await this.context.addInitScript({
       path: path.join(__dirname, "..", "dist", "dom", "build", "utils.js"),
+      content: fs.readFileSync(
+        path.join(__dirname, "..", "dist", "dom", "build", "utils.js"),
+        "utf8",
+      ),
     });
 
-    await this.page.addInitScript({
+    await this.context.addInitScript({
       path: path.join(__dirname, "..", "dist", "dom", "build", "debug.js"),
+      content: fs.readFileSync(
+        path.join(__dirname, "..", "dist", "dom", "build", "debug.js"),
+        "utf8",
+      ),
     });
 
     return { context: this.context };
