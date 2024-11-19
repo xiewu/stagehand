@@ -10,10 +10,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createSession, getDebugUrl } from "@/lib/bbActions";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useState } from "react";
-import { NavigateBlock } from "./codeblocks/navigate";
-import { ActBlock } from "./codeblocks/act";
+import { ActBlock } from "./stagehandActions/act";
+import { NavigateBlock } from "./stagehandActions/navigate";
+import { ExtractBlock } from "./stagehandActions/extract";
 import { CommandBar } from "./commandBar";
-import { ExtractBlock } from "./codeblocks/extract";
 import { genScript, StagehandAction } from "@/lib/stagehandActions";
 import {
   Dialog,

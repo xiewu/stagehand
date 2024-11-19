@@ -315,11 +315,15 @@ export class Stagehand {
   }
 
   async init({
-    modelName = "gpt-4o",
+    modelName: initModelName,
     domSettleTimeoutMs,
+    OPENAI_API_KEY = process.env.OPENAI_API_KEY,
+    ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY,
   }: {
     modelName?: AvailableModel;
     domSettleTimeoutMs?: number;
+    OPENAI_API_KEY?: string;
+    ANTHROPIC_API_KEY?: string;
   } = {}): Promise<{
     debugUrl: string;
     sessionUrl: string;
@@ -341,7 +345,11 @@ export class Stagehand {
     // Redundant but needed for users who are re-connecting to a previously-created session
     await this.page.waitForLoadState("domcontentloaded");
     await this._waitForSettledDom();
-    this.defaultModelName = modelName;
+    this.defaultModelName = LLMProvider.getDefaultModelName(
+      initModelName,
+      OPENAI_API_KEY,
+      ANTHROPIC_API_KEY,
+    );
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? this.domSettleTimeoutMs;
 
     // Overload the page.goto method

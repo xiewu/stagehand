@@ -23,8 +23,9 @@ export class OpenAIClient implements LLMClient {
     enableCaching = false,
     cache: LLMCache,
     requestId: string,
+    apiKey?: string,
   ) {
-    this.client = new OpenAI();
+    this.client = new OpenAI({ apiKey });
     this.logger = logger;
     this.requestId = requestId;
     this.cache = cache;

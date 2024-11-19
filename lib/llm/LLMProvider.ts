@@ -11,16 +11,18 @@ export type AvailableModel =
   | "claude-3-5-sonnet-20241022"
   | "claude-3-5-sonnet-20240620";
 
-export class LLMProvider {
-  private modelToProviderMap: { [key in AvailableModel]: string } = {
-    "gpt-4o": "openai",
-    "gpt-4o-mini": "openai",
-    "gpt-4o-2024-08-06": "openai",
-    "claude-3-5-sonnet-latest": "anthropic",
-    "claude-3-5-sonnet-20240620": "anthropic",
-    "claude-3-5-sonnet-20241022": "anthropic",
-  };
+export type AvailableProvider = "openai" | "anthropic";
 
+const modelToProviderMap: { [key in AvailableModel]: AvailableProvider } = {
+  "gpt-4o": "openai",
+  "gpt-4o-mini": "openai",
+  "gpt-4o-2024-08-06": "openai",
+  "claude-3-5-sonnet-latest": "anthropic",
+  "claude-3-5-sonnet-20240620": "anthropic",
+  "claude-3-5-sonnet-20241022": "anthropic",
+};
+
+export class LLMProvider {
   private logger: (message: { category?: string; message: string }) => void;
   private enableCaching: boolean;
   private cache: LLMCache;
@@ -42,8 +44,44 @@ export class LLMProvider {
     this.cache.deleteCacheForRequestId(requestId);
   }
 
+  static getDefaultModelName(
+    initModelName?: AvailableModel,
+    openaiApiKey?: string,
+    anthropicApiKey?: string,
+  ): AvailableModel {
+    /**
+     * If no initModelName is provided, use the API key to determine the model
+     *
+     * For example, if the OpenAI API key is present, the default model is gpt-4o
+     * If the Anthropic API key is present, the default model is claude-3-5-sonnet-20241022
+     * If the initModelName is provided, assert the API key exists
+     */
+    if (initModelName) {
+      const provider = modelToProviderMap[initModelName];
+      if (provider === "openai" && !openaiApiKey) {
+        throw new Error(`OpenAI API key required for model ${initModelName}`);
+      }
+      if (provider === "anthropic" && !anthropicApiKey) {
+        throw new Error(
+          `Anthropic API key required for model ${initModelName}`,
+        );
+      }
+      return initModelName;
+    }
+
+    if (openaiApiKey) {
+      return "gpt-4o";
+    }
+    if (anthropicApiKey) {
+      return "claude-3-5-sonnet-20241022";
+    }
+    throw new Error(
+      "No API keys found - must provide either OpenAI or Anthropic API key",
+    );
+  }
+
   getClient(modelName: AvailableModel, requestId: string): LLMClient {
-    const provider = this.modelToProviderMap[modelName];
+    const provider = modelToProviderMap[modelName];
     if (!provider) {
       throw new Error(`Unsupported model: ${modelName}`);
     }
