@@ -88,7 +88,7 @@ async function getBrowser(
       } catch (error) {
         logger({
           category: "init",
-          message: `failed to resume session`,
+          message: "failed to resume session",
           level: 1,
           auxiliary: {
             error: {
@@ -145,9 +145,9 @@ async function getBrowser(
 
     logger({
       category: "init",
-      message: `browserbase session ${
-        browserbaseResumeSessionID ? "resumed" : "started"
-      }`,
+      message: browserbaseResumeSessionID
+        ? "browserbase session resumed"
+        : "browserbase session started",
       level: 0,
       auxiliary: {
         sessionUrl: {
@@ -171,7 +171,7 @@ async function getBrowser(
   } else {
     logger({
       category: "init",
-      message: `launching local browser`,
+      message: "launching local browser",
       level: 0,
       auxiliary: {
         headless: {
@@ -572,7 +572,7 @@ export class Stagehand {
         timeoutHandle = setTimeout(() => {
           this.log({
             category: "dom",
-            message: `DOM settle timeout exceeded, continuing anyway`,
+            message: "DOM settle timeout exceeded, continuing anyway",
             level: 1,
             auxiliary: {
               timeout_ms: {
@@ -609,7 +609,7 @@ export class Stagehand {
     } catch (e) {
       this.log({
         category: "dom",
-        message: `Error in waitForSettledDom`,
+        message: "Error in waitForSettledDom",
         level: 1,
         auxiliary: {
           error: {
@@ -643,7 +643,7 @@ export class Stagehand {
     } catch (e) {
       this.log({
         category: "dom",
-        message: `Error in startDomDebug`,
+        message: "Error in startDomDebug",
         level: 1,
         auxiliary: {
           error: {
@@ -699,7 +699,7 @@ export class Stagehand {
   }): Promise<z.infer<T>> {
     this.log({
       category: "extraction",
-      message: `starting extraction`,
+      message: "starting extraction",
       level: 1,
       auxiliary: {
         instruction: {
@@ -718,7 +718,7 @@ export class Stagehand {
 
     this.log({
       category: "extraction",
-      message: `received output from processDom.`,
+      message: "received output from processDom.",
       level: 1,
       auxiliary: {
         chunk: {
@@ -757,7 +757,7 @@ export class Stagehand {
 
     this.log({
       category: "extraction",
-      message: `received extraction response`,
+      message: "received extraction response",
       level: 1,
       auxiliary: {
         extraction_response: {
@@ -772,7 +772,7 @@ export class Stagehand {
     if (completed || chunksSeen.length === chunks.length) {
       this.log({
         category: "extraction",
-        message: `got response`,
+        message: "got response",
         level: 1,
         auxiliary: {
           extraction_response: {
@@ -786,7 +786,7 @@ export class Stagehand {
     } else {
       this.log({
         category: "extraction",
-        message: `continuing extraction`,
+        message: "continuing extraction",
         level: 1,
         auxiliary: {
           extraction_response: {
@@ -831,7 +831,7 @@ export class Stagehand {
 
     this.log({
       category: "observation",
-      message: `starting observation`,
+      message: "starting observation",
       level: 1,
       auxiliary: {
         instruction: {
@@ -854,7 +854,7 @@ export class Stagehand {
       if (!modelsWithVision.includes(model)) {
         this.log({
           category: "observation",
-          message: `Model does not support vision. Skipping vision processing.`,
+          message: "Model does not support vision. Skipping vision processing.",
           level: 1,
           auxiliary: {
             model: {
@@ -903,7 +903,7 @@ export class Stagehand {
 
     this.log({
       category: "observation",
-      message: `found elements`,
+      message: "found elements",
       level: 1,
       auxiliary: {
         elements: {
@@ -940,7 +940,7 @@ export class Stagehand {
 
     this.log({
       category: "act",
-      message: `running act`,
+      message: "running act",
       level: 1,
       auxiliary: {
         action: {
@@ -974,7 +974,7 @@ export class Stagehand {
       .catch((e) => {
         this.log({
           category: "act",
-          message: `error acting`,
+          message: "error acting",
           level: 1,
           auxiliary: {
             error: {
@@ -1011,7 +1011,7 @@ export class Stagehand {
 
     this.logger({
       category: "extract",
-      message: `running extract`,
+      message: "running extract",
       level: 1,
       auxiliary: {
         instruction: {
@@ -1034,7 +1034,7 @@ export class Stagehand {
     }).catch((e) => {
       this.logger({
         category: "extract",
-        message: `error extracting`,
+        message: "error extracting",
         level: 1,
         auxiliary: {
           error: {
@@ -1066,7 +1066,7 @@ export class Stagehand {
 
     this.logger({
       category: "observe",
-      message: `running observe`,
+      message: "running observe",
       level: 1,
       auxiliary: {
         instruction: {
@@ -1092,7 +1092,7 @@ export class Stagehand {
     }).catch((e) => {
       this.logger({
         category: "observe",
-        message: `error observing`,
+        message: "error observing",
         level: 1,
         auxiliary: {
           error: {

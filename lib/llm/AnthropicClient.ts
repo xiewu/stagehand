@@ -32,7 +32,7 @@ export class AnthropicClient implements LLMClient {
     const { image: _, ...optionsWithoutImage } = options;
     this.logger({
       category: "anthropic",
-      message: `creating chat completion`,
+      message: "creating chat completion",
       level: 1,
       auxiliary: {
         options: {
@@ -57,7 +57,7 @@ export class AnthropicClient implements LLMClient {
       if (cachedResponse) {
         this.logger({
           category: "llm_cache",
-          message: `LLM cache hit - returning cached response`,
+          message: "LLM cache hit - returning cached response",
           level: 1,
           auxiliary: {
             cachedResponse: {
@@ -78,7 +78,7 @@ export class AnthropicClient implements LLMClient {
       } else {
         this.logger({
           category: "llm_cache",
-          message: `LLM cache miss - no cached response found`,
+          message: "LLM cache miss - no cached response found",
           level: 1,
           auxiliary: {
             cacheOptions: {
@@ -176,7 +176,7 @@ export class AnthropicClient implements LLMClient {
 
     this.logger({
       category: "anthropic",
-      message: `response`,
+      message: "response",
       level: 1,
       auxiliary: {
         response: {

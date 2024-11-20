@@ -91,7 +91,7 @@ export class ScreenshotService {
     const pixelCount = metadata.width * metadata.height;
     this.log({
       category: "screenshotService",
-      message: `got screenshot pixel count`,
+      message: "got screenshot pixel count",
       level: 1,
       auxiliary: {
         pixelCount: {
@@ -113,7 +113,7 @@ export class ScreenshotService {
     const { width, height } = await image.metadata();
     this.log({
       category: "screenshotService",
-      message: `annotating screenshot`,
+      message: "annotating screenshot",
       level: 2,
       auxiliary: {
         selectorMap: {
@@ -211,7 +211,7 @@ export class ScreenshotService {
     } catch (error) {
       this.log({
         category: "screenshotService",
-        message: `warning: failed to create annotation for element`,
+        message: "warning: failed to create annotation for element",
         level: 1,
         auxiliary: {
           element_id: {
@@ -276,7 +276,7 @@ export class ScreenshotService {
     fs.writeFileSync(filename, screenshot);
     this.log({
       category: "screenshotService",
-      message: `screenshot saved`,
+      message: "screenshot saved",
       level: 1,
       auxiliary: {
         filename: {
