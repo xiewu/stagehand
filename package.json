@@ -12,7 +12,7 @@
     "format": "prettier --write .",
     "cache:clear": "rm -rf .cache",
     "evals": "npm run build-dom-scripts && npx braintrust eval evals/index.eval.ts",
-    "build-dom-scripts": "node lib/dom/genDomScripts.js",
+    "build-dom-scripts": "tsx lib/dom/genDomScripts.ts",
     "build": "npm run build-dom-scripts && tsup lib/index.ts --dts",
     "release": "changeset publish"
   },
