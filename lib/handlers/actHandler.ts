@@ -3,6 +3,7 @@ import { AvailableModel, LLMProvider } from "../llm/LLMProvider";
 import { ScreenshotService } from "../vision";
 import { verifyActCompletion, act, fillInVariables } from "../inference";
 import {
+  LogLine,
   PlaywrightCommandException,
   PlaywrightCommandMethodNotSupportedException,
 } from "../types";
@@ -16,11 +17,7 @@ export class StagehandActHandler {
   private readonly verbose: 0 | 1 | 2;
   private readonly llmProvider: LLMProvider;
   private readonly enableCaching: boolean;
-  private readonly logger: (log: {
-    category: string;
-    message: string;
-    level: 0 | 1 | 2;
-  }) => void;
+  private readonly logger: (logLine: LogLine) => void;
   private readonly waitForSettledDom: (
     domSettleTimeoutMs?: number,
   ) => Promise<void>;
@@ -45,11 +42,7 @@ export class StagehandActHandler {
     verbose: 0 | 1 | 2;
     llmProvider: LLMProvider;
     enableCaching: boolean;
-    logger: (log: {
-      category: string;
-      message: string;
-      level: 0 | 1 | 2;
-    }) => void;
+    logger: (logLine: LogLine) => void;
     waitForSettledDom: (domSettleTimeoutMs?: number) => Promise<void>;
     defaultModelName: AvailableModel;
     startDomDebug: () => Promise<void>;
@@ -104,8 +97,14 @@ export class StagehandActHandler {
       // Run action completion verifier
       this.stagehand.log({
         category: "action",
-        message: `Action marked as completed, Verifying if this is true...`,
+        message: `action marked as completed, verifying if this is true...`,
         level: 1,
+        auxiliary: {
+          action: {
+            value: action,
+            type: "string",
+          },
+        },
       });
 
       let domElements: string | undefined = undefined;
@@ -117,20 +116,32 @@ export class StagehandActHandler {
             this.stagehand.page,
             selectorMap,
             this.verbose,
+            this.logger,
           );
 
           fullpageScreenshot = await screenshotService.getScreenshot(true, 15);
         } catch (e) {
           this.stagehand.log({
             category: "action",
-            message: `Error getting full page screenshot: ${e.message}\n. Trying again...`,
+            message: `error getting full page screenshot. trying again...`,
             level: 1,
+            auxiliary: {
+              error: {
+                value: e.message,
+                type: "string",
+              },
+              trace: {
+                value: e.stack,
+                type: "string",
+              },
+            },
           });
 
           const screenshotService = new ScreenshotService(
             this.stagehand.page,
             selectorMap,
             this.verbose,
+            this.logger,
           );
 
           fullpageScreenshot = await screenshotService.getScreenshot(true, 15);
@@ -156,8 +167,18 @@ export class StagehandActHandler {
 
       this.stagehand.log({
         category: "action",
-        message: `Action completion verification result: ${actionCompleted}`,
+        message: `action completion verification result`,
         level: 1,
+        auxiliary: {
+          action: {
+            value: action,
+            type: "string",
+          },
+          result: {
+            value: actionCompleted.toString(),
+            type: "boolean",
+          },
+        },
       });
     }
 
@@ -175,8 +196,14 @@ export class StagehandActHandler {
     if (method === "scrollIntoView") {
       this.stagehand.log({
         category: "action",
-        message: `Scrolling element into view`,
+        message: `scrolling element into view`,
         level: 2,
+        auxiliary: {
+          xpath: {
+            value: xpath,
+            type: "string",
+          },
+        },
       });
       try {
         await locator
@@ -186,15 +213,43 @@ export class StagehandActHandler {
           .catch((e: Error) => {
             this.stagehand.log({
               category: "action",
-              message: `Error scrolling element into view: ${e.message}\nTrace: ${e.stack}`,
+              message: `error scrolling element into view`,
               level: 1,
+              auxiliary: {
+                error: {
+                  value: e.message,
+                  type: "string",
+                },
+                trace: {
+                  value: e.stack,
+                  type: "string",
+                },
+                xpath: {
+                  value: xpath,
+                  type: "string",
+                },
+              },
             });
           });
       } catch (e) {
         this.stagehand.log({
           category: "action",
-          message: `Error scrolling element into view: ${e.message}\nTrace: ${e.stack}`,
+          message: `error scrolling element into view`,
           level: 1,
+          auxiliary: {
+            error: {
+              value: e.message,
+              type: "string",
+            },
+            trace: {
+              value: e.stack,
+              type: "string",
+            },
+            xpath: {
+              value: xpath,
+              type: "string",
+            },
+          },
         });
 
         throw new PlaywrightCommandException(e.message);
@@ -802,6 +857,7 @@ export class StagehandActHandler {
             this.stagehand.page,
             selectorMap,
             this.verbose,
+            this.logger,
           );
 
           annotatedScreenshot =
