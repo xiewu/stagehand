@@ -105,10 +105,14 @@ export class OpenAIClient implements LLMClient {
 
     let responseFormat = undefined;
     if (options.response_model) {
-      responseFormat = zodToJsonSchema(
-        options.response_model.schema,
-        options.response_model.name,
-      );
+      responseFormat = {
+        type: "json_schema",
+        json_schema: {
+          strict: true,
+          schema:zodToJsonSchema(options.response_model.schema),
+          name: options.response_model.name,
+        },
+      };
     }
 
     const response = await this.client.chat.completions.create({
