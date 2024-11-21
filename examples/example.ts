@@ -18,6 +18,7 @@ async function example() {
       username: z.string(),
       url: z.string(),
     }),
+    domSettleTimeoutMs: 60000, // wait up to 60 seconds for the page to load, contributors can sometimes take a while to load
   });
   console.log(`Our favorite contributor is ${contributor.username}`);
 }

@@ -1,4 +1,4 @@
-async function debugDom() {
+export async function debugDom() {
   window.chunkNumber = 0;
 
   const { selectorMap: multiSelectorMap, outputString } =
@@ -10,7 +10,7 @@ async function debugDom() {
   setupChunkNav();
 }
 
-function multiSelectorMapToSelectorMap(
+export function multiSelectorMapToSelectorMap(
   multiSelectorMap: Record<number, string[]>,
 ) {
   return Object.fromEntries(
@@ -21,7 +21,7 @@ function multiSelectorMapToSelectorMap(
   );
 }
 
-function drawChunk(selectorMap: Record<number, string>) {
+export function drawChunk(selectorMap: Record<number, string>) {
   cleanupMarkers();
   Object.entries(selectorMap).forEach(([_index, selector]) => {
     const element = document.evaluate(
@@ -61,26 +61,26 @@ function drawChunk(selectorMap: Record<number, string>) {
   });
 }
 
-async function cleanupDebug() {
+export async function cleanupDebug() {
   cleanupMarkers();
   cleanupNav();
 }
 
-function cleanupMarkers() {
+export function cleanupMarkers() {
   const markers = document.querySelectorAll(".stagehand-marker");
   markers.forEach((marker) => {
     marker.remove();
   });
 }
 
-function cleanupNav() {
+export function cleanupNav() {
   const stagehandNavElements = document.querySelectorAll(".stagehand-nav");
   stagehandNavElements.forEach((element) => {
     element.remove();
   });
 }
 
-function setupChunkNav() {
+export function setupChunkNav() {
   const viewportHeight = window.innerHeight;
   const documentHeight = document.documentElement.scrollHeight;
   const totalChunks = Math.ceil(documentHeight / viewportHeight);

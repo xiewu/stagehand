@@ -4,11 +4,16 @@ export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content:
     | string
-    | {
-        type: "image_url" | "text";
-        image_url?: { url: string };
-        text?: string;
-      }[];
+    | (
+        | {
+            type: "image_url";
+            image_url: { url: string };
+          }
+        | {
+            type: "text";
+            text: string;
+          }
+      );
 }
 
 export const modelsWithVision: AvailableModel[] = [
@@ -19,6 +24,27 @@ export const modelsWithVision: AvailableModel[] = [
   "claude-3-5-sonnet-20241022",
   "gpt-4o-2024-08-06",
 ];
+
+export type ChatResponse = {
+  id: string;
+  object: "chat.completion";
+  created: number;
+  model: string;
+  choices: {
+    index: number;
+    message: {
+      role: "user" | "assistant";
+      content: string;
+      tool_calls?: unknown;
+    };
+    finish_reason: string;
+  }[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
 
 export const AnnotatedScreenshotText =
   "This is a screenshot of the current page state with the elements annotated on it. Each element id is annotated with a number to the top left of it. Duplicate annotations at the same location are under each other vertically.";

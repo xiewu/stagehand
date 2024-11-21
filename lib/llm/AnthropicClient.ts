@@ -1,8 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { LLMClient, ChatCompletionOptions } from "./LLMClient";
+import {
+  LLMClient,
+  ChatCompletionOptions,
+  ChatResponse,
+  ChatMessage,
+} from "./LLMClient";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { LLMCache } from "../cache/LLMCache";
 import { LogLine } from "../types";
+import { MessageParam, Tool } from "@anthropic-ai/sdk/resources";
 
 export class AnthropicClient implements LLMClient {
   private client: Anthropic;
@@ -28,7 +34,7 @@ export class AnthropicClient implements LLMClient {
 
   async createChatCompletion(
     options: ChatCompletionOptions & { retries?: number },
-  ) {
+  ): Promise<ChatResponse> {
     const { image: _, ...optionsWithoutImage } = options;
     this.logger({
       category: "anthropic",
@@ -121,7 +127,7 @@ export class AnthropicClient implements LLMClient {
     }
 
     // Transform tools to Anthropic's format
-    let anthropicTools = options.tools?.map((tool: any) => {
+    let anthropicTools: Tool[] = options.tools?.map((tool: any) => {
       if (tool.type === "function") {
         return {
           name: tool.function.name,
@@ -142,15 +148,17 @@ export class AnthropicClient implements LLMClient {
 
       // Extract the actual schema properties
       const schemaProperties =
-        jsonSchema.definitions?.MySchema?.properties || jsonSchema.properties;
+        (jsonSchema.definitions?.MySchema as any)?.properties ||
+        (jsonSchema as any).properties;
       const schemaRequired =
-        jsonSchema.definitions?.MySchema?.required || jsonSchema.required;
+        (jsonSchema.definitions?.MySchema as any)?.required ||
+        (jsonSchema as any).required;
 
       toolDefinition = {
         name: "print_extracted_data",
         description: "Prints the extracted data based on the provided schema.",
         input_schema: {
-          type: "object",
+          type: "object" as const,
           properties: schemaProperties,
           required: schemaRequired,
         },
@@ -165,12 +173,15 @@ export class AnthropicClient implements LLMClient {
     const response = await this.client.messages.create({
       model: options.model,
       max_tokens: options.max_tokens || 1500,
-      messages: userMessages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
+      messages: userMessages.map(
+        (msg) =>
+          ({
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+          }) as MessageParam, // TODO (kamath): don't use as
+      ),
       tools: anthropicTools,
-      system: systemMessage?.content,
+      system: systemMessage?.content as string, // TODO (kamath): don't use as
       temperature: options.temperature,
     });
 
@@ -191,7 +202,7 @@ export class AnthropicClient implements LLMClient {
     });
 
     // Parse the response here
-    const transformedResponse = {
+    const transformedResponse: ChatResponse = {
       id: response.id,
       object: "chat.completion",
       created: Date.now(),
@@ -249,7 +260,19 @@ export class AnthropicClient implements LLMClient {
           this.cache.set(cacheOptions, result, this.requestId);
         }
 
-        return result;
+        return {
+          ...transformedResponse,
+          choices: [
+            {
+              ...transformedResponse.choices[0],
+              message: {
+                ...transformedResponse.choices[0].message,
+                role: "assistant",
+                tool_calls: result,
+              },
+            },
+          ],
+        };
       } else {
         if (!options.retries || options.retries < 5) {
           return this.createChatCompletion({
@@ -297,6 +320,17 @@ export class AnthropicClient implements LLMClient {
       });
     }
 
-    return transformedResponse;
+    return {
+      id: transformedResponse.id,
+      object: "chat.completion",
+      created: transformedResponse.created,
+      model: transformedResponse.model,
+      choices: transformedResponse.choices.map((choice) => ({
+        index: choice.index,
+        message: choice.message,
+        finish_reason: choice.finish_reason,
+      })),
+      usage: transformedResponse.usage,
+    };
   }
 }

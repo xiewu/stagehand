@@ -1,8 +1,9 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { LLMClient, ChatCompletionOptions } from "./LLMClient";
+import { LLMClient, ChatCompletionOptions, ChatResponse } from "./LLMClient";
 import { LLMCache } from "../cache/LLMCache";
 import { LogLine } from "../types";
+import { ChatCompletionMessageParam } from "openai/resources/chat";
 
 export class OpenAIClient implements LLMClient {
   private client: OpenAI;
@@ -24,7 +25,9 @@ export class OpenAIClient implements LLMClient {
     this.enableCaching = enableCaching;
   }
 
-  async createChatCompletion(options: ChatCompletionOptions) {
+  async createChatCompletion(
+    options: ChatCompletionOptions,
+  ): Promise<ChatResponse> {
     const { image: _, ...optionsWithoutImage } = options;
     this.logger({
       category: "openai",
@@ -113,6 +116,7 @@ export class OpenAIClient implements LLMClient {
 
     const response = await this.client.chat.completions.create({
       ...openAiOptions,
+      messages: options.messages as ChatCompletionMessageParam[], // TODO (kamath): don't use as
       response_format: responseFormat,
     });
 
@@ -174,6 +178,13 @@ export class OpenAIClient implements LLMClient {
       this.cache.set(cacheOptions, response, this.requestId);
     }
 
-    return response;
+    return {
+      id: response.id,
+      object: response.object,
+      created: response.created,
+      model: response.model,
+      choices: response.choices,
+      usage: response.usage,
+    };
   }
 }
