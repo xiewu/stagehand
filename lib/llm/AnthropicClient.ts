@@ -162,6 +162,8 @@ export class AnthropicClient implements LLMClient {
       anthropicTools.push(toolDefinition);
     }
 
+    console.log("\n\n\n", JSON.stringify(anthropicTools, null, 2), "\n\n\n");
+
     const response = await this.client.messages.create({
       model: options.model,
       max_tokens: options.max_tokens || 1500,
