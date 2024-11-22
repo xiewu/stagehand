@@ -8,12 +8,11 @@ import path from "path";
 import { ScreenshotService } from "./vision";
 import { modelsWithVision } from "./llm/LLMClient";
 import { StagehandActHandler } from "./handlers/actHandler";
-import { generateId } from "./utils";
+import { generateId, formatText, logLineToString } from "./utils";
 // @ts-ignore we're using a built js file as a string here
 import { scriptContent } from "./dom/build/scriptContent";
-import { LogLine } from "./types";
+import { LogLine, TextAnnotation } from "./types";
 import { randomUUID } from "crypto";
-import { logLineToString } from "./utils";
 
 require("dotenv").config({ path: ".env" });
 
@@ -627,18 +626,14 @@ export class Stagehand {
   private async _extract<T extends z.AnyZodObject>({
     instruction,
     schema,
-    progress = "",
     content = {},
-    chunksSeen = [],
     modelName,
     requestId,
     domSettleTimeoutMs,
   }: {
     instruction: string;
     schema: T;
-    progress?: string;
     content?: z.infer<T>;
-    chunksSeen?: Array<number>;
     modelName?: AvailableModel;
     requestId?: string;
     domSettleTimeoutMs?: number;
@@ -657,46 +652,85 @@ export class Stagehand {
 
     await this._waitForSettledDom(domSettleTimeoutMs);
     await this.startDomDebug();
-    const { outputString, chunk, chunks } = await this.page.evaluate(
-      (chunksSeen?: number[]) => window.processDom(chunksSeen ?? []),
-      chunksSeen,
-    );
+    const originalDOM: string = await this.page.evaluate(() => window.storeDOM());
+    const { selectorMap }: { selectorMap: Record<number, string[]> } =
+      await this.page.evaluate(() => window.processAllOfDom());
 
     this.log({
       category: "extraction",
-      message: "received output from processDom.",
+      message: `received output from processAllOfDom. selectorMap has ${Object.keys(selectorMap).length} entries`,
       level: 1,
-      auxiliary: {
-        chunk: {
-          value: chunk.toString(),
-          type: "integer",
-        },
-        chunks_left: {
-          value: (chunks.length - chunksSeen.length).toString(),
-          type: "integer",
-        },
-        chunks_total: {
-          value: chunks.length.toString(),
-          type: "integer",
-        },
-      },
     });
+
+    await this.page.evaluate(() => window.createTextBoundingBoxes());
+    const seenAnnotations = new Set<string>();
+    const textAnnotations: TextAnnotation[] = [];
+
+    for (const xpaths of Object.values(selectorMap)) {
+      const xpath = xpaths[0];
+
+      const boundingBoxes: Array<{
+        text: string;
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+      }> = await this.page.evaluate(
+        (xpath) => window.getElementBoundingBoxes(xpath),
+        xpath
+      );
+
+      for (const box of boundingBoxes) {
+        const annotationKey = JSON.stringify({
+          text: box.text,
+          x: box.left + box.width / 2,
+          y: box.top + box.height / 2,
+          width: box.width,
+          height: box.height,
+        });
+
+        if (!seenAnnotations.has(annotationKey)) {
+          seenAnnotations.add(annotationKey);
+          textAnnotations.push({
+            text: box.text,
+            midpoint: {
+              x: box.left,
+              y: box.top + box.height,
+            },
+            midpoint_normalized: {
+              x: box.left / this.page.viewportSize().width,
+              y: box.top + box.height / this.page.viewportSize().height,
+            },
+            width: box.width,
+            height: box.height,
+          });
+        }
+      }
+    }
+
+    await this.page.evaluate(
+      (dom) => window.restoreDOM(dom),
+      originalDOM
+    );
+
+    const formattedText = formatText(textAnnotations);
+
+    // const fs = require("fs");
+    // const formattedTextFilePath = "./formattedText.txt";
+    // fs.writeFileSync(formattedTextFilePath, formattedText);
 
     const extractionResponse = await extract({
       instruction,
-      progress,
       previouslyExtractedContent: content,
-      domElements: outputString,
+      domElements: formattedText,
       llmProvider: this.llmProvider,
       schema,
       modelName: modelName || this.defaultModelName,
-      chunksSeen: chunksSeen.length,
-      chunksTotal: chunks.length,
       requestId,
     });
 
     const {
-      metadata: { progress: newProgress, completed },
+      metadata: { completed },
       ...output
     } = extractionResponse;
     await this.cleanupDomDebug();
@@ -713,9 +747,7 @@ export class Stagehand {
       },
     });
 
-    chunksSeen.push(chunk);
-
-    if (completed || chunksSeen.length === chunks.length) {
+    if (completed) {
       this.log({
         category: "extraction",
         message: "got response",
@@ -729,29 +761,8 @@ export class Stagehand {
       });
 
       return output;
-    } else {
-      this.log({
-        category: "extraction",
-        message: "continuing extraction",
-        level: 1,
-        auxiliary: {
-          extraction_response: {
-            value: JSON.stringify(extractionResponse),
-            type: "object",
-          },
-        },
-      });
-      await this._waitForSettledDom(domSettleTimeoutMs);
-      return this._extract({
-        instruction,
-        schema,
-        progress: newProgress,
-        content: output,
-        chunksSeen,
-        modelName,
-        domSettleTimeoutMs,
-      });
     }
+    throw new Error("Extraction incomplete, but no further steps available.");
   }
 
   private async _observe({
