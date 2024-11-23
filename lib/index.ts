@@ -2,13 +2,11 @@ import { type Page, type BrowserContext, chromium } from "@playwright/test";
 import { z } from "zod";
 import fs from "fs";
 import { Browserbase } from "@browserbasehq/sdk";
-import { extract, observe } from "./inference";
 import { AvailableModel, LLMProvider } from "./llm/LLMProvider";
 import path from "path";
-import { ScreenshotService } from "./vision";
-import { modelsWithVision } from "./llm/LLMClient";
 import { StagehandActHandler } from "./handlers/actHandler";
-import { generateId } from "./utils";
+import { StagehandExtractHandler } from "./handlers/extractHandler";
+import { StagehandObserveHandler } from "./handlers/observeHandler";
 
 require("dotenv").config({ path: ".env" });
 
@@ -234,7 +232,6 @@ export class Stagehand {
   private env: "LOCAL" | "BROWSERBASE";
   private apiKey: string | undefined;
   private projectId: string | undefined;
-  private verbose: 0 | 1 | 2;
   private debugDom: boolean;
   private defaultModelName: AvailableModel;
   private headless: boolean;
@@ -247,8 +244,12 @@ export class Stagehand {
   private browserBaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   private enableCaching: boolean;
   private variables: { [key: string]: any };
-  private actHandler: StagehandActHandler;
   private browserbaseResumeSessionID?: string;
+
+  private actHandler: StagehandActHandler;
+  private extractHandler: StagehandExtractHandler;
+  private observeHandler: StagehandObserveHandler;
+  public verbose: 0 | 1 | 2;
 
   constructor(
     {
@@ -308,6 +309,25 @@ export class Stagehand {
       logger: this.logger,
       waitForSettledDom: this._waitForSettledDom.bind(this),
       defaultModelName: this.defaultModelName,
+      startDomDebug: this.startDomDebug.bind(this),
+      cleanupDomDebug: this.cleanupDomDebug.bind(this),
+    });
+    this.extractHandler = new StagehandExtractHandler({
+      stagehand: this,
+      llmProvider: this.llmProvider,
+      defaultModelName: this.defaultModelName,
+      logger: this.logger,
+      waitForSettledDom: this._waitForSettledDom.bind(this),
+      startDomDebug: this.startDomDebug.bind(this),
+      cleanupDomDebug: this.cleanupDomDebug.bind(this),
+      enableCaching: this.enableCaching,
+    });
+    this.observeHandler = new StagehandObserveHandler({
+      stagehand: this,
+      llmProvider: this.llmProvider,
+      defaultModelName: this.defaultModelName,
+      logger: this.logger,
+      waitForSettledDom: this._waitForSettledDom.bind(this),
       startDomDebug: this.startDomDebug.bind(this),
       cleanupDomDebug: this.cleanupDomDebug.bind(this),
     });
@@ -618,201 +638,6 @@ export class Stagehand {
     }
   }
 
-  private async _recordObservation(
-    instruction: string,
-    result: { selector: string; description: string }[],
-  ): Promise<string> {
-    const id = generateId(instruction);
-
-    this.observations[id] = { result, instruction };
-
-    return id;
-  }
-
-  // Main methods
-
-  private async _extract<T extends z.AnyZodObject>({
-    instruction,
-    schema,
-    progress = "",
-    content = {},
-    chunksSeen = [],
-    modelName,
-    requestId,
-    domSettleTimeoutMs,
-  }: {
-    instruction: string;
-    schema: T;
-    progress?: string;
-    content?: z.infer<T>;
-    chunksSeen?: Array<number>;
-    modelName?: AvailableModel;
-    requestId?: string;
-    domSettleTimeoutMs?: number;
-  }): Promise<z.infer<T>> {
-    this.log({
-      category: "extraction",
-      message: `starting extraction '${instruction}'`,
-      level: 1,
-    });
-
-    await this._waitForSettledDom(domSettleTimeoutMs);
-    await this.startDomDebug();
-    const { outputString, chunk, chunks } = await this.page.evaluate(
-      (chunksSeen?: number[]) => window.processDom(chunksSeen ?? []),
-      chunksSeen,
-    );
-
-    this.log({
-      category: "extraction",
-      message: `received output from processDom. Current chunk index: ${chunk}, Number of chunks left: ${chunks.length - chunksSeen.length}`,
-      level: 1,
-    });
-
-    const extractionResponse = await extract({
-      instruction,
-      progress,
-      previouslyExtractedContent: content,
-      domElements: outputString,
-      llmProvider: this.llmProvider,
-      schema,
-      modelName: modelName || this.defaultModelName,
-      chunksSeen: chunksSeen.length,
-      chunksTotal: chunks.length,
-      requestId,
-    });
-
-    const {
-      metadata: { progress: newProgress, completed },
-      ...output
-    } = extractionResponse;
-    await this.cleanupDomDebug();
-
-    this.log({
-      category: "extraction",
-      message: `received extraction response: ${JSON.stringify(extractionResponse)}`,
-      level: 1,
-    });
-
-    chunksSeen.push(chunk);
-
-    if (completed || chunksSeen.length === chunks.length) {
-      this.log({
-        category: "extraction",
-        message: `response: ${JSON.stringify(extractionResponse)}`,
-        level: 1,
-      });
-
-      return output;
-    } else {
-      this.log({
-        category: "extraction",
-        message: `continuing extraction, progress: '${newProgress}'`,
-        level: 1,
-      });
-      await this._waitForSettledDom(domSettleTimeoutMs);
-      return this._extract({
-        instruction,
-        schema,
-        progress: newProgress,
-        content: output,
-        chunksSeen,
-        modelName,
-        domSettleTimeoutMs,
-      });
-    }
-  }
-
-  private async _observe({
-    instruction,
-    useVision,
-    fullPage,
-    modelName,
-    requestId,
-    domSettleTimeoutMs,
-  }: {
-    instruction: string;
-    useVision: boolean;
-    fullPage: boolean;
-    modelName?: AvailableModel;
-    requestId?: string;
-    domSettleTimeoutMs?: number;
-  }): Promise<{ selector: string; description: string }[]> {
-    if (!instruction) {
-      instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
-    }
-
-    const model = modelName ?? this.defaultModelName;
-
-    this.log({
-      category: "observation",
-      message: `starting observation: ${instruction}`,
-      level: 1,
-    });
-
-    await this._waitForSettledDom(domSettleTimeoutMs);
-    await this.startDomDebug();
-    let { outputString, selectorMap } = await this.page.evaluate(
-      (fullPage: boolean) =>
-        fullPage ? window.processAllOfDom() : window.processDom([]),
-      fullPage,
-    );
-
-    let annotatedScreenshot: Buffer | undefined;
-    if (useVision === true) {
-      if (!modelsWithVision.includes(model)) {
-        this.log({
-          category: "observation",
-          message: `${model} does not support vision. Skipping vision processing.`,
-          level: 1,
-        });
-      } else {
-        const screenshotService = new ScreenshotService(
-          this.page,
-          selectorMap,
-          this.verbose,
-        );
-
-        annotatedScreenshot =
-          await screenshotService.getAnnotatedScreenshot(fullPage);
-        outputString = "n/a. use the image to find the elements.";
-      }
-    }
-
-    const observationResponse = await observe({
-      instruction,
-      domElements: outputString,
-      llmProvider: this.llmProvider,
-      modelName: modelName || this.defaultModelName,
-      image: annotatedScreenshot,
-      requestId,
-    });
-
-    const elementsWithSelectors = observationResponse.elements.map(
-      (element) => {
-        const { elementId, ...rest } = element;
-
-        return {
-          ...rest,
-          selector: `xpath=${selectorMap[elementId][0]}`,
-        };
-      },
-    );
-
-    await this.cleanupDomDebug();
-
-    this._recordObservation(instruction, elementsWithSelectors);
-
-    this.log({
-      category: "observation",
-      message: `found element ${JSON.stringify(elementsWithSelectors)}`,
-      level: 1,
-    });
-
-    await this._recordObservation(instruction, elementsWithSelectors);
-    return elementsWithSelectors;
-  }
-
   async act({
     action,
     modelName,
@@ -870,6 +695,44 @@ export class Stagehand {
       });
   }
 
+  async observe(options?: {
+    instruction?: string;
+    modelName?: AvailableModel;
+    useVision?: boolean;
+    domSettleTimeoutMs?: number;
+  }): Promise<{ selector: string; description: string }[]> {
+    const requestId = Math.random().toString(36).substring(2);
+
+    this.logger({
+      category: "observe",
+      message: `Running observe with instruction: ${options?.instruction}, requestId: ${requestId}`,
+    });
+
+    return this.observeHandler
+      .observe({
+        instruction:
+          options?.instruction ??
+          "Find actions that can be performed on this page.",
+        modelName: options?.modelName,
+        useVision: options?.useVision ?? false,
+        fullPage: false,
+        requestId,
+        domSettleTimeoutMs: options?.domSettleTimeoutMs,
+      })
+      .catch((e) => {
+        this.logger({
+          category: "observe",
+          message: `Error observing: ${e.message}\nTrace: ${e.stack}`,
+        });
+
+        if (this.enableCaching) {
+          this.llmProvider.cleanRequestCache(requestId);
+        }
+
+        throw e;
+      });
+  }
+
   async extract<T extends z.AnyZodObject>({
     instruction,
     schema,
@@ -888,59 +751,25 @@ export class Stagehand {
       message: `Running extract with instruction: ${instruction}, requestId: ${requestId}`,
     });
 
-    return this._extract({
-      instruction,
-      schema,
-      modelName,
-      requestId,
-      domSettleTimeoutMs,
-    }).catch((e) => {
-      this.logger({
-        category: "extract",
-        message: `Internal error: Error extracting: ${e.message}\nTrace: ${e.stack}`,
+    return this.extractHandler
+      .extract({
+        instruction,
+        schema,
+        modelName,
+        requestId,
+        domSettleTimeoutMs,
+      })
+      .catch((e) => {
+        this.logger({
+          category: "extract",
+          message: `Internal error: Error extracting: ${e.message}\nTrace: ${e.stack}`,
+        });
+
+        if (this.enableCaching) {
+          this.llmProvider.cleanRequestCache(requestId);
+        }
+
+        throw e;
       });
-
-      if (this.enableCaching) {
-        this.llmProvider.cleanRequestCache(requestId);
-      }
-
-      throw e;
-    });
-  }
-
-  async observe(options?: {
-    instruction?: string;
-    modelName?: AvailableModel;
-    useVision?: boolean;
-    domSettleTimeoutMs?: number;
-  }): Promise<{ selector: string; description: string }[]> {
-    const requestId = Math.random().toString(36).substring(2);
-
-    this.logger({
-      category: "observe",
-      message: `Running observe with instruction: ${options?.instruction}, requestId: ${requestId}`,
-    });
-
-    return this._observe({
-      instruction:
-        options?.instruction ??
-        "Find actions that can be performed on this page.",
-      modelName: options?.modelName,
-      useVision: options?.useVision ?? false,
-      fullPage: false,
-      requestId,
-      domSettleTimeoutMs: options?.domSettleTimeoutMs,
-    }).catch((e) => {
-      this.logger({
-        category: "observe",
-        message: `Error observing: ${e.message}\nTrace: ${e.stack}`,
-      });
-
-      if (this.enableCaching) {
-        this.llmProvider.cleanRequestCache(requestId);
-      }
-
-      throw e;
-    });
   }
 }
