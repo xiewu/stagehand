@@ -1,6 +1,7 @@
 import { LogLine } from "../lib/types";
 import { Stagehand } from "../lib";
 import { logLineToString } from "../lib/utils";
+import type { AvailableModel } from "../lib/llm/LLMProvider";
 
 export class EvalLogger {
   logs: LogLine[] = [];
@@ -31,3 +32,18 @@ export class EvalLogger {
     return this.logs;
   }
 }
+
+export type TestConfig = {
+  modelName: AvailableModel;
+  enableCaching: boolean;
+  env: "BROWSERBASE" | "LOCAL";
+};
+
+export type EvalResult = {
+  _success: boolean;
+  logs: LogLine[];
+  debugUrl?: string;
+  sessionUrl?: string;
+};
+
+export type Eval = (config: TestConfig) => Promise<EvalResult>;
