@@ -1537,22 +1537,22 @@ const exactMatch = (args: {
 };
 
 const testcases = [
-  // "vanta",
-  // "vanta_h",
-  // "peeler_simple",
-  // "wikipedia",
-  // "peeler_complex",
-  // "simple_google_search",
+  "vanta",
+  "vanta_h",
+  "peeler_simple",
+  "wikipedia",
+  "peeler_complex",
+  "simple_google_search",
   "extract_github_stars",
-  // "extract_collaborators_from_github_repository",
-  // "extract_last_twenty_github_commits",
-  // "google_jobs",
-  // "homedepot",
-  // "extract_partners",
-  // "laroche_form",
-  // "arxiv",
-  // "amazon_add_to_cart",
-  //   "expedia"
+  "extract_collaborators_from_github_repository",
+  "extract_last_twenty_github_commits",
+  "google_jobs",
+  "homedepot",
+  "extract_partners",
+  "laroche_form",
+  "arxiv",
+  "amazon_add_to_cart",
+  "expedia",
 ];
 
 Eval("stagehand", {
