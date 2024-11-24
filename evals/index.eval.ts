@@ -773,12 +773,8 @@ const google_jobs: EvalFunction = async ({ modelName, logger }) => {
 
     const jobDetails = await stagehand.extract({
       instruction:
-        "Extract the following details from the job posting: application deadline, minimum qualifications (degree and years of experience), and preferred qualifications (degree and years of experience)",
+        "Extract the following details from the job posting: minimum qualifications (degree and years of experience), and preferred qualifications (degree and years of experience)",
       schema: z.object({
-        applicationDeadline: z
-          .string()
-          .describe("The date until which the application window will be open")
-          .nullable(),
         minimumQualifications: z.object({
           degree: z.string().describe("The minimum required degree").nullable(),
           yearsOfExperience: z
