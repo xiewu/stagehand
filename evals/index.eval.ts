@@ -1,3 +1,4 @@
+import fs from "fs";
 import { Eval } from "braintrust";
 import { Stagehand } from "../lib";
 import type { AvailableModel } from "../lib/llm/LLMProvider";
@@ -5,11 +6,14 @@ import { z } from "zod";
 import process from "process";
 import { EvalLogger } from "./utils";
 import { LogLine } from "../lib/types";
+import Browserbase from "@browserbasehq/sdk";
 
 const env: "BROWSERBASE" | "LOCAL" =
   process.env.EVAL_ENV?.toLowerCase() === "browserbase"
     ? "BROWSERBASE"
     : "LOCAL";
+
+console.log("env", env);
 
 const enableCaching = process.env.EVAL_ENABLE_CACHING?.toLowerCase() === "true";
 const models: AvailableModel[] = ["gpt-4o", "claude-3-5-sonnet-20241022"];
@@ -25,11 +29,12 @@ const defaultStagehandOptions = {
 const initStagehand = async ({
   modelName,
   domSettleTimeoutMs,
+  logger,
 }: {
   modelName: AvailableModel;
   domSettleTimeoutMs?: number;
+  logger: EvalLogger;
 }) => {
-  const logger = new EvalLogger();
   const stagehand = new Stagehand({
     ...defaultStagehandOptions,
     logger: (logLine: LogLine) => {
@@ -41,7 +46,10 @@ const initStagehand = async ({
   return { stagehand, logger, initResponse };
 };
 
-type EvalFunction = (args: { modelName: AvailableModel }) => Promise<{
+type EvalFunction = (args: {
+  modelName: AvailableModel;
+  logger: EvalLogger;
+}) => Promise<{
   _success: boolean;
   logs: LogLine[];
   debugUrl: string;
@@ -49,9 +57,10 @@ type EvalFunction = (args: { modelName: AvailableModel }) => Promise<{
   error?: any;
 }>;
 
-const expedia: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const expedia: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -107,9 +116,10 @@ const expedia: EvalFunction = async ({ modelName }) => {
     await stagehand.context.close().catch(() => {});
   }
 };
-const vanta: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const vanta: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -169,9 +179,10 @@ const vanta: EvalFunction = async ({ modelName }) => {
   };
 };
 
-const vanta_h: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const vanta_h: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -194,9 +205,10 @@ const vanta_h: EvalFunction = async ({ modelName }) => {
   };
 };
 
-const simple_google_search: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const simple_google_search: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -221,12 +233,19 @@ const simple_google_search: EvalFunction = async ({ modelName }) => {
   };
 };
 
-const peeler_simple: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const peeler_simple: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
+
+  if (env === "BROWSERBASE") {
+    throw new Error(
+      "Browserbase not supported for this eval since we block all requests to file://",
+    );
+  }
 
   await stagehand.page.goto(`file://${process.cwd()}/evals/assets/peeler.html`);
 
@@ -246,9 +265,10 @@ const peeler_simple: EvalFunction = async ({ modelName }) => {
   };
 };
 
-const peeler_complex: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const peeler_complex: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -307,9 +327,10 @@ const peeler_complex: EvalFunction = async ({ modelName }) => {
   }
 };
 
-const homedepot: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const homedepot: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
     domSettleTimeoutMs: 60_000,
   });
 
@@ -411,9 +432,10 @@ const homedepot: EvalFunction = async ({ modelName }) => {
   }
 };
 
-const extract_github_stars: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const extract_github_stars: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -461,9 +483,11 @@ const extract_github_stars: EvalFunction = async ({ modelName }) => {
 
 const extract_collaborators_from_github_repository: EvalFunction = async ({
   modelName,
+  logger,
 }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -513,9 +537,11 @@ const extract_collaborators_from_github_repository: EvalFunction = async ({
 
 const extract_last_twenty_github_commits: EvalFunction = async ({
   modelName,
+  logger,
 }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -572,9 +598,10 @@ const extract_last_twenty_github_commits: EvalFunction = async ({
   }
 };
 
-const wikipedia: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const wikipedia: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -599,9 +626,10 @@ const wikipedia: EvalFunction = async ({ modelName }) => {
 };
 
 // Validate that the action is not found on the page
-const nonsense_action: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const nonsense_action: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -645,9 +673,10 @@ const nonsense_action: EvalFunction = async ({ modelName }) => {
   }
 };
 
-const costar: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const costar: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -725,9 +754,10 @@ const costar: EvalFunction = async ({ modelName }) => {
   }
 };
 
-const google_jobs: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const google_jobs: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -845,9 +875,10 @@ const google_jobs: EvalFunction = async ({ modelName }) => {
   }
 };
 
-const extract_partners: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const extract_partners: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -984,9 +1015,10 @@ const extract_partners: EvalFunction = async ({ modelName }) => {
   }
 };
 
-const laroche_form: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const laroche_form: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -1066,9 +1098,10 @@ const laroche_form: EvalFunction = async ({ modelName }) => {
   }
 };
 
-const arxiv: EvalFunction = async ({ modelName }) => {
-  const { stagehand, logger, initResponse } = await initStagehand({
+const arxiv: EvalFunction = async ({ modelName, logger }) => {
+  const { stagehand, initResponse } = await initStagehand({
     modelName,
+    logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
@@ -1277,20 +1310,14 @@ const arxiv: EvalFunction = async ({ modelName }) => {
   }
 };
 
-const amazon_add_to_cart = async ({
-  modelName,
-}: {
-  modelName: AvailableModel;
-}) => {
+const amazon_add_to_cart: EvalFunction = async ({ modelName, logger }) => {
   // Initialize Stagehand with credentials from env
-  const stagehand = new Stagehand({
-    env,
+  const { stagehand, initResponse } = await initStagehand({
+    modelName,
+    logger,
   });
 
-  // Initialize the browser with Claude 3.5 Sonnet
-  const { debugUrl, sessionUrl } = await stagehand.init({
-    modelName,
-  });
+  const { debugUrl, sessionUrl } = initResponse;
 
   // Navigate directly to the product page
   await stagehand.page.goto(
@@ -1324,10 +1351,11 @@ const amazon_add_to_cart = async ({
     currentUrl,
     debugUrl,
     sessionUrl,
+    logs: logger.getLogs(),
   };
 };
 
-const tasks = {
+const tasks: Record<string, EvalFunction> = {
   vanta,
   vanta_h,
   peeler_simple,
@@ -1410,7 +1438,7 @@ Eval("stagehand", {
   data: () => {
     // create a testcase for each model
     return models.flatMap((model) =>
-      testcases.map((test) => ({
+      testcases.flatMap((test) => ({
         input: { name: test, modelName: model },
         name: test,
         tags: [model, test],
@@ -1421,11 +1449,16 @@ Eval("stagehand", {
       })),
     );
   },
-  task: async (input: { name: string; modelName: AvailableModel }) => {
+  task: async (input: {
+    name: keyof typeof tasks;
+    modelName: AvailableModel;
+  }) => {
+    const logger = new EvalLogger();
     try {
       // Handle predefined tasks
-      const result = await (tasks as any)[input.name]({
+      const result = await tasks[input.name]({
         modelName: input.modelName,
+        logger,
       });
       if (result) {
         console.log(`✅ ${input.name}: Passed`);
@@ -1435,13 +1468,28 @@ Eval("stagehand", {
       return result;
     } catch (error) {
       console.error(`❌ ${input.name}: Error - ${error}`);
+      logger.error({
+        message: `Error in task ${input.name}`,
+        level: 0,
+        auxiliary: {
+          error: {
+            value: error,
+            type: "object",
+          },
+          trace: {
+            value: error.stack,
+            type: "string",
+          },
+        },
+      });
       return {
         _success: false,
         error: JSON.parse(JSON.stringify(error, null, 2)),
+        logs: logger.getLogs(),
       };
     }
   },
   scores: [exactMatch, errorMatch],
   maxConcurrency: 10,
-  trialCount: 10,
+  trialCount: 1,
 });

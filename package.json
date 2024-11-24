@@ -32,6 +32,7 @@
     "autoevals": "^0.0.64",
     "braintrust": "^0.0.171",
     "cheerio": "^1.0.0",
+    "chromium-bidi": "^0.10.0",
     "esbuild": "^0.21.4",
     "express": "^4.21.0",
     "multer": "^1.4.5-lts.1",
