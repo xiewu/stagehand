@@ -54,7 +54,7 @@
     "anthropic": "^0.0.0",
     "anthropic-ai": "^0.0.10",
     "sharp": "^0.33.5",
-    "zod-to-json-schema": "^3.23.3"
+    "zod-to-json-schema": "^3.23.5"
   },
   "directories": {
     "doc": "docs",

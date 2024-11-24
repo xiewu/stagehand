@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { LogLine } from "./types";
+import { z } from "zod";
 
 export function generateId(operation: string) {
   return crypto.createHash("sha256").update(operation).digest("hex");
@@ -13,4 +14,13 @@ export function logLineToString(logLine: LogLine): string {
   return `${timestamp}::[stagehand:${logLine.category}] ${logLine.message} ${
     logLine.auxiliary ? JSON.stringify(logLine.auxiliary) : ""
   }`;
+}
+
+export function validateZodSchema(schema: z.ZodTypeAny, data: any) {
+  try {
+    schema.parse(data);
+    return true;
+  } catch (error) {
+    return false;
+  }
 }

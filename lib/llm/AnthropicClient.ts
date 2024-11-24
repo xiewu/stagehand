@@ -5,6 +5,7 @@ import { LLMCache } from "../cache/LLMCache";
 import { LogLine } from "../types";
 
 export class AnthropicClient implements LLMClient {
+  public type: "anthropic" = "anthropic";
   private client: Anthropic;
   private cache: LLMCache | undefined;
   public logger: (message: LogLine) => void;

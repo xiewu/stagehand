@@ -204,8 +204,8 @@ export async function extract({
   const extractionResponse = await llmClient.createChatCompletion({
     model: modelName,
     messages: [
-      buildExtractSystemPrompt(),
-      buildExtractUserPrompt(instruction, domElements),
+      buildExtractSystemPrompt(llmClient),
+      buildExtractUserPrompt(llmClient, instruction, domElements),
     ],
     response_model: {
       schema: schema,

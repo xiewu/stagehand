@@ -42,6 +42,7 @@ export interface ChatCompletionOptions {
 }
 
 export interface LLMClient {
+  type: "openai" | "anthropic";
   createChatCompletion(options: ChatCompletionOptions): Promise<any>;
   logger: (message: { category?: string; message: string }) => void;
 }
