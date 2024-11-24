@@ -1442,7 +1442,11 @@ const arxiv = async ({ modelName }: { modelName: AvailableModel }) => {
   }
 };
 
-const search_amazon = async ({ modelName }: { modelName: AvailableModel }) => {
+const amazon_add_to_cart = async ({
+  modelName,
+}: {
+  modelName: AvailableModel;
+}) => {
   // Initialize Stagehand with credentials from env
   const stagehand = new Stagehand({
     env,
@@ -1505,7 +1509,7 @@ const tasks = {
   laroche_form,
   arxiv,
   expedia,
-  search_amazon,
+  amazon_add_to_cart,
 };
 
 const exactMatch = (args: {
@@ -1547,7 +1551,7 @@ const testcases = [
   "extract_partners",
   "laroche_form",
   "arxiv",
-  "search_amazon",
+  "amazon_add_to_cart",
   //   "expedia"
 ];
 
