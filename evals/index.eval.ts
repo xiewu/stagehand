@@ -478,8 +478,6 @@ const extract_github_stars = async ({
   try {
     await stagehand.page.goto("https://github.com/facebook/react");
 
-    console.log("modelName", modelName);
-
     const { stars } = await stagehand.extract({
       instruction: "Extract the number of stars for the project",
       schema: z.object({
