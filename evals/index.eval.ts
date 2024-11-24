@@ -1,4 +1,3 @@
-import fs from "fs";
 import { Eval } from "braintrust";
 import { Stagehand } from "../lib";
 import type { AvailableModel } from "../lib/llm/LLMProvider";
@@ -6,14 +5,11 @@ import { z } from "zod";
 import process from "process";
 import { EvalLogger } from "./utils";
 import { LogLine } from "../lib/types";
-import Browserbase from "@browserbasehq/sdk";
 
 const env: "BROWSERBASE" | "LOCAL" =
   process.env.EVAL_ENV?.toLowerCase() === "browserbase"
     ? "BROWSERBASE"
     : "LOCAL";
-
-console.log("env", env);
 
 const enableCaching = process.env.EVAL_ENABLE_CACHING?.toLowerCase() === "true";
 const models: AvailableModel[] = ["gpt-4o", "claude-3-5-sonnet-20241022"];
