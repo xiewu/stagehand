@@ -12,7 +12,7 @@ const env: "BROWSERBASE" | "LOCAL" =
     : "LOCAL";
 
 const enableCaching = process.env.EVAL_ENABLE_CACHING?.toLowerCase() === "true";
-const models: AvailableModel[] = ["gpt-4o", "claude-3-5-sonnet-20241022"];
+const models: AvailableModel[] = ["gpt-4o"];
 
 const defaultStagehandOptions = {
   env,
@@ -1476,6 +1476,6 @@ Eval("stagehand", {
     }
   },
   scores: [exactMatch, errorMatch],
-  // maxConcurrency: 10,
-  trialCount: 1,
+  maxConcurrency: 10,
+  trialCount: 10,
 });
