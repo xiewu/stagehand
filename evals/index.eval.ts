@@ -186,7 +186,8 @@ const vanta_h: EvalFunction = async ({ modelName, logger }) => {
   await stagehand.page.goto("https://www.vanta.com/");
 
   const observations = await stagehand.observe({
-    instruction: "find the buy now button",
+    instruction:
+      "find the buy now button. It should be a button with the text that says exactly 'Buy Now'",
   });
 
   await stagehand.context.close();
@@ -1475,6 +1476,6 @@ Eval("stagehand", {
     }
   },
   scores: [exactMatch, errorMatch],
-  maxConcurrency: 10,
+  // maxConcurrency: 10,
   trialCount: 1,
 });
