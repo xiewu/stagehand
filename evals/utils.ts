@@ -2,6 +2,22 @@ import { LogLine } from "../lib/types";
 import { Stagehand } from "../lib";
 import { logLineToString } from "../lib/utils";
 
+type LogLineEval = LogLine & {
+  parsedAuxiliary?: string | object;
+};
+
+function parseLogLine(logLine: LogLine): LogLineEval {
+  return {
+    ...logLine,
+    parsedAuxiliary:
+      logLine.auxiliary &&
+      logLine.auxiliary.value &&
+      (logLine.auxiliary.type as unknown as string) === "object"
+        ? JSON.parse(logLine.auxiliary.value as unknown as string)
+        : logLine.auxiliary?.value,
+  } as LogLineEval;
+}
+
 export class EvalLogger {
   logs: LogLine[] = [];
   stagehand?: Stagehand;
