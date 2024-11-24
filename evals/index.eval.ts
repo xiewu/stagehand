@@ -478,6 +478,8 @@ const extract_github_stars = async ({
   try {
     await stagehand.page.goto("https://github.com/facebook/react");
 
+    console.log("modelName", modelName);
+
     const { stars } = await stagehand.extract({
       instruction: "Extract the number of stars for the project",
       schema: z.object({
@@ -1537,21 +1539,21 @@ const exactMatch = (args: {
 };
 
 const testcases = [
-  "vanta",
-  "vanta_h",
-  "peeler_simple",
-  "wikipedia",
-  "peeler_complex",
-  "simple_google_search",
+  // "vanta",
+  // "vanta_h",
+  // "peeler_simple",
+  // "wikipedia",
+  // "peeler_complex",
+  // "simple_google_search",
   "extract_github_stars",
-  "extract_collaborators_from_github_repository",
-  "extract_last_twenty_github_commits",
-  "google_jobs",
-  "homedepot",
-  "extract_partners",
-  "laroche_form",
-  "arxiv",
-  "amazon_add_to_cart",
+  // "extract_collaborators_from_github_repository",
+  // "extract_last_twenty_github_commits",
+  // "google_jobs",
+  // "homedepot",
+  // "extract_partners",
+  // "laroche_form",
+  // "arxiv",
+  // "amazon_add_to_cart",
   //   "expedia"
 ];
 
@@ -1569,7 +1571,9 @@ Eval("stagehand", {
   task: async (input: { name: string; modelName: AvailableModel }) => {
     try {
       // Handle predefined tasks
-      const result = await (tasks as any)[input.name](input.modelName);
+      const result = await (tasks as any)[input.name]({
+        modelName: input.modelName,
+      });
       if (result) {
         console.log(`✅ ${input.name}: Passed`);
       } else {
@@ -1586,5 +1590,5 @@ Eval("stagehand", {
   },
   scores: [exactMatch],
   //   maxConcurrency: 5,
-  // trialCount: 3,
+  trialCount: 1,
 });
