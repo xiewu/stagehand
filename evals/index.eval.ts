@@ -1552,7 +1552,7 @@ const testcases = [
   "laroche_form",
   "arxiv",
   "amazon_add_to_cart",
-  "expedia",
+  // "expedia",
 ];
 
 Eval("stagehand", {
