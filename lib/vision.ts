@@ -128,8 +128,9 @@ export class ScreenshotService {
         this.createElementAnnotation(id, selectors).catch((error) => {
           this.log({
             category: "screenshotService",
-            message: "warning: failed to create screenshot annotation for element",
-            level: 1,
+            message:
+              "warning: failed to create screenshot annotation for element",
+            level: 2,
           });
           return null;
         }),
