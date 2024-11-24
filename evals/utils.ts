@@ -7,6 +7,7 @@ type LogLineEval = LogLine & {
 };
 
 function parseLogLine(logLine: LogLine): LogLineEval {
+  try {
   return {
     ...logLine,
     auxiliary: undefined,
@@ -18,7 +19,16 @@ function parseLogLine(logLine: LogLine): LogLineEval {
           ]),
         )
       : undefined,
-  } as LogLineEval;
+    } as LogLineEval;
+  } catch (error) {
+    console.error(`Error parsing log line:`, logLine);
+
+    return {
+      ...logLine,
+      auxiliary: undefined,
+      parsedAuxiliary: undefined,
+    } as LogLineEval;
+  }
 }
 
 export class EvalLogger {

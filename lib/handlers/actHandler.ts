@@ -158,7 +158,8 @@ export class StagehandActHandler {
         goal: action,
         steps,
         llmProvider: this.llmProvider,
-        modelName: model,
+        // o1 is overkill for this task + this task uses a lot of tokens. So we switch it 4o
+        modelName: (model === "o1-mini" || model === "o1-preview") ? "gpt-4o" : model,
         screenshot: fullpageScreenshot,
         domElements,
         logger: this.logger,
@@ -1314,7 +1315,22 @@ export class StagehandActHandler {
           steps,
           model,
           domSettleTimeoutMs,
-        });
+        })
+        .catch((error) => {
+            this.logger({
+              category: "action",
+              message: "error verifying action completion. Assuming action completed.",
+              level: 1,
+              auxiliary: {
+                error: {
+                  value: error.message,
+                  type: "string",
+                },
+              },
+            });
+
+            return true;
+          });
 
         if (!actionCompleted) {
           this.logger({
