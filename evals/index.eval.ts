@@ -1414,7 +1414,7 @@ const errorMatch = (args: {
 const testcases = [
   "vanta",
   "vanta_h",
-  "peeler_simple",
+  ...(env === "BROWSERBASE" ? [] : ["peeler_simple"]), // peeler_simple is not supported on Browserbase
   "wikipedia",
   "peeler_complex",
   "simple_google_search",
