@@ -12,7 +12,7 @@ const env: "BROWSERBASE" | "LOCAL" =
     : "LOCAL";
 
 const enableCaching = process.env.EVAL_ENABLE_CACHING?.toLowerCase() === "true";
-const models: AvailableModel[] = ["gpt-4o"];
+const models: AvailableModel[] = ["gpt-4o", "claude-3-5-sonnet-20241022"];
 
 const defaultStagehandOptions = {
   env,
