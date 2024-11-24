@@ -286,7 +286,6 @@ const peeler_complex: EvalFunction = async ({ modelName, logger }) => {
     const { price } = await stagehand.extract({
       instruction: "get the price of the peeler",
       schema: z.object({ price: z.number().nullable() }),
-      modelName: "gpt-4o-2024-08-06",
     });
 
     return {
@@ -354,7 +353,6 @@ const homedepot: EvalFunction = async ({ modelName, logger }) => {
           )
           .describe("Gas grill Primary Burner BTU exact value"),
       }),
-      modelName: "gpt-4o-2024-08-06",
     });
     logger.log({
       message: `gas grill primary burner BTU`,
@@ -696,7 +694,6 @@ const costar: EvalFunction = async ({ modelName, logger }) => {
       schema: z.object({
         title: z.string().describe("the title of the article").nullable(),
       }),
-      modelName: "gpt-4o-2024-08-06",
     });
 
     logger.log({
@@ -797,7 +794,6 @@ const google_jobs: EvalFunction = async ({ modelName, logger }) => {
             .nullable(),
         }),
       }),
-      modelName: "gpt-4o-2024-08-06",
     });
 
     logger.log({
@@ -1050,7 +1046,6 @@ const laroche_form: EvalFunction = async ({ modelName, logger }) => {
     //     startTerm: z.string(),
     //     programOfInterest: z.string(),
     //   }),
-    //   modelName: "gpt-4o",
     // });
 
     // console.log("Extracted form data:", formData);
@@ -1135,7 +1130,6 @@ const arxiv: EvalFunction = async ({ modelName, logger }) => {
           )
           .describe("list of papers"),
       }),
-      modelName: "gpt-4o-2024-08-06",
     });
 
     if (
@@ -1189,7 +1183,6 @@ const arxiv: EvalFunction = async ({ modelName, logger }) => {
               )
               .nullable(),
           }),
-          modelName: "gpt-4o-2024-08-06",
         });
 
         papers.push({
@@ -1487,5 +1480,5 @@ Eval("stagehand", {
   },
   scores: [exactMatch, errorMatch],
   maxConcurrency: 10,
-  trialCount: 10,
+  trialCount: 1,
 });
