@@ -1,20 +1,22 @@
 import { type Page, type BrowserContext, chromium } from "@playwright/test";
 import { z } from "zod";
 import fs from "fs";
-import { Browserbase } from "@browserbasehq/sdk";
-import { extract, observe } from "./inference";
-import { AvailableModel, LLMProvider } from "./llm/LLMProvider";
-import path from "path";
-import { ScreenshotService } from "./vision";
-import { modelsWithVision } from "./llm/LLMClient";
-import { StagehandActHandler } from "./handlers/actHandler";
-import { generateId, formatText, logLineToString } from "./utils";
+import { Browserbase, ClientOptions } from "@browserbasehq/sdk";
+import { LLMProvider } from "./llm/LLMProvider";
+import { AvailableModel } from "./types";
 // @ts-ignore we're using a built js file as a string here
 import { scriptContent } from "./dom/build/scriptContent";
 import { LogLine, TextAnnotation } from "./types";
 import { randomUUID } from "crypto";
+import { logLineToString } from "./utils";
+import { StagehandExtractHandler } from "./handlers/extractHandler";
+import { StagehandObserveHandler } from "./handlers/observeHandler";
+import { StagehandActHandler } from "./handlers/actHandler";
+import { LLMClient } from "./llm/LLMClient";
 
 require("dotenv").config({ path: ".env" });
+
+const DEFAULT_MODEL_NAME = "gpt-4o";
 
 async function getBrowser(
   apiKey: string | undefined,
@@ -272,12 +274,7 @@ async function applyStealthScripts(context: BrowserContext) {
 
 export class Stagehand {
   private llmProvider: LLMProvider;
-  private observations: {
-    [key: string]: {
-      result: { selector: string; description: string }[];
-      instruction: string;
-    };
-  };
+  private llmClient: LLMClient;
   public page: Page;
   public context: BrowserContext;
   private env: "LOCAL" | "BROWSERBASE";
@@ -285,7 +282,6 @@ export class Stagehand {
   private projectId: string | undefined;
   private verbose: 0 | 1 | 2;
   private debugDom: boolean;
-  private defaultModelName: AvailableModel;
   private headless: boolean;
   private logger: (logLine: LogLine) => void;
   private externalLogger?: (logLine: LogLine) => void;
@@ -293,8 +289,11 @@ export class Stagehand {
   private browserBaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   private enableCaching: boolean;
   private variables: { [key: string]: any };
-  private actHandler: StagehandActHandler;
   private browserbaseResumeSessionID?: string;
+
+  private actHandler?: StagehandActHandler;
+  private extractHandler?: StagehandExtractHandler;
+  private observeHandler?: StagehandObserveHandler;
 
   constructor(
     {
@@ -310,6 +309,8 @@ export class Stagehand {
       domSettleTimeoutMs,
       enableCaching,
       browserbaseResumeSessionID,
+      modelName,
+      modelClientOptions,
     }: {
       env: "LOCAL" | "BROWSERBASE";
       apiKey?: string;
@@ -323,6 +324,8 @@ export class Stagehand {
       browserBaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
       enableCaching?: boolean;
       browserbaseResumeSessionID?: string;
+      modelName?: AvailableModel;
+      modelClientOptions?: ClientOptions;
     } = {
       env: "BROWSERBASE",
     },
@@ -335,39 +338,35 @@ export class Stagehand {
     this.llmProvider =
       llmProvider || new LLMProvider(this.logger, this.enableCaching);
     this.env = env;
-    this.observations = {};
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
     this.verbose = verbose ?? 0;
     this.debugDom = debugDom ?? false;
-    this.defaultModelName = "gpt-4o";
+    this.llmClient = this.llmProvider.getClient(
+      modelName ?? DEFAULT_MODEL_NAME,
+      modelClientOptions,
+    );
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = headless ?? false;
     this.browserBaseSessionCreateParams = browserBaseSessionCreateParams;
-    this.actHandler = new StagehandActHandler({
-      stagehand: this,
-      verbose: this.verbose,
-      llmProvider: this.llmProvider,
-      enableCaching: this.enableCaching,
-      logger: this.logger,
-      waitForSettledDom: this._waitForSettledDom.bind(this),
-      defaultModelName: this.defaultModelName,
-      startDomDebug: this.startDomDebug.bind(this),
-      cleanupDomDebug: this.cleanupDomDebug.bind(this),
-    });
     this.browserbaseResumeSessionID = browserbaseResumeSessionID;
   }
 
   async init({
-    modelName = "gpt-4o",
+    modelName,
+    modelClientOptions,
     domSettleTimeoutMs,
   }: {
     modelName?: AvailableModel;
+    modelClientOptions?: ClientOptions;
     domSettleTimeoutMs?: number;
   } = {}): Promise<{
     debugUrl: string;
     sessionUrl: string;
   }> {
+    const llmClient = modelName
+      ? this.llmProvider.getClient(modelName, modelClientOptions)
+      : this.llmClient;
     const { context, debugUrl, sessionUrl } = await getBrowser(
       this.apiKey,
       this.projectId,
@@ -385,7 +384,6 @@ export class Stagehand {
     // Redundant but needed for users who are re-connecting to a previously-created session
     await this.page.waitForLoadState("domcontentloaded");
     await this._waitForSettledDom();
-    this.defaultModelName = modelName;
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? this.domSettleTimeoutMs;
 
     // Overload the page.goto method
@@ -406,16 +404,54 @@ export class Stagehand {
       content: scriptContent,
     });
 
+    this.actHandler = new StagehandActHandler({
+      stagehand: this,
+      verbose: this.verbose,
+      llmProvider: this.llmProvider,
+      enableCaching: this.enableCaching,
+      logger: this.logger,
+      waitForSettledDom: this._waitForSettledDom.bind(this),
+      startDomDebug: this.startDomDebug.bind(this),
+      cleanupDomDebug: this.cleanupDomDebug.bind(this),
+      llmClient,
+    });
+
+    this.extractHandler = new StagehandExtractHandler({
+      stagehand: this,
+      logger: this.logger,
+      waitForSettledDom: this._waitForSettledDom.bind(this),
+      startDomDebug: this.startDomDebug.bind(this),
+      cleanupDomDebug: this.cleanupDomDebug.bind(this),
+      llmProvider: this.llmProvider,
+      verbose: this.verbose,
+      llmClient,
+    });
+
+    this.observeHandler = new StagehandObserveHandler({
+      stagehand: this,
+      logger: this.logger,
+      waitForSettledDom: this._waitForSettledDom.bind(this),
+      startDomDebug: this.startDomDebug.bind(this),
+      cleanupDomDebug: this.cleanupDomDebug.bind(this),
+      llmProvider: this.llmProvider,
+      verbose: this.verbose,
+      llmClient,
+    });
+
+    this.llmClient = llmClient;
     return { debugUrl, sessionUrl };
   }
 
   async initFromPage(
     page: Page,
     modelName?: AvailableModel,
+    modelClientOptions?: ClientOptions,
   ): Promise<{ context: BrowserContext }> {
     this.page = page;
     this.context = page.context();
-    this.defaultModelName = modelName || this.defaultModelName;
+    this.llmClient = modelName
+      ? this.llmProvider.getClient(modelName, modelClientOptions)
+      : this.llmClient;
 
     const originalGoto = this.page.goto.bind(this.page);
     this.page.goto = async (url: string, options?: any) => {
@@ -610,281 +646,17 @@ export class Stagehand {
     }
   }
 
-  private async _recordObservation(
-    instruction: string,
-    result: { selector: string; description: string }[],
-  ): Promise<string> {
-    const id = generateId(instruction);
-
-    this.observations[id] = { result, instruction };
-
-    return id;
-  }
-
-  // Main methods
-
-  private async _extract<T extends z.AnyZodObject>({
-    instruction,
-    schema,
-    content = {},
-    modelName,
-    requestId,
-    domSettleTimeoutMs,
-  }: {
-    instruction: string;
-    schema: T;
-    content?: z.infer<T>;
-    modelName?: AvailableModel;
-    requestId?: string;
-    domSettleTimeoutMs?: number;
-  }): Promise<z.infer<T>> {
-    this.log({
-      category: "extraction",
-      message: "starting extraction",
-      level: 1,
-      auxiliary: {
-        instruction: {
-          value: instruction,
-          type: "string",
-        },
-      },
-    });
-
-    await this._waitForSettledDom(domSettleTimeoutMs);
-    await this.startDomDebug();
-    const originalDOM: string = await this.page.evaluate(() => window.storeDOM());
-    const { selectorMap }: { selectorMap: Record<number, string[]> } =
-      await this.page.evaluate(() => window.processAllOfDom());
-
-    this.log({
-      category: "extraction",
-      message: `received output from processAllOfDom. selectorMap has ${Object.keys(selectorMap).length} entries`,
-      level: 1,
-    });
-
-    await this.page.evaluate(() => window.createTextBoundingBoxes());
-    const seenAnnotations = new Set<string>();
-    const textAnnotations: TextAnnotation[] = [];
-
-    for (const xpaths of Object.values(selectorMap)) {
-      const xpath = xpaths[0];
-
-      const boundingBoxes: Array<{
-        text: string;
-        left: number;
-        top: number;
-        width: number;
-        height: number;
-      }> = await this.page.evaluate(
-        (xpath) => window.getElementBoundingBoxes(xpath),
-        xpath
-      );
-
-      for (const box of boundingBoxes) {
-        const annotationKey = JSON.stringify({
-          text: box.text,
-          x: box.left + box.width / 2,
-          y: box.top + box.height / 2,
-          width: box.width,
-          height: box.height,
-        });
-
-        const pageWidth = await this.page.evaluate(() => window.innerWidth);
-        const pageHeight = await this.page.evaluate(() => window.innerHeight);
-        if (!seenAnnotations.has(annotationKey)) {
-          seenAnnotations.add(annotationKey);
-          textAnnotations.push({
-            text: box.text,
-            midpoint: {
-              x: box.left,
-              y: box.top + box.height,
-            },
-            midpoint_normalized: {
-              x: box.left / pageWidth,
-              y: box.top + box.height / pageHeight,
-            },
-            width: box.width,
-            height: box.height,
-          });
-        }
-      }
-    }
-
-    await this.page.evaluate(
-      (dom) => window.restoreDOM(dom),
-      originalDOM
-    );
-
-    const formattedText = formatText(textAnnotations);
-
-    // const fs = require("fs");
-    // const formattedTextFilePath = "./formattedText.txt";
-    // fs.writeFileSync(formattedTextFilePath, formattedText);
-
-    const extractionResponse = await extract({
-      instruction,
-      previouslyExtractedContent: content,
-      domElements: formattedText,
-      llmProvider: this.llmProvider,
-      schema,
-      modelName: modelName || this.defaultModelName,
-      requestId,
-    });
-
-    const {
-      metadata: { completed },
-      ...output
-    } = extractionResponse;
-    await this.cleanupDomDebug();
-
-    this.log({
-      category: "extraction",
-      message: "received extraction response",
-      level: 1,
-      auxiliary: {
-        extraction_response: {
-          value: JSON.stringify(extractionResponse),
-          type: "object",
-        },
-      },
-    });
-
-    if (completed) {
-      this.log({
-        category: "extraction",
-        message: "got response",
-        level: 1,
-        auxiliary: {
-          extraction_response: {
-            value: JSON.stringify(extractionResponse),
-            type: "object",
-          },
-        },
-      });
-
-      return output;
-    }
-    throw new Error("Extraction incomplete, but no further steps available.");
-  }
-
-  private async _observe({
-    instruction,
-    useVision,
-    fullPage,
-    modelName,
-    requestId,
-    domSettleTimeoutMs,
-  }: {
-    instruction: string;
-    useVision: boolean;
-    fullPage: boolean;
-    modelName?: AvailableModel;
-    requestId?: string;
-    domSettleTimeoutMs?: number;
-  }): Promise<{ selector: string; description: string }[]> {
-    if (!instruction) {
-      instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
-    }
-
-    const model = modelName ?? this.defaultModelName;
-
-    this.log({
-      category: "observation",
-      message: "starting observation",
-      level: 1,
-      auxiliary: {
-        instruction: {
-          value: instruction,
-          type: "string",
-        },
-      },
-    });
-
-    await this._waitForSettledDom(domSettleTimeoutMs);
-    await this.startDomDebug();
-    let { outputString, selectorMap } = await this.page.evaluate(
-      (fullPage: boolean) =>
-        fullPage ? window.processAllOfDom() : window.processDom([]),
-      fullPage,
-    );
-
-    let annotatedScreenshot: Buffer | undefined;
-    if (useVision === true) {
-      if (!modelsWithVision.includes(model)) {
-        this.log({
-          category: "observation",
-          message: "Model does not support vision. Skipping vision processing.",
-          level: 1,
-          auxiliary: {
-            model: {
-              value: model,
-              type: "string",
-            },
-          },
-        });
-      } else {
-        const screenshotService = new ScreenshotService(
-          this.page,
-          selectorMap,
-          this.verbose,
-          this.externalLogger,
-        );
-
-        annotatedScreenshot =
-          await screenshotService.getAnnotatedScreenshot(fullPage);
-        outputString = "n/a. use the image to find the elements.";
-      }
-    }
-
-    const observationResponse = await observe({
-      instruction,
-      domElements: outputString,
-      llmProvider: this.llmProvider,
-      modelName: modelName || this.defaultModelName,
-      image: annotatedScreenshot,
-      requestId,
-    });
-
-    const elementsWithSelectors = observationResponse.elements.map(
-      (element) => {
-        const { elementId, ...rest } = element;
-
-        return {
-          ...rest,
-          selector: `xpath=${selectorMap[elementId][0]}`,
-        };
-      },
-    );
-
-    await this.cleanupDomDebug();
-
-    this._recordObservation(instruction, elementsWithSelectors);
-
-    this.log({
-      category: "observation",
-      message: "found elements",
-      level: 1,
-      auxiliary: {
-        elements: {
-          value: JSON.stringify(elementsWithSelectors),
-          type: "object",
-        },
-      },
-    });
-
-    await this._recordObservation(instruction, elementsWithSelectors);
-    return elementsWithSelectors;
-  }
-
   async act({
     action,
     modelName,
+    modelClientOptions,
     useVision = "fallback",
     variables = {},
     domSettleTimeoutMs,
   }: {
     action: string;
     modelName?: AvailableModel;
+    modelClientOptions?: ClientOptions;
     useVision?: "fallback" | boolean;
     variables?: Record<string, string>;
     domSettleTimeoutMs?: number;
@@ -893,9 +665,15 @@ export class Stagehand {
     message: string;
     action: string;
   }> {
-    useVision = useVision ?? "fallback";
+    if (!this.actHandler) {
+      throw new Error("Act handler not initialized");
+    }
 
+    useVision = useVision ?? "fallback";
     const requestId = Math.random().toString(36).substring(2);
+    const llmClient: LLMClient = modelName
+      ? this.llmProvider.getClient(modelName, modelClientOptions)
+      : this.llmClient;
 
     this.log({
       category: "act",
@@ -910,6 +688,10 @@ export class Stagehand {
           value: requestId,
           type: "string",
         },
+        modelName: {
+          value: llmClient.modelName,
+          type: "string",
+        },
       },
     });
 
@@ -920,7 +702,7 @@ export class Stagehand {
     return this.actHandler
       .act({
         action,
-        modelName,
+        llmClient,
         chunksSeen: [],
         useVision,
         verifierUseVision: useVision !== false,
@@ -959,14 +741,23 @@ export class Stagehand {
     instruction,
     schema,
     modelName,
+    modelClientOptions,
     domSettleTimeoutMs,
   }: {
     instruction: string;
     schema: T;
     modelName?: AvailableModel;
+    modelClientOptions?: ClientOptions;
     domSettleTimeoutMs?: number;
   }): Promise<z.infer<T>> {
+    if (!this.extractHandler) {
+      throw new Error("Extract handler not initialized");
+    }
+
     const requestId = Math.random().toString(36).substring(2);
+    const llmClient = modelName
+      ? this.llmProvider.getClient(modelName, modelClientOptions)
+      : this.llmClient;
 
     this.logger({
       category: "extract",
@@ -981,47 +772,64 @@ export class Stagehand {
           value: requestId,
           type: "string",
         },
+        modelName: {
+          value: llmClient.modelName,
+          type: "string",
+        },
       },
     });
 
-    return this._extract({
-      instruction,
-      schema,
-      modelName,
-      requestId,
-      domSettleTimeoutMs,
-    }).catch((e) => {
-      this.logger({
-        category: "extract",
-        message: "error extracting",
-        level: 1,
-        auxiliary: {
-          error: {
-            value: e.message,
-            type: "string",
+    return this.extractHandler
+      .extract({
+        instruction,
+        schema,
+        llmClient,
+        requestId,
+        domSettleTimeoutMs,
+      })
+      .catch((e) => {
+        this.logger({
+          category: "extract",
+          message: "error extracting",
+          level: 1,
+          auxiliary: {
+            error: {
+              value: e.message,
+              type: "string",
+            },
+            trace: {
+              value: e.stack,
+              type: "string",
+            },
           },
-          trace: {
-            value: e.stack,
-            type: "string",
-          },
-        },
+        });
+
+        if (this.enableCaching) {
+          this.llmProvider.cleanRequestCache(requestId);
+        }
+
+        throw e;
       });
-
-      if (this.enableCaching) {
-        this.llmProvider.cleanRequestCache(requestId);
-      }
-
-      throw e;
-    });
   }
 
   async observe(options?: {
     instruction?: string;
     modelName?: AvailableModel;
+    modelClientOptions?: ClientOptions;
     useVision?: boolean;
     domSettleTimeoutMs?: number;
   }): Promise<{ selector: string; description: string }[]> {
+    if (!this.observeHandler) {
+      throw new Error("Observe handler not initialized");
+    }
+
     const requestId = Math.random().toString(36).substring(2);
+    const llmClient = options?.modelName
+      ? this.llmProvider.getClient(
+          options.modelName,
+          options.modelClientOptions,
+        )
+      : this.llmClient;
 
     this.logger({
       category: "observe",
@@ -1036,48 +844,54 @@ export class Stagehand {
           value: requestId,
           type: "string",
         },
+        modelName: {
+          value: llmClient.modelName,
+          type: "string",
+        },
       },
     });
 
-    return this._observe({
-      instruction:
-        options?.instruction ??
-        "Find actions that can be performed on this page.",
-      modelName: options?.modelName,
-      useVision: options?.useVision ?? false,
-      fullPage: false,
-      requestId,
-      domSettleTimeoutMs: options?.domSettleTimeoutMs,
-    }).catch((e) => {
-      this.logger({
-        category: "observe",
-        message: "error observing",
-        level: 1,
-        auxiliary: {
-          error: {
-            value: e.message,
-            type: "string",
+    return this.observeHandler
+      .observe({
+        instruction:
+          options?.instruction ??
+          "Find actions that can be performed on this page.",
+        llmClient,
+        useVision: options?.useVision ?? false,
+        fullPage: false,
+        requestId,
+        domSettleTimeoutMs: options?.domSettleTimeoutMs,
+      })
+      .catch((e) => {
+        this.logger({
+          category: "observe",
+          message: "error observing",
+          level: 1,
+          auxiliary: {
+            error: {
+              value: e.message,
+              type: "string",
+            },
+            trace: {
+              value: e.stack,
+              type: "string",
+            },
+            requestId: {
+              value: requestId,
+              type: "string",
+            },
+            instruction: {
+              value: options?.instruction,
+              type: "string",
+            },
           },
-          trace: {
-            value: e.stack,
-            type: "string",
-          },
-          requestId: {
-            value: requestId,
-            type: "string",
-          },
-          instruction: {
-            value: options?.instruction,
-            type: "string",
-          },
-        },
+        });
+
+        if (this.enableCaching) {
+          this.llmProvider.cleanRequestCache(requestId);
+        }
+
+        throw e;
       });
-
-      if (this.enableCaching) {
-        this.llmProvider.cleanRequestCache(requestId);
-      }
-
-      throw e;
-    });
   }
 }
