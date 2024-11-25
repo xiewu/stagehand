@@ -40,7 +40,7 @@ git commit -m 'version packages'
 
 Ok, now it's time to publish the release.
 Before we do, we have to build the artifacts that comprise the tarball.
-Let's clean our working directory first:
+Let's clean our working directory first so that we don't accidentally include anything in the tarball that shouldn't be there:
 
 ```
 git clean -fxd -e .env
