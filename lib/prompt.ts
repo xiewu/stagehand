@@ -208,9 +208,11 @@ Print the exact text from the DOM elements with all symbols, characters, and end
 Print null or an empty string if no new information is found.
 `;
 
-export function buildExtractSystemPrompt(llmClient: LLMClient): ChatMessage {
+export function buildExtractSystemPrompt(
+  isUsingPrintExtractedDataTool: boolean = false,
+): ChatMessage {
   let content = extractSystemPrompt.replace(/\s+/g, " ");
-  if (llmClient.type === "anthropic") {
+  if (isUsingPrintExtractedDataTool) {
     content += `
 ONLY print the content using the print_extracted_data tool provided.
 ONLY print the content using the print_extracted_data tool provided.`;
@@ -222,14 +224,14 @@ ONLY print the content using the print_extracted_data tool provided.`;
 }
 
 export function buildExtractUserPrompt(
-  llmClient: LLMClient,
   instruction: string,
   domElements: string,
+  isUsingPrintExtractedDataTool: boolean = false,
 ): ChatMessage {
   let content = `Instruction: ${instruction}
 DOM: ${domElements}`;
 
-  if (llmClient.type === "anthropic") {
+  if (isUsingPrintExtractedDataTool) {
     content += `
 ONLY print the content using the print_extracted_data tool provided.
 ONLY print the content using the print_extracted_data tool provided.`;

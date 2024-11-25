@@ -38,6 +38,11 @@ export async function verifyActCompletion({
   logger: (message: { category?: string; message: string }) => void;
   requestId: string;
 }): Promise<boolean> {
+  // o1 is overkill for this task + this task uses a lot of tokens. So we switch it 4o
+  if (modelName === "o1-preview" || modelName === "o1-mini") {
+    modelName = "gpt-4o";
+  }
+
   const llmClient = llmProvider.getClient(modelName, requestId);
   const messages: ChatMessage[] = [
     buildVerifyActCompletionSystemPrompt(),
@@ -201,11 +206,13 @@ export async function extract({
 }) {
   const llmClient = llmProvider.getClient(modelName, requestId);
 
+  const isUsingAnthropic = llmClient.type === "anthropic";
+
   const extractionResponse = await llmClient.createChatCompletion({
     model: modelName,
     messages: [
-      buildExtractSystemPrompt(llmClient),
-      buildExtractUserPrompt(llmClient, instruction, domElements),
+      buildExtractSystemPrompt(isUsingAnthropic),
+      buildExtractUserPrompt(instruction, domElements, isUsingAnthropic),
     ],
     response_model: {
       schema: schema,
