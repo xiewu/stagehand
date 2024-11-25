@@ -59,7 +59,7 @@ At this point we're ready to commit our changes.
 It's probably a good idea to have some consistency around the name of this commit message:
 
 ```
-git commit -m 'Version Packages'
+git commit -am 'Version Packages'
 ```
 
 Ok, now it's time to publish the release.
