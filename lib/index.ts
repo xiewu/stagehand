@@ -689,6 +689,8 @@ export class Stagehand {
           height: box.height,
         });
 
+        const pageWidth = await this.page.evaluate(() => window.innerWidth);
+        const pageHeight = await this.page.evaluate(() => window.innerHeight);
         if (!seenAnnotations.has(annotationKey)) {
           seenAnnotations.add(annotationKey);
           textAnnotations.push({
@@ -698,8 +700,8 @@ export class Stagehand {
               y: box.top + box.height,
             },
             midpoint_normalized: {
-              x: box.left / this.page.viewportSize().width,
-              y: box.top + box.height / this.page.viewportSize().height,
+              x: box.left / pageWidth,
+              y: box.top + box.height / pageHeight,
             },
             width: box.width,
             height: box.height,
