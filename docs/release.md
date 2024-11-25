@@ -16,6 +16,14 @@ This will consume the changesets in [`.changeset`](../.changeset) and update the
  M package.json
 ```
 
+Based on the versions implications declared by the changesets, the package version will be updated to the next patch, minor, or major:
+
+```diff
+   "name": "@browserbasehq/stagehand",
+-  "version": "1.3.0",
++  "version": "1.3.1",
+```
+
 Since we updated the `package.json`, we should also update the lockfile ([`package-lock.json`](../package-lock.json)) for tidiness:
 
 ```
@@ -31,11 +39,27 @@ Now the lockfile should be updated:
  M package.json
 ```
 
+The diff will look something like this:
+
+```diff
+ {
+   "name": "@browserbasehq/stagehand",
+-  "version": "1.3.0",
++  "version": "1.3.1",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "@browserbasehq/stagehand",
+-      "version": "1.3.0",
++      "version": "1.3.1",
+```
+
 At this point we're ready to commit our changes.
 It's probably a good idea to have some consistency around the name of this commit message:
 
 ```
-git commit -m 'version packages'
+git commit -m 'Version Packages'
 ```
 
 Ok, now it's time to publish the release.
@@ -46,20 +70,20 @@ Let's clean our working directory first so that we don't accidentally include an
 git clean -fxd -e .env
 ```
 
-Now let's build the artifacts:
+Let's build the artifacts:
 
 ```
 npm run build
 ```
 
-We're ready to publish to NPM:
+Now we're ready to publish to NPM. You have to be logged in via the `npm` CLI and have to be part of the `@browserbasehq` org:
 
 ```
 npx changeset publish
 ```
 
 Changeset created an annotated git tag.
-Let's push the commit and tag to GitHub:
+Let's push the commit and tag to GitHub for posterity:
 
 ```
 git push --follow-tags
