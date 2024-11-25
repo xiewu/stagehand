@@ -38,7 +38,7 @@ It's probably a good idea to have some consistency around the name of this commi
 git commit -m 'version packages'
 ```
 
-Ok, now it's time to publish the release:
+Ok, now it's time to publish the release.
 Before we do, we have to build the artifacts that comprise the tarball.
 Let's clean our working directory first:
 
