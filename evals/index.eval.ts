@@ -125,7 +125,7 @@ const vanta: EvalFunction = async ({ modelName, logger }) => {
   const observations = await stagehand.observe();
 
   if (observations.length === 0) {
-    await stagehand.context.close();
+    await stagehand.context.close().catch(() => {});
     return {
       _success: false,
       observations,
@@ -163,7 +163,7 @@ const vanta: EvalFunction = async ({ modelName, logger }) => {
     }
   }
 
-  await stagehand.context.close();
+  await stagehand.context.close().catch(() => {});
 
   return {
     _success: foundMatch,
@@ -190,7 +190,7 @@ const vanta_h: EvalFunction = async ({ modelName, logger }) => {
       "find the buy now button. It should be a button with the text that says exactly 'Buy Now'",
   });
 
-  await stagehand.context.close();
+  await stagehand.context.close().catch(() => {});
 
   // we should have no saved observation since the element shouldn't exist
   return {
@@ -219,7 +219,7 @@ const simple_google_search: EvalFunction = async ({ modelName, logger }) => {
   const expectedUrl = "https://www.google.com/search?q=OpenAI";
   const currentUrl = stagehand.page.url();
 
-  await stagehand.context.close();
+  await stagehand.context.close().catch(() => {});
 
   return {
     _success: currentUrl.startsWith(expectedUrl),
@@ -253,7 +253,7 @@ const peeler_simple: EvalFunction = async ({ modelName, logger }) => {
   );
   const isVisible = await successMessageLocator.isVisible();
 
-  await stagehand.context.close();
+  await stagehand.context.close().catch(() => {});
   return {
     _success: isVisible,
     debugUrl,
@@ -319,7 +319,7 @@ const peeler_complex: EvalFunction = async ({ modelName, logger }) => {
       logs: logger.getLogs(),
     };
   } finally {
-    await stagehand.context.close();
+    await stagehand.context.close().catch(() => {});
   }
 };
 
@@ -664,7 +664,7 @@ const nonsense_action: EvalFunction = async ({ modelName, logger }) => {
       logs: logger.getLogs(),
     };
   } finally {
-    await stagehand.context.close();
+    await stagehand.context.close().catch(() => {});
   }
 };
 
@@ -712,7 +712,7 @@ const costar: EvalFunction = async ({ modelName, logger }) => {
     const isTitleValid =
       articleTitle.title !== null && articleTitle.title.length > 5;
 
-    await stagehand.context.close();
+    await stagehand.context.close().catch(() => {});
 
     return {
       title: articleTitle.title,
@@ -744,7 +744,7 @@ const costar: EvalFunction = async ({ modelName, logger }) => {
       logs: logger.getLogs(),
     };
   } finally {
-    await stagehand.context.close();
+    await stagehand.context.close().catch(() => {});
   }
 };
 
@@ -860,7 +860,7 @@ const google_jobs: EvalFunction = async ({ modelName, logger }) => {
       logs: logger.getLogs(),
     };
   } finally {
-    await stagehand.context.close();
+    await stagehand.context.close().catch(() => {});
   }
 };
 
@@ -1330,7 +1330,7 @@ const amazon_add_to_cart: EvalFunction = async ({ modelName, logger }) => {
   const currentUrl = stagehand.page.url();
   const expectedUrlPrefix = "https://www.amazon.com/ap/signin";
 
-  await stagehand.context.close();
+  await stagehand.context.close().catch(() => {});
 
   return {
     _success: currentUrl.startsWith(expectedUrlPrefix),
