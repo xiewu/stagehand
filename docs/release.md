@@ -87,11 +87,11 @@ npx changeset publish
 
 Congratulations! You just published a new version of `@browserbasehq/stagehand`. 🤘
 
-In the process of publishing, changeset created an [annotated git tag](https://git-scm.com/book/en/v2/Git-Basics-Tagging):
+In the process of publishing, Changesets created an [annotated git tag](https://git-scm.com/book/en/v2/Git-Basics-Tagging):
 
 ```
 🦋  Creating git tag...
-🦋  New tag:  v1.3.4
+🦋  New tag:  v1.3.1
 ```
 
 Let's push the commit and tag to GitHub for posterity:
