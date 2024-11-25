@@ -67,13 +67,16 @@ Before we do, we have to build the artifacts that comprise the tarball.
 Let's clean our working directory first so that we don't accidentally include anything in the tarball that shouldn't be there:
 
 ```
-git clean -fxd -e .env
+% git clean -fxd -e .env
+Removing dist/
+Removing lib/dom/build/
+Removing node_modules/
 ```
 
-Let's build the artifacts:
+Let's reinstall dependencies and build the artifacts:
 
 ```
-npm run build
+npm install && npm run build
 ```
 
 Now we're ready to publish to NPM. You have to be logged in via the `npm` CLI and have to be part of the `@browserbasehq` org:
@@ -82,7 +85,15 @@ Now we're ready to publish to NPM. You have to be logged in via the `npm` CLI an
 npx changeset publish
 ```
 
-Changeset created an annotated git tag.
+Congratulations! You just published a new version of `@browserbasehq/stagehand`. 🤘
+
+In the process of publishing, changeset created an [annotated git tag](https://git-scm.com/book/en/v2/Git-Basics-Tagging):
+
+```
+🦋  Creating git tag...
+🦋  New tag:  v1.3.4
+```
+
 Let's push the commit and tag to GitHub for posterity:
 
 ```
