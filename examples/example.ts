@@ -5,7 +5,7 @@ async function example() {
   const stagehand = new Stagehand({
     env: "LOCAL",
     verbose: 1,
-    debugDom: false,
+    debugDom: true,
     enableCaching: false,
   });
 
