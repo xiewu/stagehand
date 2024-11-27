@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { LogLine } from "../types/log";
+import { TextAnnotation } from "../types/textannotation";
 
 export function generateId(operation: string) {
   return crypto.createHash("sha256").update(operation).digest("hex");

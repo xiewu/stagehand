@@ -2,6 +2,7 @@ import { LLMProvider } from "../llm/LLMProvider";
 import { Stagehand } from "../index";
 import { z } from "zod";
 import { LogLine } from "../../types/log";
+import { TextAnnotation } from "../../types/textannotation";
 import { extract } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { formatText } from "../utils";
