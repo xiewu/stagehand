@@ -362,7 +362,7 @@ export function getElementBoundingBoxes(xpath: string): Array<{
     }
   }
 
-  let placeholderText = " ";
+  let placeholderText = "";
   if (
     (element.tagName.toLowerCase() === "input" ||
       element.tagName.toLowerCase() === "textarea") &&
@@ -370,9 +370,9 @@ export function getElementBoundingBoxes(xpath: string): Array<{
   ) {
     placeholderText = (element as HTMLInputElement).placeholder;
   } else if (element.tagName.toLowerCase() === "a") {
-    placeholderText = " ";
+    placeholderText = "";
   } else if (element.tagName.toLowerCase() === "img") {
-    placeholderText = (element as HTMLImageElement).alt || " ";
+    placeholderText = (element as HTMLImageElement).alt || "";
   }
 
   const words = element.querySelectorAll(

@@ -94,7 +94,7 @@ export class StagehandExtractHandler {
       message: `received output from processAllOfDom. selectorMap has ${Object.keys(selectorMap).length} entries`,
       level: 1,
     });
-    const PROXIMITY_THRESHOLD = 10;
+    const PROXIMITY_THRESHOLD = 15;
     await this.stagehand.page.evaluate(() => window.createTextBoundingBoxes());
     const pageWidth = await this.stagehand.page.evaluate(() => window.innerWidth);
     const pageHeight = await this.stagehand.page.evaluate(() => window.innerHeight);
