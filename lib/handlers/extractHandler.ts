@@ -1,7 +1,7 @@
 import { LLMProvider } from "../llm/LLMProvider";
 import { Stagehand } from "../index";
 import { z } from "zod";
-import { AvailableModel, LogLine, TextAnnotation } from "../types";
+import { LogLine } from "../../types/log";
 import { extract } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { formatText } from "../utils";
@@ -165,7 +165,6 @@ export class StagehandExtractHandler {
       instruction,
       previouslyExtractedContent: content,
       domElements: formattedText,
-      llmProvider: this.llmProvider,
       schema,
       llmClient,
       requestId,

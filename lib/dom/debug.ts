@@ -1,4 +1,4 @@
-async function debugDom() {
+export async function debugDom() {
   window.chunkNumber = 0;
 
   const { selectorMap: multiSelectorMap, outputString } =
@@ -22,6 +22,7 @@ function multiSelectorMapToSelectorMap(
 }
 
 function drawChunk(selectorMap: Record<number, string>) {
+  if (!window.showChunks) return;
   cleanupMarkers();
   Object.entries(selectorMap).forEach(([_index, selector]) => {
     const element = document.evaluate(

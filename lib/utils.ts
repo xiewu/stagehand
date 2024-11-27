@@ -1,6 +1,5 @@
 import crypto from "crypto";
-import { LogLine } from "./types";
-import { TextAnnotation } from "./types";
+import { LogLine } from "../types/log";
 
 export function generateId(operation: string) {
   return crypto.createHash("sha256").update(operation).digest("hex");
@@ -42,7 +41,7 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
     );
     canvasWidth = Math.ceil(maxSumTextLengths * 1.5);
   }
-  
+
   let canvas: string[][] = [];
   for (let i = 0; i < lineCluster.size; i++) {
     canvas.push(new Array(canvasWidth).fill(" "));
@@ -106,7 +105,7 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
       if (x + text.length >= canvasWidth) {
         adjustCanvasWidth(x + text.length + 1);
       }
-      
+
       for (let j = 0; j < text.length; j++) {
         canvas[i][x + j] = text[j];
       }
@@ -122,7 +121,7 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
     const lineStr = row.join("");
     return Array.from(lineStr.trimEnd());
   });
-  
+
   let pageText = canvas.map((line) => line.join("")).join("\n");
   pageText = pageText.trim();
 
