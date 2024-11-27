@@ -82,22 +82,6 @@ export class StagehandExtractHandler {
 
     await this.waitForSettledDom(domSettleTimeoutMs);
     await this.startDomDebug();
-    await this.stagehand.page.addInitScript(() => {
-      window.storeDOM = function () {
-        const originalDOM = document.body.cloneNode(true);
-        console.log("DOM state stored.");
-        return originalDOM.outerHTML;
-      };
-
-      window.restoreDOM = function (storedDOM) {
-        console.log("Restoring DOM");
-        if (storedDOM) {
-          document.body.innerHTML = storedDOM;
-        } else {
-          console.error("No DOM state was provided.");
-        }
-      };
-    });
 
     const originalDOM = await this.stagehand.page.evaluate(() => window.storeDOM());
 
@@ -109,14 +93,13 @@ export class StagehandExtractHandler {
       message: `received output from processAllOfDom. selectorMap has ${Object.keys(selectorMap).length} entries`,
       level: 1,
     });
-
+    const PROXIMITY_THRESHOLD = 10;
     await this.stagehand.page.evaluate(() => window.createTextBoundingBoxes());
-
-    const seenAnnotations = new Set<string>();
-    const textAnnotations: TextAnnotation[] = [];
-
     const pageWidth = await this.stagehand.page.evaluate(() => window.innerWidth);
     const pageHeight = await this.stagehand.page.evaluate(() => window.innerHeight);
+
+    const seenAnnotations = new Map();
+    const textAnnotations: TextAnnotation[] = [];
 
     for (const xpaths of Object.values(selectorMap)) {
       const xpath = xpaths[0];
@@ -133,17 +116,27 @@ export class StagehandExtractHandler {
       );
 
       for (const box of boundingBoxes) {
-        const annotationKey = JSON.stringify({
-          text: box.text,
-          x: box.left + box.width / 2,
-          y: box.top + box.height / 2,
-          width: box.width,
-          height: box.height,
+        const text = box.text;
+
+        let annotationsForText = seenAnnotations.get(text);
+        if (!annotationsForText) {
+          annotationsForText = [];
+          seenAnnotations.set(text, annotationsForText);
+        }
+
+        const isDuplicate = annotationsForText.some((annotation) => {
+          const dx = annotation.x - (box.left + box.width / 2);
+          const dy = annotation.y - (box.top + box.height / 2);
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          return distance < PROXIMITY_THRESHOLD;
         });
 
+        if (!isDuplicate) {
+          annotationsForText.push({
+            x: box.left + box.width / 2,
+            y: box.top + box.height / 2,
+          });
 
-        if (!seenAnnotations.has(annotationKey)) {
-          seenAnnotations.add(annotationKey);
           textAnnotations.push({
             text: box.text,
             midpoint: {
