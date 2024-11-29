@@ -1503,8 +1503,6 @@ const extract_press_releases: EvalFunction = async ({ modelName, logger }) => {
   }
 };
 
-
-
 const tasks: Record<string, EvalFunction> = {
   vanta,
   vanta_h,
