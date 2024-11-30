@@ -60,30 +60,36 @@ jobs:
           
             # Output passing evals
             if [ "$num_passed" -gt 0 ]; then
-            echo ""
-            echo "Passing evals:"
-            echo "$passed_tasks" | jq -c '.[]' | while read -r task; do
-            name=$(echo "$task" | jq -r '.name')
-            model=$(echo "$task" | jq -r '.modelName')
-            echo ""
-            echo "name: $name"
-            echo "model: $model"
-            done
+              echo ""
+              echo "Passing evals:"
+              echo "$passed_tasks" | jq -c '.[]' | while read -r task; do
+                name=$(echo "$task" | jq -r '.name')
+                model=$(echo "$task" | jq -r '.modelName')
+                echo ""
+                echo "name: $name"
+                echo "model: $model"
+              done
             fi
           
             # Output failing evals
             if [ "$num_failed" -gt 0 ]; then
-            echo ""
-            echo "Failing evals:"
-            echo "$failed_tasks" | jq -c '.[]' | while read -r task; do
-            name=$(echo "$task" | jq -r '.name')
-            model=$(echo "$task" | jq -r '.modelName')
-            echo ""
-            echo "name: $name"
-            echo "model: $model"
-            done
+              echo ""
+              echo "Failing evals:"
+              echo "$failed_tasks" | jq -c '.[]' | while read -r task; do
+                name=$(echo "$task" | jq -r '.name')
+                model=$(echo "$task" | jq -r '.modelName')
+                echo ""
+                echo "name: $name"
+                echo "model: $model"
+              done
             fi
-            else
-            echo "Eval summary not found. Failing simulation."
+
+            # fail if exact match score is below 85%
+            if (( $(echo "$exact_match_score < 85" | bc -l) )); then
+              echo "Exact match score is below 85%. Failing CI."
+              exit 1
+            fi
+          else
+            echo "Eval summary not found. Failing CI."
             exit 1
-            fi
+          fi
