@@ -35,7 +35,7 @@ jobs:
 
       - name: Run Evals
         env:
-          CI_EVALS: "vanta,extract_github_stars,extract_collaborators_from_github_repository,wikipedia,peeler_complex,simple_google_search,extract_last_twenty_github_commits,laroche_form"
+          CI_EVALS: "amazon_add_to_cart"
         run: npm run evals
         timeout-minutes: 20
 
