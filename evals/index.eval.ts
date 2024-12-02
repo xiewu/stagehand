@@ -1605,7 +1605,7 @@ const tasks: Record<string, EvalFunction> = {
   arxiv,
   expedia,
   amazon_add_to_cart,
-  extract_press_releases
+  extract_press_releases,
   extract_snowshoeing_destinations
 };
 
@@ -1665,7 +1665,7 @@ const testcases = [
   "laroche_form",
   "arxiv",
   "amazon_add_to_cart",
-  "extract_press_releases"
+  "extract_press_releases",
   "extract_snowshoeing_destinations",
   // "expedia"
 ];

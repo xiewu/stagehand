@@ -1,7 +1,7 @@
 export type TextAnnotation = {
   text: string;
-  midpoint: { x: number; y: number };
-  midpoint_normalized: { x: number; y: number };
+  bottom_left: { x: number; y: number };
+  bottom_left_normalized: { x: number; y: number };
   width: number;
   height: number;
 }
