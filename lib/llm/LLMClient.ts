@@ -1,14 +1,23 @@
-import { AvailableModel } from "./LLMProvider";
+import { AvailableModel, ToolCall } from "../../types/model";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
-  content:
-    | string
-    | {
-        type: "image_url" | "text";
-        image_url?: { url: string };
-        text?: string;
-      }[];
+  content: ChatMessageContent;
+}
+
+export type ChatMessageContent =
+  | string
+  | (ChatMessageImageContent | ChatMessageTextContent)[];
+
+export interface ChatMessageImageContent {
+  type: "image_url";
+  image_url: { url: string };
+  text?: string;
+}
+
+export interface ChatMessageTextContent {
+  type: string;
+  text: string;
 }
 
 export const modelsWithVision: AvailableModel[] = [
@@ -24,7 +33,6 @@ export const AnnotatedScreenshotText =
   "This is a screenshot of the current page state with the elements annotated on it. Each element id is annotated with a number to the top left of it. Duplicate annotations at the same location are under each other vertically.";
 
 export interface ChatCompletionOptions {
-  model: string;
   messages: ChatMessage[];
   temperature?: number;
   top_p?: number;
@@ -34,15 +42,26 @@ export interface ChatCompletionOptions {
     buffer: Buffer;
     description?: string;
   };
-  [key: string]: any; // Additional provider-specific options
   response_model?: {
     name: string;
     schema: any;
   };
+  tools?: ToolCall[];
+  tool_choice?: string;
+  maxTokens?: number;
+  requestId: string;
 }
 
-export interface LLMClient {
-  type: "openai" | "anthropic";
-  createChatCompletion(options: ChatCompletionOptions): Promise<any>;
-  logger: (message: { category?: string; message: string }) => void;
+export abstract class LLMClient {
+  public type: "openai" | "anthropic";
+  public modelName: AvailableModel;
+  public hasVision: boolean;
+
+  constructor(modelName: AvailableModel) {
+    this.modelName = modelName;
+    this.hasVision = modelsWithVision.includes(modelName);
+  }
+
+  abstract createChatCompletion(options: ChatCompletionOptions): Promise<any>;
+  abstract logger: (message: { category?: string; message: string }) => void;
 }

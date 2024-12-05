@@ -1,30 +1,32 @@
-import OpenAI from "openai";
+import OpenAI, { ClientOptions } from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { LLMClient, ChatCompletionOptions } from "./LLMClient";
+import { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat";
+import { LogLine } from "../../types/log";
+import { AvailableModel } from "../../types/model";
 import { LLMCache } from "../cache/LLMCache";
-import { LogLine } from "../types";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { validateZodSchema } from "../utils";
+import { ChatCompletionOptions, ChatMessage, LLMClient } from "./LLMClient";
 
-export class OpenAIClient implements LLMClient {
+export class OpenAIClient extends LLMClient {
   public type: "openai" = "openai";
   private client: OpenAI;
   private cache: LLMCache | undefined;
   public logger: (message: LogLine) => void;
   private enableCaching: boolean;
-  private requestId: string;
+  private clientOptions: ClientOptions;
 
   constructor(
     logger: (message: LogLine) => void,
     enableCaching = false,
     cache: LLMCache | undefined,
-    requestId: string,
+    modelName: AvailableModel,
+    clientOptions?: ClientOptions,
   ) {
-    this.client = new OpenAI();
+    super(modelName);
+    this.client = new OpenAI(clientOptions);
     this.logger = logger;
-    this.requestId = requestId;
     this.cache = cache;
     this.enableCaching = enableCaching;
+    this.modelName = modelName;
   }
 
   async createChatCompletion(
@@ -81,10 +83,14 @@ export class OpenAIClient implements LLMClient {
           value: JSON.stringify(optionsWithoutImage),
           type: "object",
         },
+        modelName: {
+          value: this.modelName,
+          type: "string",
+        },
       },
     });
     const cacheOptions = {
-      model: options.model,
+      model: this.modelName,
       messages: options.messages,
       temperature: options.temperature,
       top_p: options.top_p,
@@ -95,7 +101,11 @@ export class OpenAIClient implements LLMClient {
     };
 
     if (this.enableCaching) {
-      const cachedResponse = await this.cache.get(cacheOptions, this.requestId);
+      const cachedResponse = await this.cache.get(
+        cacheOptions,
+        options.requestId,
+      );
+
       if (cachedResponse) {
         this.logger({
           category: "llm_cache",
@@ -103,7 +113,7 @@ export class OpenAIClient implements LLMClient {
           level: 1,
           auxiliary: {
             requestId: {
-              value: this.requestId,
+              value: options.requestId,
               type: "string",
             },
             cachedResponse: {
@@ -120,7 +130,7 @@ export class OpenAIClient implements LLMClient {
           level: 1,
           auxiliary: {
             requestId: {
-              value: this.requestId,
+              value: options.requestId,
               type: "string",
             },
           },
@@ -129,7 +139,7 @@ export class OpenAIClient implements LLMClient {
     }
 
     if (options.image) {
-      const screenshotMessage: any = {
+      const screenshotMessage: ChatMessage = {
         role: "user",
         content: [
           {
@@ -147,7 +157,10 @@ export class OpenAIClient implements LLMClient {
       options.messages = [...options.messages, screenshotMessage];
     }
 
-    const { image, response_model, ...openAiOptions } = options;
+    const { image, response_model, requestId, ...openAiOptions } = {
+      ...options,
+      model: this.modelName,
+    };
 
     let responseFormat = undefined;
     if (options.response_model) {
@@ -184,10 +197,22 @@ export class OpenAIClient implements LLMClient {
       }
     }
 
+    this.logger({
+      category: "openai",
+      message: "creating chat completion",
+      level: 1,
+      auxiliary: {
+        openAiOptions: {
+          value: JSON.stringify(openAiOptions),
+          type: "object",
+        },
+      },
+    });
+
     const response = await this.client.chat.completions.create({
       ...openAiOptions,
       response_format: responseFormat,
-    });
+    } as unknown as ChatCompletionCreateParamsNonStreaming); // TODO (kamath): remove this forced typecast
 
     // For O1 models, we need to parse the tool call response manually and add it to the response.
     if (isToolsOverridedForO1) {
@@ -240,7 +265,7 @@ export class OpenAIClient implements LLMClient {
           type: "object",
         },
         requestId: {
-          value: this.requestId,
+          value: options.requestId,
           type: "string",
         },
       },
@@ -264,7 +289,7 @@ export class OpenAIClient implements LLMClient {
           {
             ...parsedData,
           },
-          this.requestId,
+          options.requestId,
         );
       }
 
@@ -280,7 +305,7 @@ export class OpenAIClient implements LLMClient {
         level: 1,
         auxiliary: {
           requestId: {
-            value: this.requestId,
+            value: options.requestId,
             type: "string",
           },
           cacheOptions: {
@@ -293,7 +318,7 @@ export class OpenAIClient implements LLMClient {
           },
         },
       });
-      this.cache.set(cacheOptions, response, this.requestId);
+      this.cache.set(cacheOptions, response, options.requestId);
     }
 
     return response;

@@ -1,4 +1,4 @@
-async function waitForDomSettle() {
+export async function waitForDomSettle() {
   return new Promise<void>((resolve) => {
     const createTimeout = () => {
       return setTimeout(() => {
@@ -15,3 +15,7 @@ async function waitForDomSettle() {
 }
 
 window.waitForDomSettle = waitForDomSettle;
+
+export function calculateViewportHeight() {
+  return Math.ceil(window.innerHeight * 0.75);
+}
