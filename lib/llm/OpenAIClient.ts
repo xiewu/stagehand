@@ -5,6 +5,8 @@ import { LogLine } from "../../types/log";
 import { AvailableModel } from "../../types/model";
 import { LLMCache } from "../cache/LLMCache";
 import { ChatCompletionOptions, ChatMessage, LLMClient } from "./LLMClient";
+import { validateZodSchema } from "../utils";
+import zodToJsonSchema from "zod-to-json-schema";
 
 export class OpenAIClient extends LLMClient {
   public type: "openai" = "openai";
@@ -12,7 +14,7 @@ export class OpenAIClient extends LLMClient {
   private cache: LLMCache | undefined;
   public logger: (message: LogLine) => void;
   private enableCaching: boolean;
-  private clientOptions: ClientOptions;
+  public clientOptions: ClientOptions;
 
   constructor(
     logger: (message: LogLine) => void,
@@ -22,6 +24,7 @@ export class OpenAIClient extends LLMClient {
     clientOptions?: ClientOptions,
   ) {
     super(modelName);
+    this.clientOptions = clientOptions;
     this.client = new OpenAI(clientOptions);
     this.logger = logger;
     this.cache = cache;
@@ -38,7 +41,7 @@ export class OpenAIClient extends LLMClient {
     // O1 models do not support most of the options. So we override them.
     // For schema and tools, we add them as user messages.
     let isToolsOverridedForO1 = false;
-    if (options.model === "o1-mini" || options.model === "o1-preview") {
+    if (this.modelName === "o1-mini" || this.modelName === "o1-preview") {
       options.messages = options.messages.map((message) => ({
         ...message,
         role: "user",
@@ -48,7 +51,7 @@ export class OpenAIClient extends LLMClient {
       options.frequency_penalty = undefined;
       options.presence_penalty = undefined;
       options.tool_choice = undefined;
-      if (options.tool && options.response_model) {
+      if (options.tools && options.response_model) {
         throw new Error(
           "Cannot use both tool and response_model for o1 models",
         );
@@ -165,7 +168,7 @@ export class OpenAIClient extends LLMClient {
     let responseFormat = undefined;
     if (options.response_model) {
       // For O1 models, we need to add the schema as a user message.
-      if (options.model === "o1-mini" || options.model === "o1-preview") {
+      if (this.modelName === "o1-mini" || this.modelName === "o1-preview") {
         try {
           const parsedSchema = JSON.stringify(
             zodToJsonSchema(options.response_model.schema),

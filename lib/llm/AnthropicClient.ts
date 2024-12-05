@@ -12,6 +12,7 @@ export class AnthropicClient extends LLMClient {
   private cache: LLMCache | undefined;
   public logger: (message: LogLine) => void;
   private enableCaching: boolean;
+  public clientOptions: ClientOptions;
 
   constructor(
     logger: (message: LogLine) => void,
@@ -26,6 +27,7 @@ export class AnthropicClient extends LLMClient {
     this.cache = cache;
     this.enableCaching = enableCaching;
     this.modelName = modelName;
+    this.clientOptions = clientOptions;
   }
 
   async createChatCompletion(
