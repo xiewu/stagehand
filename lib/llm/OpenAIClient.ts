@@ -45,7 +45,7 @@ export class OpenAIClient extends LLMClient {
     options: ChatCompletionOptions,
     retries: number = 3,
   ): Promise<T> {
-    const { image, requestId, ...optionsWithoutImageAndRequestId } = options;
+    const { image, ...optionsWithoutImage } = options;
 
     // O1 models do not support most of the options. So we override them.
     // For schema and tools, we add them as user messages.
@@ -92,10 +92,7 @@ export class OpenAIClient extends LLMClient {
       level: 1,
       auxiliary: {
         options: {
-          value: JSON.stringify({
-            ...optionsWithoutImageAndRequestId,
-            requestId,
-          }),
+          value: JSON.stringify(optionsWithoutImage),
           type: "object",
         },
         modelName: {
@@ -112,8 +109,8 @@ export class OpenAIClient extends LLMClient {
       top_p: options.top_p,
       frequency_penalty: options.frequency_penalty,
       presence_penalty: options.presence_penalty,
-      image: image,
       response_model: options.response_model,
+      image,
     };
 
     if (this.enableCaching) {
@@ -173,13 +170,15 @@ export class OpenAIClient extends LLMClient {
       options.messages.push(screenshotMessage);
     }
 
-    const { ...openAiOptions } = {
-      ...optionsWithoutImageAndRequestId,
+    const { requestId, response_model, ...openAiOptions } = {
+      ...options,
       model: this.modelName,
     };
 
+    openAiOptions.image = undefined;
+
     let responseFormat = undefined;
-    if (options.response_model) {
+    if (response_model) {
       // For O1 models, we need to add the schema as a user message.
       if (this.modelName === "o1-mini" || this.modelName === "o1-preview") {
         try {
@@ -346,7 +345,7 @@ export class OpenAIClient extends LLMClient {
           type: "object",
         },
         requestId: {
-          value: options.requestId,
+          value: requestId,
           type: "string",
         },
       },
