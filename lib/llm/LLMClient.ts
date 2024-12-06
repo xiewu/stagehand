@@ -1,13 +1,14 @@
-import { ZodType } from "zod";
-import {
-  AnthropicTransformedResponse,
-  AvailableModel,
-  ToolCall,
-} from "../../types/model";
 import {
   ChatCompletion,
   ChatCompletionToolChoiceOption,
 } from "openai/resources";
+import { ZodType } from "zod";
+import {
+  AnthropicTransformedResponse,
+  AvailableModel,
+  ClientOptions,
+  ToolCall,
+} from "../../types/model";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -64,8 +65,10 @@ export interface ChatCompletionOptions {
 export type LLMResponse = AnthropicTransformedResponse | ChatCompletion;
 
 export abstract class LLMClient {
+  public type: "openai" | "anthropic";
   public modelName: AvailableModel;
   public hasVision: boolean;
+  public clientOptions: ClientOptions;
 
   constructor(modelName: AvailableModel) {
     this.modelName = modelName;
