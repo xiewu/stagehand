@@ -2,4 +2,4 @@
 "@browserbasehq/stagehand": patch
 ---
 
-fix broken evals
+add close link to readme

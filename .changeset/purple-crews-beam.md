@@ -2,4 +2,4 @@
 "@browserbasehq/stagehand": patch
 ---
 
-add ci specific evals
+reduce chunk size
