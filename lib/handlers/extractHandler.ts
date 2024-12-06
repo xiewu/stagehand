@@ -17,6 +17,9 @@ const PROXIMITY_THRESHOLD = 15;
  *
  * **2. Storing the original DOM before any mutations.**
  *    - Preserves the initial state of the DOM to restore later.
+ *    - We do this because creating spans around every word in the DOM (see step 4)
+ *      becomes very difficult to revert. Text nodes can be finicky, and directly
+ *      removing the added spans often corrupts the structure of the DOM.
  *
  * **3. Processing the DOM to generate a selector map of candidate elements.**
  *    - Identifies potential elements that contain the data to extract.
@@ -123,16 +126,16 @@ export class StagehandExtractHandler {
       },
     });
 
-    // **Step 1:** Wait for the DOM to settle and start DOM debugging
+    // **1:** Wait for the DOM to settle and start DOM debugging
     await this.waitForSettledDom(domSettleTimeoutMs);
     await this.startDomDebug();
 
-    // **Step 2:** Store the original DOM before any mutations
+    // **2:** Store the original DOM before any mutations
     // we need to store the original DOM here because calling createTextBoundingBoxes()
     // will mutate the DOM by adding spans around every word
     const originalDOM = await this.stagehand.page.evaluate(() => window.storeDOM());
 
-    // **Step 3:** Process the DOM to generate a selector map of candidate elements
+    // **3:** Process the DOM to generate a selector map of candidate elements
     const { selectorMap }: { selectorMap: Record<number, string[]> } =
       await this.stagehand.page.evaluate(() => window.processAllOfDom());
 
@@ -142,7 +145,7 @@ export class StagehandExtractHandler {
       level: 1,
     });
 
-    // **Step 4:** Create text bounding boxes around every word in the webpage
+    // **4:** Create text bounding boxes around every word in the webpage
     // calling createTextBoundingBoxes() will create a span around every word on the
     // webpage. The bounding boxes of these spans will be used to determine their
     // positions in the text rendered webpage
@@ -150,7 +153,7 @@ export class StagehandExtractHandler {
     const pageWidth = await this.stagehand.page.evaluate(() => window.innerWidth);
     const pageHeight = await this.stagehand.page.evaluate(() => window.innerHeight);
 
-    // **Step 5:** Collect all text annotations (with positions and dimensions) from the candidate elements
+    // **5:** Collect all text annotations (with positions and dimensions) from the candidate elements
     // allAnnotations will store all the TextAnnotations BEFORE deduplication
     const allAnnotations: TextAnnotation[] = [];
 
@@ -193,7 +196,7 @@ export class StagehandExtractHandler {
       }
     }
 
-    // **Step 6:** Group annotations by text and deduplicate them based on proximity
+    // **6:** Group annotations by text and deduplicate them based on proximity
     const annotationsGroupedByText = new Map<string, TextAnnotation[]>();
 
     for (const annotation of allAnnotations) {
@@ -230,11 +233,13 @@ export class StagehandExtractHandler {
       }
     }
 
-    // **Step 7:** Restore the original DOM after mutations
+    // **7:** Restore the original DOM after mutations
     await this.stagehand.page.evaluate((dom) => window.restoreDOM(dom), originalDOM);
+
+    // **8:** Format the deduplicated annotations into a text representation
     const formattedText = formatText(deduplicatedTextAnnotations);
 
-    // **Step 9:** Pass the formatted text to an LLM for extraction according to the given instruction and schema
+    // **9:** Pass the formatted text to an LLM for extraction according to the given instruction and schema
     const extractionResponse = await extract({
       instruction,
       previouslyExtractedContent: content,
@@ -251,7 +256,7 @@ export class StagehandExtractHandler {
 
     await this.cleanupDomDebug();
 
-    // **Step 10:** Handle the extraction response and log the results
+    // **10:** Handle the extraction response and log the results
     this.logger({
       category: "extraction",
       message: "received extraction response",
