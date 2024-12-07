@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { ChatMessage, LLMClient } from "./llm/LLMClient";
+import { ChatMessage } from "./llm/LLMClient";
 
 // act
 const actSystemPrompt = `

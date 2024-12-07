@@ -18,7 +18,7 @@ import { validateZodSchema } from "../utils";
 import zodToJsonSchema from "zod-to-json-schema";
 
 export class OpenAIClient extends LLMClient {
-  public type: "openai" = "openai";
+  public type = "openai" as const;
   private client: OpenAI;
   private cache: LLMCache | undefined;
   public logger: (message: LogLine) => void;

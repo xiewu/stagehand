@@ -16,7 +16,7 @@ import { LLMCache } from "../cache/LLMCache";
 import { ChatCompletionOptions, LLMClient } from "./LLMClient";
 
 export class AnthropicClient extends LLMClient {
-  public type: "anthropic" = "anthropic";
+  public type = "anthropic" as const;
   private client: Anthropic;
   private cache: LLMCache | undefined;
   public logger: (message: LogLine) => void;

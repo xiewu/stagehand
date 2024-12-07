@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { LogLine } from "../types/log";
+import { z } from "zod";
 
 export function generateId(operation: string) {
   return crypto.createHash("sha256").update(operation).digest("hex");
@@ -15,16 +16,16 @@ export function logLineToString(logLine: LogLine): string {
       logLine.auxiliary ? JSON.stringify(logLine.auxiliary) : ""
     }`;
   } catch (error) {
-    console.error(`Error logging line:`, logLine);
+    console.error(`Error logging line:`, error);
     return "error logging line";
   }
 }
 
-export function validateZodSchema(schema: z.ZodTypeAny, data: any) {
+export function validateZodSchema(schema: z.ZodTypeAny, data: unknown) {
   try {
     schema.parse(data);
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
