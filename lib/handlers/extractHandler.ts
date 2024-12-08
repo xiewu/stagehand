@@ -22,30 +22,30 @@ const PROXIMITY_THRESHOLD = 15;
  *      becomes very difficult to revert. Text nodes can be finicky, and directly
  *      removing the added spans often corrupts the structure of the DOM.
  *
- * **3. Processing the DOM to generate a selector map of candidate elements.**
+ * **3. Process the DOM to generate a selector map of candidate elements.**
  *    - Identifies potential elements that contain the data to extract.
  *
- * **4. Creating text bounding boxes around every word in the webpage.**
+ * **4. Create text bounding boxes around every word in the webpage.**
  *    - Wraps words in spans so that their bounding boxes can be used to
  *      determine their positions on the text-rendered-webpage.
  *
- * **5. Collecting all text annotations (with positions and dimensions) from each of the candidate elements.**
+ * **5. Collect all text annotations (with positions and dimensions) from each of the candidate elements.**
  *    - Gathers text and positional data for each word.
  *
- * **6. Grouping annotations by text and deduplicating them based on proximity.**
+ * **6. Group annotations by text and deduplicate them based on proximity.**
  *    - There is no guarantee that the text annotations are unique (candidate elements can be nested).
  *    - Thus, we must remove duplicate words that are close to each other on the page.
  *
- * **7. Restoring the original DOM after mutations.**
+ * **7. Restore the original DOM after mutations.**
  *    - Returns the DOM to its original state after processing.
  *
- * **8. Formatting the deduplicated annotations into a text representation.**
+ * **8. Format the deduplicated annotations into a text representation.**
  *    - Prepares the text data for the extraction process.
  *
- * **9. Passing the formatted text to an LLM for extraction according to the given instruction and schema.**
+ * **9. Pass the formatted text to an LLM for extraction according to the given instruction and schema.**
  *    - Uses a language model to extract structured data based on instructions.
  *
- * **10. Handling the extraction response and logging the results.**
+ * **10. Handle the extraction response and logging the results.**
  *     - Processes the output from the LLM and logs relevant information.
  *
  * @remarks
