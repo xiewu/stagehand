@@ -377,7 +377,7 @@ export function getElementBoundingBoxes(xpath: string): Array<{
   }
 
   const words = element.querySelectorAll(
-    ":scope > .stagehand-highlighted-word"
+    ".stagehand-highlighted-word"
   ) as NodeListOf<HTMLElement>;
 
   const boundingBoxes = Array.from(words)
