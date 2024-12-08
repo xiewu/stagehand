@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Starter Kit",
+  "name": "🤘 Stagehand",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
@@ -27,8 +27,8 @@
   },
   "tabs": [
     {
-      "name": "API Reference",
-      "url": "api-reference"
+      "name": "Reference",
+      "url": "reference"
     }
   ],
   "anchors": [
@@ -50,36 +50,23 @@
   ],
   "navigation": [
     {
-      "group": "Get Started",
+      "group": "🤘 Get Started",
       "pages": [
-        "introduction",
-        "quickstart",
-        "development"
+        "get_started/introduction",
+        "get_started/quickstart",
+        "get_started/walkthrough"
       ]
     },
     {
-      "group": "Essentials",
-      "pages": [
-        "essentials/markdown",
-        "essentials/code",
-        "essentials/images",
-        "essentials/settings",
-        "essentials/navigation",
-        "essentials/reusable-snippets"
-      ]
+      "group": "Contributing",
+      "pages": ["contributions/contributing", "contributions/roadmap"]
     },
     {
-      "group": "API Documentation",
+      "group": "Reference",
       "pages": [
-        "api-reference/introduction"
-      ]
-    },
-    {
-      "group": "Endpoint Examples",
-      "pages": [
-        "api-reference/endpoint/get",
-        "api-reference/endpoint/create",
-        "api-reference/endpoint/delete"
+        "reference/introduction",
+        "reference/playwright_interop",
+        "reference/model_support"
       ]
     }
   ],
