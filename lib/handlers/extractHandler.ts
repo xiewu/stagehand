@@ -10,12 +10,13 @@ import { formatText } from "../utils";
 const PROXIMITY_THRESHOLD = 15;
 
 /**
- * The `StagehandExtractHandler` class is responsible for extracting structured data from a webpage by:
+ * The `StagehandExtractHandler` class is responsible for extracting structured data from a webpage.
+ *      Here is what it does at a high level:
  *
- * **1. Waiting for the DOM to settle and initializing DOM debugging.**
+ * **1. Wait for the DOM to settle and start DOM debugging.**
  *    - Ensures the page is fully loaded and stable before extraction.
  *
- * **2. Storing the original DOM before any mutations.**
+ * **2. Store the original DOM before any mutations.**
  *    - Preserves the initial state of the DOM to restore later.
  *    - We do this because creating spans around every word in the DOM (see step 4)
  *      becomes very difficult to revert. Text nodes can be finicky, and directly
