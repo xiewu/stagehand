@@ -13,12 +13,6 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://www.mycmh.org/locations/");
-  const healthCenterSchema = z.object({
-    name: z.string(),
-    phone_number: z.string(),
-    address: z.string(),
-  });
-  type HealthCenterType = z.infer<typeof healthCenterSchema>;
 
   const result = await stagehand.extract({
     instruction:
@@ -36,11 +30,8 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
 
   await stagehand.close();
 
-  const health_centers: Array<{
-    name?: string;
-    phone_number?: string;
-    address?: string;
-  }> = result.health_centers;
+  const health_centers: Array<Partial<{ name: string; phone_number: string; address: string }>> =
+    result.health_centers;
 
   const expectedLength = 3;
   const similarityThreshold = 0.85;
@@ -82,7 +73,9 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
     };
   }
 
-  const validateHealthCenter = (center: any): { name: string; phone_number: string; address: string } | null => {
+  const validateHealthCenter = (
+    center: Partial<{ name: string; phone_number: string; address: string }>
+  ): { name: string; phone_number: string; address: string } | null => {
     if (center.name && center.phone_number && center.address) {
       return center as { name: string; phone_number: string; address: string };
     }
@@ -96,11 +89,9 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
     return null;
   };
 
-  const validHealthCenters = health_centers.map(validateHealthCenter).filter(Boolean) as Array<{
-    name: string;
-    phone_number: string;
-    address: string;
-  }>;
+  const validHealthCenters = health_centers
+    .map(validateHealthCenter)
+    .filter(Boolean) as Array<{ name: string; phone_number: string; address: string }>;
 
   if (validHealthCenters.length < expectedLength) {
     return {
@@ -160,7 +151,11 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
   };
 
   const firstItemMatches = compareItem(validHealthCenters[0], expectedFirstItem, "First");
-  const lastItemMatches = compareItem(validHealthCenters[validHealthCenters.length - 1], expectedLastItem, "Last");
+  const lastItemMatches = compareItem(
+    validHealthCenters[validHealthCenters.length - 1],
+    expectedLastItem,
+    "Last"
+  );
 
   if (!firstItemMatches || !lastItemMatches) {
     return {
