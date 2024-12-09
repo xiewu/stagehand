@@ -98,7 +98,7 @@ export function normalizeString(str: string): string {
   return str
     .toLowerCase()
     .replace(/\s+/g, " ")
-    .replace(/[;\/#!$%\^&\*:{}=\-_`~()]/g, "")
+    .replace(/[;/#!$%^&*:{}=\-_`~()]/g, "")
     .replace(/\s*,\s*/g, ", ")
     .trim();
 }
