@@ -3,7 +3,10 @@ import { initStagehand } from "../utils";
 import { z } from "zod";
 import { compareStrings } from "../utils";
 
-export const extract_memorial_healthcare: EvalFunction = async ({ modelName, logger }) => {
+export const extract_memorial_healthcare: EvalFunction = async ({
+  modelName,
+  logger,
+}) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
@@ -30,8 +33,9 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
 
   await stagehand.close();
 
-  const health_centers: Array<Partial<{ name: string; phone_number: string; address: string }>> =
-    result.health_centers;
+  const health_centers: Array<
+    Partial<{ name: string; phone_number: string; address: string }>
+  > = result.health_centers;
 
   const expectedLength = 3;
   const similarityThreshold = 0.85;
@@ -74,7 +78,7 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
   }
 
   const validateHealthCenter = (
-    center: Partial<{ name: string; phone_number: string; address: string }>
+    center: Partial<{ name: string; phone_number: string; address: string }>,
   ): { name: string; phone_number: string; address: string } | null => {
     if (center.name && center.phone_number && center.address) {
       return center as { name: string; phone_number: string; address: string };
@@ -91,7 +95,11 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
 
   const validHealthCenters = health_centers
     .map(validateHealthCenter)
-    .filter(Boolean) as Array<{ name: string; phone_number: string; address: string }>;
+    .filter(Boolean) as Array<{
+    name: string;
+    phone_number: string;
+    address: string;
+  }>;
 
   if (validHealthCenters.length < expectedLength) {
     return {
@@ -106,12 +114,12 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
   const compareField = (
     actual: string,
     expected: string,
-    fieldName: string
+    fieldName: string,
   ): boolean => {
     const { similarity, meetsThreshold } = compareStrings(
       actual,
       expected,
-      similarityThreshold
+      similarityThreshold,
     );
 
     if (!meetsThreshold) {
@@ -133,7 +141,7 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
   const compareItem = (
     actual: { name: string; phone_number: string; address: string },
     expected: { name: string; phone_number: string; address: string },
-    position: string
+    position: string,
   ): boolean => {
     const fields = [
       { field: "name", actual: actual.name, expected: expected.name },
@@ -146,15 +154,19 @@ export const extract_memorial_healthcare: EvalFunction = async ({ modelName, log
     ];
 
     return fields.every(({ field, actual, expected }) =>
-      compareField(actual, expected, `${position} ${field}`)
+      compareField(actual, expected, `${position} ${field}`),
     );
   };
 
-  const firstItemMatches = compareItem(validHealthCenters[0], expectedFirstItem, "First");
+  const firstItemMatches = compareItem(
+    validHealthCenters[0],
+    expectedFirstItem,
+    "First",
+  );
   const lastItemMatches = compareItem(
     validHealthCenters[validHealthCenters.length - 1],
     expectedLastItem,
-    "Last"
+    "Last",
   );
 
   if (!firstItemMatches || !lastItemMatches) {

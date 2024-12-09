@@ -7,7 +7,10 @@ export const extract_baptist_health: EvalFunction = async ({
   modelName,
   logger,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({ modelName, logger });
+  const { stagehand, initResponse } = await initStagehand({
+    modelName,
+    logger,
+  });
 
   const { debugUrl, sessionUrl } = initResponse;
 
@@ -36,13 +39,31 @@ export const extract_baptist_health: EvalFunction = async ({
   };
 
   const similarityThreshold = 0.85;
-  const failedFields: Array<{ field: string; similarity: number; expected: string; actual: string }> = [];
+  const failedFields: Array<{
+    field: string;
+    similarity: number;
+    expected: string;
+    actual: string;
+  }> = [];
 
-  const compareField = (actualVal: string, expectedVal: string, fieldName: string) => {
-    const { similarity, meetsThreshold } = compareStrings(actualVal, expectedVal, similarityThreshold);
+  const compareField = (
+    actualVal: string,
+    expectedVal: string,
+    fieldName: string,
+  ) => {
+    const { similarity, meetsThreshold } = compareStrings(
+      actualVal,
+      expectedVal,
+      similarityThreshold,
+    );
 
     if (!meetsThreshold) {
-      failedFields.push({ field: fieldName, similarity, expected: expectedVal, actual: actualVal });
+      failedFields.push({
+        field: fieldName,
+        similarity,
+        expected: expectedVal,
+        actual: actualVal,
+      });
       logger.error({
         message: `${fieldName} extracted does not meet similarity threshold`,
         level: 0,
