@@ -41,7 +41,7 @@
     {
       "name": "NPM Package",
       "icon": "npm",
-      "url": "https://www.npmjs.com/package/stagehand"
+      "url": "https://www.npmjs.com/package/@browserbasehq/stagehand?activeTab=readme"
     }
   ],
   "navigation": [
@@ -53,10 +53,6 @@
         "get_started/best_practices",
         "get_started/walkthrough"
       ]
-    },
-    {
-      "group": "Contributing",
-      "pages": ["contributions/contributing", "contributions/roadmap"]
     },
     {
       "group": "Reference",
@@ -73,8 +69,8 @@
     }
   ],
   "footerSocials": {
-    "x": "https://x.com/mintlify",
-    "github": "https://github.com/mintlify",
-    "linkedin": "https://linkedin.com/company/mintlify"
+    "x": "https://x.com/browserbase",
+    "github": "https://github.com/browserbase",
+    "linkedin": "https://linkedin.com/company/browserbasehq"
   }
 }
