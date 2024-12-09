@@ -1,107 +1,51 @@
 ---
 title: 'How Stagehand Works'
-description: 'Go behind the scenes with Stagehand'
+description: 'Go behind the scenes'
 icon: 'person-booth'
 ---
 
-<Info>
-  **Prerequisite**: Please install Node.js (version 19 or higher) before proceeding.
-</Info>
+## How It Works
 
-Follow these steps to install and run Mintlify on your operating system:
+The SDK has two major phases:
 
-**Step 1**: Install Mintlify:
+1. Processing the DOM (including chunking - _see below_).
+2. Taking LLM powered actions based on the current state of the DOM.
 
-<CodeGroup>
+### DOM processing
 
-  ```bash npm
-  npm i -g mintlify
-  ```
+Stagehand uses a combination of techniques to prepare the DOM.
 
-```bash yarn
-yarn global add mintlify
-```
+The DOM Processing steps look as follows:
 
-</CodeGroup>
+1. Via Playwright, inject a script into the DOM accessible by the SDK that can run processing.
+2. Crawl the DOM and create a list of candidate elements.
+   - Candidate elements are either leaf elements (DOM elements that contain actual user facing substance), or are interactive elements.
+   - Interactive elements are determined by a combination of roles and HTML tags.
+3. Candidate elements that are not active, visible, or at the top of the DOM are discarded.
+   - The LLM should only receive elements it can faithfully act on on behalf of the agent/user.
+4. For each candidate element, an [xPath](https://developer.mozilla.org/en-US/docs/Web/XPath) is generated. This guarantees that if this element is picked by the LLM, we'll be able to reliably target it.
+5. Return both the list of candidate elements, as well as the map of elements to xPath selectors across the browser back to the SDK, to be analyzed by the LLM.
 
-**Step 2**: Navigate to the docs directory (where the `mint.json` file is located) and execute the following command:
+#### Chunking
 
-```bash
-mintlify dev
-```
+While LLMs will continue to increase context window length and reduce latency, giving any reasoning system less stuff to think about should make it more reliable. As a result, DOM processing is done in chunks in order to keep the context small per inference call. In order to chunk, the SDK considers a candidate element that starts in a section of the viewport to be a part of that chunk. In the future, padding will be added to ensure that an individual chunk does not lack relevant context. See this diagram for how it looks:
 
-A local preview of your documentation will be available at `http://localhost:3000`.
+![](/images/chunks.png)
 
-### Custom Ports
+### Vision
 
-By default, Mintlify uses port 3000. You can customize the port Mintlify runs on by using the `--port` flag. To run Mintlify on port 3333, for instance, use this command:
+The `act()` and `observe()` methods can take a `useVision` flag. If this is set to `true`, the LLM will be provided with a annotated screenshot of the current page to identify which elements to act on. This is useful for complex DOMs that the LLM has a hard time reasoning about, even after processing and chunking. By default, this flag is set to `"fallback"`, which means that if the LLM fails to successfully identify a single element, Stagehand will retry the attempt using vision.
 
-```bash
-mintlify dev --port 3333
-```
+### LLM analysis
 
-If you attempt to run Mintlify on a port that's already in use, it will use the next available port:
+Now we have a list of candidate elements and a way to select them. We can present those elements with additional context to the LLM for extraction or action. While untested on a large scale, presenting a "numbered list of elements" guides the model to not treat the context as a full DOM, but as a list of related but independent elements to operate on.
 
-```md
-Port 3000 is already in use. Trying 3001 instead.
-```
+In the case of action, we ask the LLM to write a playwright method in order to do the correct thing. In our limited testing, playwright syntax is much more effective than relying on built in javascript APIs, possibly due to tokenization.
 
-## Mintlify Versions
+Lastly, we use the LLM to write future instructions to itself to help manage its progress and goals when operating across chunks.
 
-Please note that each CLI release is associated with a specific version of Mintlify. If your local website doesn't align with the production version, please update the CLI:
+### Stagehand vs Playwright
 
-<CodeGroup>
+Below is an example of how to extract a list of companies from the AI Grant website using both Stagehand and Playwright.
 
-```bash npm
-npm i -g mintlify@latest
-```
-
-```bash yarn
-yarn global upgrade mintlify
-```
-
-</CodeGroup>
-
-## Validating Links
-
-The CLI can assist with validating reference links made in your documentation. To identify any broken links, use the following command:
-
-```bash
-mintlify broken-links
-```
-
-## Deployment
-
-<Tip>
-  Unlimited editors available under the [Pro
-  Plan](https://mintlify.com/pricing) and above.
-</Tip>
-
-If the deployment is successful, you should see the following:
-
-<Frame>
-  <img src="/images/checks-passed.png" style={{ borderRadius: '0.5rem' }} />
-</Frame>
-
-## Code Formatting
-
-We suggest using extensions on your IDE to recognize and format MDX. If you're a VSCode user, consider the [MDX VSCode extension](https://marketplace.visualstudio.com/items?itemName=unifiedjs.vscode-mdx) for syntax highlighting, and [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) for code formatting.
-
-## Troubleshooting
-
-<AccordionGroup>
-  <Accordion title='Error: Could not load the "sharp" module using the darwin-arm64 runtime'>
-
-    This may be due to an outdated version of node. Try the following:
-    1. Remove the currently-installed version of mintlify: `npm remove -g mintlify`
-    2. Upgrade to Node v19 or higher.
-    3. Reinstall mintlify: `npm install -g mintlify`
-  </Accordion>
-
-  <Accordion title="Issue: Encountering an unknown error">
-  
-    Solution: Go to the root of your device and delete the \~/.mintlify folder. Afterwards, run `mintlify dev` again.
-  </Accordion>
-</AccordionGroup>
-
-Curious about what changed in the CLI version? [Check out the CLI changelog.](https://www.npmjs.com/package/mintlify?activeTab=versions)
+![](/images/stagehand-playwright.png)

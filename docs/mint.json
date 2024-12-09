@@ -18,13 +18,9 @@
   "topbarLinks": [
     {
       "name": "Support",
-      "url": "mailto:hi@mintlify.com"
+      "url": "mailto:support@browserbase.com"
     }
   ],
-  "topbarCtaButton": {
-    "name": "Dashboard",
-    "url": "https://dashboard.mintlify.com"
-  },
   "tabs": [
     {
       "name": "Reference",
@@ -33,27 +29,28 @@
   ],
   "anchors": [
     {
-      "name": "Documentation",
-      "icon": "book-open-cover",
-      "url": "https://mintlify.com/docs"
-    },
-    {
-      "name": "Community",
+      "name": "Join our Slack!",
       "icon": "slack",
-      "url": "https://mintlify.com/community"
+      "url": "https://join.slack.com/t/stagehand-dev/shared_invite/zt-2tdncfgkk-fF8y5U0uJzR2y2_M9c9OJA"
     },
     {
-      "name": "Blog",
-      "icon": "newspaper",
-      "url": "https://mintlify.com/blog"
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/browserbase/stagehand"
+    },
+    {
+      "name": "NPM Package",
+      "icon": "npm",
+      "url": "https://www.npmjs.com/package/stagehand"
     }
   ],
   "navigation": [
     {
-      "group": "🤘 Get Started",
+      "group": "Get Started",
       "pages": [
         "get_started/introduction",
         "get_started/quickstart",
+        "get_started/best_practices",
         "get_started/walkthrough"
       ]
     },
@@ -66,7 +63,9 @@
       "pages": [
         "reference/introduction",
         "reference/playwright_interop",
-        "reference/model_support"
+        "reference/model_support",
+        "reference/initialization_config",
+        "reference/logging"
       ]
     }
   ],
