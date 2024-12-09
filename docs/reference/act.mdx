@@ -1,0 +1,47 @@
+---
+title: 'Act'
+description: 'Stagehand is the AI interface to the internet.'
+icon: 'robot'
+---
+
+`act()` allows Stagehand to interact with a web page. Provide an `action` like `"search for 'x'"`, or `"select the cheapest flight presented"` (small atomic goals perform the best).
+
+- **Arguments:**
+
+  - `action`: a `string` describing the action to perform
+  - `modelName`: (optional) an `AvailableModel` string to specify the model to use
+  - `modelClientOptions`: (optional) configuration options for the model client
+  - `useVision`: (optional) a `boolean` or `"fallback"` to determine if vision-based processing should be used. Defaults to `"fallback"`
+  - `variables`: (optional) a `Record<string, string>` of variables to use in the action. Variables in the action string are referenced using `%variable_name%`
+  - `domSettleTimeoutMs`: (optional) timeout in milliseconds for waiting for the DOM to settle
+
+- **Returns:**
+    |  |  |  |
+    |-----------|-------------|-------------|
+    | `success` | `boolean` | If the action was completed successfully |
+    | `message` | `string` | Details about the action's execution |
+    | `action` | `string` | The action performed |
+
+- **Example:**
+
+  ```javascript
+  // Basic usage
+  await stagehand.act({ action: "click on add to cart" });
+
+  // Using variables
+  await stagehand.act({
+    action: "enter %username% into the username field",
+    variables: {
+      username: "john.doe@example.com",
+    },
+  });
+
+  // Multiple variables
+  await stagehand.act({
+    action: "fill in the form with %username% and %password%",
+    variables: {
+      username: "john.doe",
+      password: "secretpass123",
+    },
+  });
+  ```

@@ -6,6 +6,8 @@ icon: 'right-to-bracket'
 
 Stagehand is built on top of [Playwright](https://playwright.dev/), so you can use Playwright methods directly through the Stagehand instance.
 
+## `page` and `context`
+
 For actions that are not supported by Stagehand, you can use Playwright methods directly through the `page` and `context` objects. `page` and `context` are instances of Playwright's `Page` and `BrowserContext` respectively. Use these methods to interact with the Playwright instance that Stagehand is using. 
 
 Most commonly, you'll use `page.goto()` to navigate to a URL.

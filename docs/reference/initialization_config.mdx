@@ -1,6 +1,6 @@
 ---
-title: 'Initialization Config'
-description: 'How to configure Stagehand'
+title: 'Initialization and Closing'
+description: 'How to start and stop a Stagehand session'
 icon: 'gear'
 ---
 
@@ -68,7 +68,7 @@ await stagehand.init({
 
 `init()` asynchronously initializes the Stagehand instance. It should be called before any other methods.
 
-- **Arguments:** [`InitOptions`](https://github.com/browserbase/stagehand/blob/ed318846479054b6c7e3862b6c0c8aaa0bb0f42a/types/stagehand.ts#L30-L34)
+### **Arguments:** [`InitOptions`](https://github.com/browserbase/stagehand/blob/ed318846479054b6c7e3862b6c0c8aaa0bb0f42a/types/stagehand.ts#L30-L34)
 
 |  |  |
 |-----------|-------------|
@@ -76,9 +76,20 @@ await stagehand.init({
 | `modelClientOptions` | (optional) configuration options for the model client |
 | `domSettleTimeoutMs` | (optional) timeout in milliseconds for waiting for the DOM to settle |
 
-- **Returns:** [`Promise<InitResult>`](https://github.com/browserbase/stagehand/blob/ed318846479054b6c7e3862b6c0c8aaa0bb0f42a/types/stagehand.ts#L36-L40)
+### **Returns:** [`Promise<InitResult>`](https://github.com/browserbase/stagehand/blob/ed318846479054b6c7e3862b6c0c8aaa0bb0f42a/types/stagehand.ts#L36-L40)
 
 |  |  |
 |-----------|-------------|
 | `debugUrl` | A `string` representing the URL for live debugging. This is only available when using a Browserbase browser |
 | `sessionUrl` | A `string` representing the session URL. This is only available when using a Browserbase browser |
+
+## `stagehand.close()`
+```javascript
+await stagehand.close();
+```
+
+`close()` is a cleanup method to remove the temporary files created by Stagehand. Stagehand/Playwright will automatically call this when the process exits, but it's recommended that you call it explicitly when you're done with your automation.
+
+### **Arguments:** None
+
+### **Returns:** `Promise<void>`
