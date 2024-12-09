@@ -106,11 +106,11 @@ export function normalizeString(str: string): string {
 export function compareStrings(
   actual: string,
   expected: string,
-  similarityThreshold: number = 0.85
+  similarityThreshold: number = 0.85,
 ): { similarity: number; meetsThreshold: boolean } {
   const similarity = jaroWinkler.similarity(
     normalizeString(actual),
-    normalizeString(expected)
+    normalizeString(expected),
   );
   return {
     similarity,
