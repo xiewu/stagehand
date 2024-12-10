@@ -445,6 +445,7 @@ export class StagehandExtractHandler {
       chunksSeen: chunksSeen.length,
       chunksTotal: chunks.length,
       requestId,
+      isUsingTextExtract: false,
     });
 
     const {
