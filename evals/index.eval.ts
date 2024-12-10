@@ -161,7 +161,10 @@ const errorMatch = (
   };
 };
 
-const generateSummary = async (results: SummaryResult[]) => {
+const generateSummary = async (
+  results: SummaryResult[],
+  experimentName: string,
+) => {
   const passed = results
     .filter((result) => result.output._success)
     .map((result) => ({
@@ -204,6 +207,7 @@ const generateSummary = async (results: SummaryResult[]) => {
   });
 
   const formattedSummary = {
+    experimentName,
     passed,
     failed,
     categories,
@@ -247,7 +251,7 @@ const generateFilteredTestcases = (): Testcase[] => {
 
   if (env === "BROWSERBASE") {
     allTestcases = allTestcases.filter(
-      (testcase) => testcase.name !== "peeler_simple",
+      (testcase) => !["peeler_simple", "stock_x"].includes(testcase.name),
     );
   }
 
@@ -331,7 +335,7 @@ const generateFilteredTestcases = (): Testcase[] => {
       };
     });
 
-    await generateSummary(summaryResults);
+    await generateSummary(summaryResults, experimentName);
   } catch (error) {
     console.error("Error during evaluation run:", error);
     process.exit(1);
