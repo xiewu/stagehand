@@ -254,8 +254,6 @@ export class OpenAIClient extends LLMClient {
       },
     });
 
-    console.log("\n\n\n\nopenAiOptions\n\n\n\n", openAiOptions);
-
     const formattedMessages: ChatCompletionMessageParam[] =
       options.messages.map((message) => {
         if (Array.isArray(message.content)) {
