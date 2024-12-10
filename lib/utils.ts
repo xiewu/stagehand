@@ -90,7 +90,7 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
     (a, b) => a[0] - b[0],
   );
 
-  for (const [_, lineAnnotations] of sortedLineEntries) {
+  for (const [, lineAnnotations] of sortedLineEntries) {
     // sort annotations in this line by X-coordinate. This allows us to make sure
     // annotations are placed on the canvas from left to right
     lineAnnotations.sort((a, b) => a.bottom_left.x - b.bottom_left.x);
@@ -122,7 +122,7 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
 
     let lastX = 0;
     for (const annotation of groupedLineAnnotations) {
-      let text = annotation.text;
+      const text = annotation.text;
 
       // get the x-coordinate of the annotation and normalize it to the canvas width
       let x = Math.floor(annotation.bottom_left_normalized.x * canvasWidth);
