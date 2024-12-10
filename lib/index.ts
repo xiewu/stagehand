@@ -1,12 +1,14 @@
 import { Browserbase } from "@browserbasehq/sdk";
 import { type BrowserContext, chromium, type Page } from "@playwright/test";
 import { randomUUID } from "crypto";
+import dotenv from "dotenv";
 import fs from "fs";
 import os from "os";
 import path from "path";
 import { z } from "zod";
 import { BrowserResult } from "../types/browser";
 import { LogLine } from "../types/log";
+import { GotoOptions } from "../types/playwright";
 import {
   ActOptions,
   ActResult,
@@ -28,9 +30,15 @@ import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString } from "./utils";
 
-require("dotenv").config({ path: ".env" });
+dotenv.config({ path: ".env" });
 
 const DEFAULT_MODEL_NAME = "gpt-4o";
+const BROWSERBASE_REGION_DOMAIN = {
+  "us-west-2": "wss://connect.usw2.browserbase.com",
+  "us-east-1": "wss://connect.use1.browserbase.com",
+  "eu-central-1": "wss://connect.euc1.browserbase.com",
+  "ap-southeast-1": "wss://connect.apse1.browserbase.com",
+};
 
 async function getBrowser(
   apiKey: string | undefined,
@@ -89,7 +97,10 @@ async function getBrowser(
         }
 
         sessionId = browserbaseResumeSessionID;
-        connectUrl = `wss://connect.browserbase.com?apiKey=${apiKey}&sessionId=${sessionId}`;
+        const browserbaseDomain =
+          BROWSERBASE_REGION_DOMAIN[sessionStatus.region] ||
+          "wss://connect.browserbase.com";
+        connectUrl = `${browserbaseDomain}?apiKey=${apiKey}&sessionId=${sessionId}`;
 
         logger({
           category: "init",
@@ -271,9 +282,9 @@ async function applyStealthScripts(context: BrowserContext) {
     });
 
     // Remove Playwright-specific properties
-    delete (window as any).__playwright;
-    delete (window as any).__pw_manual;
-    delete (window as any).__PW_inspect;
+    delete window.__playwright;
+    delete window.__pw_manual;
+    delete window.__PW_inspect;
 
     // Redefine the headless property
     Object.defineProperty(navigator, "headless", {
@@ -282,7 +293,7 @@ async function applyStealthScripts(context: BrowserContext) {
 
     // Override the permissions API
     const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = (parameters: any) =>
+    window.navigator.permissions.query = (parameters) =>
       parameters.name === "notifications"
         ? Promise.resolve({
             state: Notification.permission,
@@ -307,7 +318,7 @@ export class Stagehand {
   private domSettleTimeoutMs: number;
   private browserBaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   private enableCaching: boolean;
-  private variables: { [key: string]: any };
+  private variables: { [key: string]: unknown };
   private browserbaseResumeSessionID?: string;
   private contextPath?: string;
 
@@ -375,11 +386,12 @@ export class Stagehand {
       this.browserbaseResumeSessionID,
     ).catch((e) => {
       console.error("Error in init:", e);
-      return {
+      const br: BrowserResult = {
         context: undefined,
         debugUrl: undefined,
         sessionUrl: undefined,
-      } as BrowserResult;
+      };
+      return br;
     });
     this.contextPath = contextPath;
     this.context = context;
@@ -391,7 +403,7 @@ export class Stagehand {
 
     // Overload the page.goto method
     const originalGoto = this.page.goto.bind(this.page);
-    this.page.goto = async (url: string, options?: any) => {
+    this.page.goto = async (url: string, options: GotoOptions) => {
       const result = await originalGoto(url, options);
       if (this.debugDom) {
         await this.page.evaluate(() => (window.showChunks = this.debugDom));
@@ -460,7 +472,7 @@ export class Stagehand {
       : this.llmClient;
 
     const originalGoto = this.page.goto.bind(this.page);
-    this.page.goto = async (url: string, options?: any) => {
+    this.page.goto = async (url: string, options?: GotoOptions) => {
       const result = await originalGoto(url, options);
       if (this.debugDom) {
         await this.page.evaluate(() => (window.showChunks = this.debugDom));
@@ -544,10 +556,25 @@ export class Stagehand {
               (log) => log.id !== logObj.id,
             );
         })
-        .catch((e) => {
+        .catch(() => {
           // NAVIDTODO: Rerun the log call on the new page
           // This is expected to happen when the user is changing pages
           // console.error("Logging Error:", e);
+          // this.log({
+          //   category: "browserbase",
+          //   message: "error logging to browserbase",
+          //   level: 1,
+          //   auxiliary: {
+          //     trace: {
+          //       value: e.stack,
+          //       type: "string",
+          //     },
+          //     message: {
+          //       value: e.message,
+          //       type: "string",
+          //     },
+          //   },
+          // });
         });
     }
   }
@@ -557,7 +584,7 @@ export class Stagehand {
       const timeout = timeoutMs ?? this.domSettleTimeoutMs;
       let timeoutHandle: NodeJS.Timeout;
 
-      const timeoutPromise = new Promise<void>((resolve, reject) => {
+      const timeoutPromise = new Promise<void>((resolve) => {
         timeoutHandle = setTimeout(() => {
           this.log({
             category: "dom",

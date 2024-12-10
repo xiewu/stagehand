@@ -254,7 +254,6 @@ export class StagehandExtractHandler {
       metadata: { completed },
       ...output
     } = extractionResponse;
-
     await this.cleanupDomDebug();
 
     // **10:** Handle the extraction response and log the results

@@ -18,7 +18,8 @@ You will receive:
 You have 2 tools that you can call: doAction, and skipSection. Do action only performs Playwright actions. Do exactly what the user's goal is. Do not perform any other actions or exceed the scope of the goal.
 If the user's goal will be accomplished after running the playwright action, set completed to true. Better to have completed set to true if your are not sure.
 
-Note: If there is a popup on the page for cookies or advertising that has nothing to do with the goal, try to close it first before proceeding. As this can block the goal from being completed.
+Note 1: If there is a popup on the page for cookies or advertising that has nothing to do with the goal, try to close it first before proceeding. As this can block the goal from being completed.
+Note 2: Sometimes what your are looking for is hidden behind and element you need to interact with. For example, sliders, buttons, etc...
 
 Again, if the user's goal will be accomplished after running the playwright action, set completed to true.
 `;
@@ -122,8 +123,8 @@ ${domElements}
   if (variables && Object.keys(variables).length > 0) {
     actUserPrompt += `
 # Variables
-${Object.entries(variables)
-  .map(([key, value]) => `<|${key.toUpperCase()}|>`)
+${Object.keys(variables)
+  .map((key) => `<|${key.toUpperCase()}|>`)
   .join("\n")}
 `;
   }
@@ -206,13 +207,17 @@ const extractSystemPrompt = `You are extracting content on behalf of a user. You
 
 Print the exact text from the text-rendered webpage with all symbols, characters, and endlines as is.
 Print null or an empty string if no new information is found.
-
-ONLY print the content using the print_extracted_data tool provided.
-ONLY print the content using the print_extracted_data tool provided.
 `;
 
-export function buildExtractSystemPrompt(): ChatMessage {
-  const content = extractSystemPrompt.replace(/\s+/g, " ");
+export function buildExtractSystemPrompt(
+  isUsingPrintExtractedDataTool: boolean = false,
+): ChatMessage {
+  let content = extractSystemPrompt.replace(/\s+/g, " ");
+  if (isUsingPrintExtractedDataTool) {
+    content += `
+ONLY print the content using the print_extracted_data tool provided.
+ONLY print the content using the print_extracted_data tool provided.`;
+  }
   return {
     role: "system",
     content,
@@ -222,14 +227,20 @@ export function buildExtractSystemPrompt(): ChatMessage {
 export function buildExtractUserPrompt(
   instruction: string,
   domElements: string,
+  isUsingPrintExtractedDataTool: boolean = false,
 ): ChatMessage {
+  let content = `Instruction: ${instruction}
+DOM: ${domElements}`;
+
+  if (isUsingPrintExtractedDataTool) {
+    content += `
+ONLY print the content using the print_extracted_data tool provided.
+ONLY print the content using the print_extracted_data tool provided.`;
+  }
+
   return {
     role: "user",
-    content: `Instruction: ${instruction}
-DOM: ${domElements}
-
-ONLY print the content using the print_extracted_data tool provided.
-ONLY print the content using the print_extracted_data tool provided.`,
+    content,
   };
 }
 
