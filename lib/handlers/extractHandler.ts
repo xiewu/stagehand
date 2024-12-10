@@ -79,7 +79,6 @@ const PROXIMITY_THRESHOLD = 15;
  * Each step corresponds to specific code segments, as noted in the comments throughout the code.
  */
 
-
 export class StagehandExtractHandler {
   private readonly stagehand: Stagehand;
 
@@ -202,7 +201,9 @@ export class StagehandExtractHandler {
     // **2:** Store the original DOM before any mutations
     // we need to store the original DOM here because calling createTextBoundingBoxes()
     // will mutate the DOM by adding spans around every word
-    const originalDOM = await this.stagehand.page.evaluate(() => window.storeDOM());
+    const originalDOM = await this.stagehand.page.evaluate(() =>
+      window.storeDOM(),
+    );
 
     // **3:** Process the DOM to generate a selector map of candidate elements
     const { selectorMap }: { selectorMap: Record<number, string[]> } =
@@ -219,8 +220,12 @@ export class StagehandExtractHandler {
     // webpage. The bounding boxes of these spans will be used to determine their
     // positions in the text rendered webpage
     await this.stagehand.page.evaluate(() => window.createTextBoundingBoxes());
-    const pageWidth = await this.stagehand.page.evaluate(() => window.innerWidth);
-    const pageHeight = await this.stagehand.page.evaluate(() => window.innerHeight);
+    const pageWidth = await this.stagehand.page.evaluate(
+      () => window.innerWidth,
+    );
+    const pageHeight = await this.stagehand.page.evaluate(
+      () => window.innerHeight,
+    );
 
     // **5:** Collect all text annotations (with positions and dimensions) from the candidate elements
     // allAnnotations will store all the TextAnnotations BEFORE deduplication
@@ -241,7 +246,7 @@ export class StagehandExtractHandler {
         height: number;
       }> = await this.stagehand.page.evaluate(
         (xpath) => window.getElementBoundingBoxes(xpath),
-        xpath
+        xpath,
       );
 
       for (const box of boundingBoxes) {
@@ -280,21 +285,24 @@ export class StagehandExtractHandler {
     // here, we deduplicate annotations per text group
     for (const [text, annotations] of annotationsGroupedByText.entries()) {
       for (const annotation of annotations) {
-
         // check if this annotation is close to any existing deduplicated annotation
-        const isDuplicate = deduplicatedTextAnnotations.some((existingAnnotation) => {
-          if (existingAnnotation.text !== text) return false;
+        const isDuplicate = deduplicatedTextAnnotations.some(
+          (existingAnnotation) => {
+            if (existingAnnotation.text !== text) return false;
 
-          const dx = existingAnnotation.bottom_left.x - annotation.bottom_left.x;
-          const dy = existingAnnotation.bottom_left.y - annotation.bottom_left.y;
-          const distance = Math.hypot(dx, dy);
-          // the annotation is a duplicate if it has the same text and its bottom_left
-          // position is within the PROXIMITY_THRESHOLD of an existing annotation.
-          // we calculate the Euclidean distance between the two bottom_left points,
-          // and if the distance is less than PROXIMITY_THRESHOLD,
-          // the annotation is considered a duplicate.
-          return distance < PROXIMITY_THRESHOLD;
-        });
+            const dx =
+              existingAnnotation.bottom_left.x - annotation.bottom_left.x;
+            const dy =
+              existingAnnotation.bottom_left.y - annotation.bottom_left.y;
+            const distance = Math.hypot(dx, dy);
+            // the annotation is a duplicate if it has the same text and its bottom_left
+            // position is within the PROXIMITY_THRESHOLD of an existing annotation.
+            // we calculate the Euclidean distance between the two bottom_left points,
+            // and if the distance is less than PROXIMITY_THRESHOLD,
+            // the annotation is considered a duplicate.
+            return distance < PROXIMITY_THRESHOLD;
+          },
+        );
 
         if (!isDuplicate) {
           deduplicatedTextAnnotations.push(annotation);
@@ -303,7 +311,10 @@ export class StagehandExtractHandler {
     }
 
     // **7:** Restore the original DOM after mutations
-    await this.stagehand.page.evaluate((dom) => window.restoreDOM(dom), originalDOM);
+    await this.stagehand.page.evaluate(
+      (dom) => window.restoreDOM(dom),
+      originalDOM,
+    );
 
     // **8:** Format the deduplicated annotations into a text representation
     const formattedText = formatText(deduplicatedTextAnnotations);

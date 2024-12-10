@@ -4,4 +4,4 @@ export type TextAnnotation = {
   bottom_left_normalized: { x: number; y: number };
   width: number;
   height: number;
-}
+};

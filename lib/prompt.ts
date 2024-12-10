@@ -203,7 +203,7 @@ export const actTools: Array<OpenAI.ChatCompletionTool> = [
 // extract
 export function buildExtractSystemPrompt(
   isUsingPrintExtractedDataTool: boolean = false,
-  useTextExtract: boolean = true
+  useTextExtract: boolean = true,
 ): ChatMessage {
   const baseContent = `You are extracting content on behalf of a user. You will be given:
 1. An instruction
@@ -227,10 +227,11 @@ ONLY print the content using the print_extracted_data tool provided.
   `.trim()
     : "";
 
-  const content = `${baseContent}${contentDetail}\n\n${instructions}\n${toolInstructions}`.replace(
-    /\s+/g,
-    " "
-  );
+  const content =
+    `${baseContent}${contentDetail}\n\n${instructions}\n${toolInstructions}`.replace(
+      /\s+/g,
+      " ",
+    );
 
   return {
     role: "system",

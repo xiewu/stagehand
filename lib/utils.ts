@@ -8,7 +8,6 @@ export function generateId(operation: string) {
 }
 
 export function formatText(textAnnotations: TextAnnotation[]): string {
-
   // lineCluster is a map where keys represent the line number (corresponding to the y-coordinates)
   // of the TextAnnotations, and values are arrays of annotations belonging to that line
   // and values are arrays of annotations belonging to that line
@@ -21,7 +20,9 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
   // sort all text annotations by y-coordinate (smallest to largest)
   // in the list of sortedAnnotations, the annotations closest to the top of the page
   // will appear first, and the annotations closest to the bottom of the page will appear last
-  const sortedAnnotations = textAnnotations.sort((a, b) => a.bottom_left.y - b.bottom_left.y);
+  const sortedAnnotations = textAnnotations.sort(
+    (a, b) => a.bottom_left.y - b.bottom_left.y,
+  );
 
   // here, we cluster annotations into lines of text based on vertical proximity.
   // for each annotation in the sorted list (sorted by y-coordinate):
@@ -56,7 +57,7 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
 
     const maxSumTextLengths = longestLine.reduce(
       (sum, token) => sum + token.text.length + 1,
-      0
+      0,
     );
     canvasWidth = Math.ceil(maxSumTextLengths * 1.5);
   }
@@ -86,7 +87,7 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
   // place the annotations on the canvas
   let i = 0;
   const sortedLineEntries = Array.from(lineCluster.entries()).sort(
-    (a, b) => a[0] - b[0]
+    (a, b) => a[0] - b[0],
   );
 
   for (const [_, lineAnnotations] of sortedLineEntries) {
@@ -101,11 +102,11 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
     // we add empty lines to the canvas to fill the gap.
     const maxLineHeight = Math.max(
       ...groupedLineAnnotations.map(
-        (annotation) => annotation.bottom_left.y - annotation.height
-      )
+        (annotation) => annotation.bottom_left.y - annotation.height,
+      ),
     );
     const heightToAdd = Math.floor(
-      (maxLineHeight - maxPreviousLineHeight) / emptySpaceHeight
+      (maxLineHeight - maxPreviousLineHeight) / emptySpaceHeight,
     );
     if (heightToAdd > 0) {
       for (let h = 0; h < heightToAdd; h++) {
@@ -116,7 +117,7 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
 
     // store the BOTTOM height of the letter to be used for calculating the height of the next line
     maxPreviousLineHeight = Math.max(
-      ...groupedLineAnnotations.map((annotation) => annotation.bottom_left.y)
+      ...groupedLineAnnotations.map((annotation) => annotation.bottom_left.y),
     );
 
     let lastX = 0;
@@ -154,13 +155,14 @@ export function formatText(textAnnotations: TextAnnotation[]): string {
   let pageText = canvas.map((line) => line.join("")).join("\n");
   pageText = pageText.trim();
 
-  pageText = "-".repeat(canvasWidth) + "\n" + pageText + "\n" + "-".repeat(canvasWidth);
+  pageText =
+    "-".repeat(canvasWidth) + "\n" + pageText + "\n" + "-".repeat(canvasWidth);
 
   return pageText;
 }
 
 function groupWordsInSentence(
-  lineAnnotations: TextAnnotation[]
+  lineAnnotations: TextAnnotation[],
 ): TextAnnotation[] {
   const groupedAnnotations: TextAnnotation[] = [];
   let currentGroup: TextAnnotation[] = [];
@@ -188,8 +190,8 @@ function groupWordsInSentence(
     const isWithinHorizontalRange =
       annotation.bottom_left.x <=
       currentGroup[currentGroup.length - 1].bottom_left.x +
-      currentGroup[currentGroup.length - 1].width +
-      characterWidth;
+        currentGroup[currentGroup.length - 1].width +
+        characterWidth;
 
     // check if the annotation meets the criteria to be grouped with the current group:
     // 1. the height of the current annotation is similar (difference ≤ 4 units)
@@ -229,7 +231,11 @@ function createGroupedAnnotation(group: TextAnnotation[]): TextAnnotation {
 
   // loop through each annotation (word) in the group to construct the final text string
   for (const word of group) {
-    if ([".", ",", '"', "'", ":", ";", "!", "?", "{", "}", "’", "”"].includes(word.text)) {
+    if (
+      [".", ",", '"', "'", ":", ";", "!", "?", "{", "}", "’", "”"].includes(
+        word.text,
+      )
+    ) {
       text += word.text;
     } else {
       text += text !== "" ? " " + word.text : word.text;
@@ -246,7 +252,6 @@ function createGroupedAnnotation(group: TextAnnotation[]): TextAnnotation {
   if (isWord && medianHeight > 25) {
     text = "**" + text + "**";
   }
-
 
   // return a new TextAnnotation object representing the grouped text.
   // - text: the concatenated and (maybe) formatted text,

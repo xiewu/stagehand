@@ -246,7 +246,7 @@ export function storeDOM(): string {
   return originalDOM.outerHTML;
 }
 
-export function restoreDOM(storedDOM: string):void {
+export function restoreDOM(storedDOM: string): void {
   console.log("Restoring DOM");
   if (storedDOM) {
     document.body.innerHTML = storedDOM;
@@ -267,7 +267,7 @@ export function createTextBoundingBoxes(): void {
         visibility: visible;
       }
     `,
-      0
+      0,
     );
   }
 
@@ -275,7 +275,7 @@ export function createTextBoundingBoxes(): void {
     root.querySelectorAll("body *").forEach((element) => {
       if (
         ["SCRIPT", "STYLE", "IFRAME", "INPUT", "TEXTAREA"].includes(
-          element.tagName
+          element.tagName,
         )
       ) {
         return;
@@ -319,7 +319,6 @@ export function createTextBoundingBoxes(): void {
   });
 }
 
-
 export function getElementBoundingBoxes(xpath: string): Array<{
   text: string;
   top: number;
@@ -332,7 +331,7 @@ export function getElementBoundingBoxes(xpath: string): Array<{
     document,
     null,
     XPathResult.FIRST_ORDERED_NODE_TYPE,
-    null
+    null,
   ).singleNodeValue as HTMLElement;
 
   if (!element) return [];
@@ -376,7 +375,7 @@ export function getElementBoundingBoxes(xpath: string): Array<{
   }
 
   const words = element.querySelectorAll(
-    ".stagehand-highlighted-word"
+    ".stagehand-highlighted-word",
   ) as NodeListOf<HTMLElement>;
 
   const boundingBoxes = Array.from(words)
@@ -396,7 +395,7 @@ export function getElementBoundingBoxes(xpath: string): Array<{
         box.height > 0 &&
         box.top >= 0 &&
         box.left >= 0 &&
-        isValidText(box.text)
+        isValidText(box.text),
     );
 
   if (boundingBoxes.length === 0) {
@@ -414,8 +413,6 @@ export function getElementBoundingBoxes(xpath: string): Array<{
 
   return boundingBoxes;
 }
-
-
 
 window.processDom = processDom;
 window.processAllOfDom = processAllOfDom;
