@@ -482,7 +482,8 @@ export class StagehandExtractHandler {
           },
         },
       });
-      return output as z.infer<T>;
+
+      return output;
     } else {
       this.logger({
         category: "extraction",
@@ -503,7 +504,6 @@ export class StagehandExtractHandler {
         content: output,
         chunksSeen,
         llmClient,
-        requestId,
         domSettleTimeoutMs,
       });
     }
