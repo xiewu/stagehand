@@ -13,7 +13,7 @@ import {
 import { AvailableModel } from "../types/model";
 import { EvalLogger, env } from "./utils";
 
-const models: AvailableModel[] = ["o1-mini", "o1-preview"];
+const models: AvailableModel[] = ["gpt-4o", "claude-3-5-sonnet-latest"];
 
 const CATEGORIES = ["observe", "act", "combination", "extract", "experimental"];
 
