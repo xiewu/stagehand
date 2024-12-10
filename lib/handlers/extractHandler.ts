@@ -246,6 +246,8 @@ export class StagehandExtractHandler {
       previouslyExtractedContent: content,
       domElements: formattedText,
       schema,
+      chunksSeen: 1,
+      chunksTotal: 1,
       llmClient,
       requestId,
     });
