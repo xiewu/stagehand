@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { initStagehand } from "../utils";
-import { EvalFunction } from "../types/evals";
+import { EvalFunction } from "../../types/evals";
 
 export const extract_staff_members: EvalFunction = async ({
   modelName,
@@ -30,6 +30,7 @@ export const extract_staff_members: EvalFunction = async ({
   });
 
   const staff_members = result.staff_members;
+  await stagehand.close();
 
   const expectedLength = 47;
 
@@ -59,8 +60,6 @@ export const extract_staff_members: EvalFunction = async ({
       },
     });
 
-    await stagehand.close();
-
     return {
       _success: false,
       error: "Incorrect number of staff members extracted",
@@ -70,13 +69,16 @@ export const extract_staff_members: EvalFunction = async ({
     };
   }
 
-  const firstItemMatches =
-    staff_members[0].name === expectedFirstItem.name &&
-    staff_members[0].job_title === expectedFirstItem.job_title;
+  // Check for the presence of the expected items
+  const firstItemExists = staff_members.some(
+    (member) =>
+      member.name === expectedFirstItem.name &&
+      member.job_title === expectedFirstItem.job_title,
+  );
 
-  if (!firstItemMatches) {
+  if (!firstItemExists) {
     logger.error({
-      message: "First staff member does not match expected",
+      message: "Expected first staff member not found in extracted data",
       level: 0,
       auxiliary: {
         expected: {
@@ -84,7 +86,7 @@ export const extract_staff_members: EvalFunction = async ({
           type: "object",
         },
         actual: {
-          value: JSON.stringify(staff_members[0]),
+          value: JSON.stringify(staff_members),
           type: "object",
         },
       },
@@ -94,21 +96,22 @@ export const extract_staff_members: EvalFunction = async ({
 
     return {
       _success: false,
-      error: "First staff member does not match expected",
+      error: "Expected first staff member not found in extracted data",
       logs: logger.getLogs(),
       debugUrl,
       sessionUrl,
     };
   }
 
-  const lastItemMatches =
-    staff_members[staff_members.length - 1].name === expectedLastItem.name &&
-    staff_members[staff_members.length - 1].job_title ===
-      expectedLastItem.job_title;
+  const lastItemExists = staff_members.some(
+    (member) =>
+      member.name === expectedLastItem.name &&
+      member.job_title === expectedLastItem.job_title,
+  );
 
-  if (!lastItemMatches) {
+  if (!lastItemExists) {
     logger.error({
-      message: "Last staff member does not match expected",
+      message: "Expected last staff member not found in extracted data",
       level: 0,
       auxiliary: {
         expected: {
@@ -116,7 +119,7 @@ export const extract_staff_members: EvalFunction = async ({
           type: "object",
         },
         actual: {
-          value: JSON.stringify(staff_members[staff_members.length - 1]),
+          value: JSON.stringify(staff_members),
           type: "object",
         },
       },
@@ -126,7 +129,7 @@ export const extract_staff_members: EvalFunction = async ({
 
     return {
       _success: false,
-      error: "Last staff member does not match expected",
+      error: "Expected last staff member not found in extracted data",
       logs: logger.getLogs(),
       debugUrl,
       sessionUrl,

@@ -3,108 +3,112 @@ import { initStagehand } from "../utils";
 import { normalizeString } from "../utils";
 import { z } from "zod";
 
-export const extract_baptist_health: EvalFunction = async ({
+export const extract_nhl_stats: EvalFunction = async ({
   modelName,
   logger,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
+    domSettleTimeoutMs: 4000,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
-    "https://www.baptistfirst.org/location/baptist-health-ent-partners",
+    "https://www.hockeydb.com/ihdb/stats/top_league.php?lid=nhl1927&sid=1990",
+    {
+      waitUntil: "domcontentloaded",
+    },
   );
 
   const result = await stagehand.extract({
     instruction:
-      "Extract the address, phone number, and fax number of the healthcare location.",
+      "Extract the name of the goal scoring leader, their number of goals they scored, and the team they played for.",
     schema: z.object({
-      address: z.string(),
-      phone: z.string(),
-      fax: z.string(),
+      name: z.string(),
+      num_goals: z.string(),
+      team: z.string(),
     }),
     modelName,
   });
 
   await stagehand.close();
 
-  const { address, phone, fax } = result;
+  const { name, num_goals, team } = result;
 
   const expected = {
-    address: "2055 East South Blvd; Suite 908 Montgomery, AL 36116",
-    phone: "334-747-2273",
-    fax: "334-747-7501",
+    name: "Brett Hull",
+    num_goals: "72",
+    team: "St. Louis",
   };
 
-  if (normalizeString(address) !== normalizeString(expected.address)) {
+  if (normalizeString(name) !== normalizeString(expected.name)) {
     logger.error({
-      message: "Address extracted does not match expected",
+      message: "Player name extracted does not match expected",
       level: 0,
       auxiliary: {
         expected: {
-          value: expected.address,
+          value: normalizeString(expected.name),
           type: "string",
         },
         actual: {
-          value: address,
+          value: normalizeString(name),
           type: "string",
         },
       },
     });
     return {
       _success: false,
-      error: "Address extracted does not match expected",
+      error: "Player name extracted does not match expected",
       logs: logger.getLogs(),
       debugUrl,
       sessionUrl,
     };
   }
 
-  if (normalizeString(phone) !== normalizeString(expected.phone)) {
+  if (normalizeString(num_goals) !== normalizeString(expected.num_goals)) {
     logger.error({
-      message: "Phone number extracted does not match expected",
+      message: "Number of goals extracted does not match expected",
       level: 0,
       auxiliary: {
         expected: {
-          value: expected.phone,
+          value: normalizeString(expected.num_goals),
           type: "string",
         },
         actual: {
-          value: phone,
+          value: normalizeString(num_goals),
           type: "string",
         },
       },
     });
     return {
       _success: false,
-      error: "Phone number extracted does not match expected",
+      error: "Number of goals extracted does not match expected",
       logs: logger.getLogs(),
       debugUrl,
       sessionUrl,
     };
   }
 
-  if (normalizeString(fax) !== normalizeString(expected.fax)) {
+  if (normalizeString(team) !== normalizeString(expected.team)) {
     logger.error({
-      message: "Fax number extracted does not match expected",
+      message: "Player team extracted does not match expected",
       level: 0,
       auxiliary: {
         expected: {
-          value: expected.fax,
+          value: normalizeString(expected.team),
           type: "string",
         },
         actual: {
-          value: fax,
+          value: normalizeString(team),
           type: "string",
         },
       },
     });
     return {
       _success: false,
-      error: "Fax number extracted does not match expected",
+      error: "Player team extracted does not match expected",
       logs: logger.getLogs(),
       debugUrl,
       sessionUrl,
