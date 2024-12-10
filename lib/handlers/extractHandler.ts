@@ -104,6 +104,47 @@ export class StagehandExtractHandler {
     instruction,
     schema,
     content = {},
+    chunksSeen = [],
+    llmClient,
+    requestId,
+    domSettleTimeoutMs,
+    useTextExtract = true,
+  }: {
+    instruction: string;
+    schema: T;
+    content?: z.infer<T>;
+    chunksSeen?: Array<number>;
+    llmClient: LLMClient;
+    requestId?: string;
+    domSettleTimeoutMs?: number;
+    useTextExtract?: boolean;
+  }): Promise<z.infer<T>> {
+    if (useTextExtract) {
+      return this.textExtract({
+        instruction,
+        schema,
+        content,
+        llmClient,
+        requestId,
+        domSettleTimeoutMs,
+      });
+    } else {
+      return this.domExtract({
+        instruction,
+        schema,
+        content,
+        chunksSeen,
+        llmClient,
+        requestId,
+        domSettleTimeoutMs,
+      });
+    }
+  }
+
+  private async textExtract<T extends z.AnyZodObject>({
+    instruction,
+    schema,
+    content = {},
     llmClient,
     requestId,
     domSettleTimeoutMs,
@@ -296,5 +337,128 @@ export class StagehandExtractHandler {
       });
     }
     return output;
+  }
+
+  private async domExtract<T extends z.AnyZodObject>({
+    instruction,
+    schema,
+    content = {},
+    chunksSeen = [],
+    llmClient,
+    requestId,
+    domSettleTimeoutMs,
+  }: {
+    instruction: string;
+    schema: T;
+    content?: z.infer<T>;
+    chunksSeen?: Array<number>;
+    llmClient: LLMClient;
+    requestId?: string;
+    domSettleTimeoutMs?: number;
+  }): Promise<z.infer<T>> {
+    this.logger({
+      category: "extraction",
+      message: "starting extraction using old approach",
+      level: 1,
+      auxiliary: {
+        instruction: {
+          value: instruction,
+          type: "string",
+        },
+      },
+    });
+
+    await this.waitForSettledDom(domSettleTimeoutMs);
+    await this.startDomDebug();
+
+    const { outputString, chunk, chunks } = await this.stagehand.page.evaluate(
+      (chunksSeen?: number[]) => window.processDom(chunksSeen ?? []),
+      chunksSeen,
+    );
+
+    this.logger({
+      category: "extraction",
+      message: "received output from processDom.",
+      auxiliary: {
+        chunk: {
+          value: chunk.toString(),
+          type: "integer",
+        },
+        chunks_left: {
+          value: (chunks.length - chunksSeen.length).toString(),
+          type: "integer",
+        },
+        chunks_total: {
+          value: chunks.length.toString(),
+          type: "integer",
+        },
+      },
+    });
+
+    const extractionResponse = await extract({
+      instruction,
+      previouslyExtractedContent: content,
+      domElements: outputString,
+      schema,
+      llmClient,
+      chunksSeen: chunksSeen.length,
+      chunksTotal: chunks.length,
+      requestId,
+    });
+
+    const {
+      metadata: { completed },
+      ...output
+    } = extractionResponse;
+
+    await this.cleanupDomDebug();
+
+    this.logger({
+      category: "extraction",
+      message: "received extraction response",
+      auxiliary: {
+        extraction_response: {
+          value: JSON.stringify(extractionResponse),
+          type: "object",
+        },
+      },
+    });
+
+    chunksSeen.push(chunk);
+
+    if (completed || chunksSeen.length === chunks.length) {
+      this.logger({
+        category: "extraction",
+        message: "got response",
+        auxiliary: {
+          extraction_response: {
+            value: JSON.stringify(extractionResponse),
+            type: "object",
+          },
+        },
+      });
+      return output as z.infer<T>;
+    } else {
+      this.logger({
+        category: "extraction",
+        message: "continuing extraction",
+        auxiliary: {
+          extraction_response: {
+            value: JSON.stringify(extractionResponse),
+            type: "object",
+          },
+        },
+      });
+      await this.waitForSettledDom(domSettleTimeoutMs);
+      return this.domExtract({
+        instruction,
+        schema,
+        content: output,
+        chunksSeen,
+        llmClient,
+        requestId,
+        domSettleTimeoutMs,
+      });
+    }
   }
 }
