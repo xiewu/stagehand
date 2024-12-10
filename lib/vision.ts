@@ -127,7 +127,7 @@ export class ScreenshotService {
     const svgAnnotations = (
       await Promise.all(
         Object.entries(this.selectorMap).map(async ([id, selectors]) =>
-          this.createElementAnnotation(id, selectors).catch((error) => {
+          this.createElementAnnotation(id, selectors).catch((error: Error) => {
             this.log({
               category: "screenshotService",
               message:
@@ -144,7 +144,6 @@ export class ScreenshotService {
                 },
               },
             });
-            return null;
           }),
         ),
       )
