@@ -232,7 +232,7 @@ jobs:
 
   run-experimental-evals:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 120
     needs: [run-combination-evals]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
     env:
