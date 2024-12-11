@@ -273,6 +273,9 @@ export function createTextBoundingBoxes(): void {
 
   function applyHighlighting(root: Document | HTMLElement): void {
     root.querySelectorAll("body *").forEach((element) => {
+      if (element.closest(".stagehand-nav, .stagehand-marker")) {
+        return;
+      }
       if (
         ["SCRIPT", "STYLE", "IFRAME", "INPUT", "TEXTAREA"].includes(
           element.tagName,
