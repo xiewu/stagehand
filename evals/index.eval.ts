@@ -21,18 +21,13 @@ const DEFAULT_EVAL_CATEGORIES = process.env.EVAL_CATEGORIES
   ? process.env.EVAL_CATEGORIES.split(",")
   : ["observe", "act", "combination", "extract", "experimental", "textextract"];
 
-const CATEGORIES: EvalCategory[] = DEFAULT_EVAL_CATEGORIES.map((category) => {
-  if (!EvalCategorySchema.safeParse(category).success) {
-    throw new Error(`Category ${category} is not a valid category`);
-  }
-
-  return category as EvalCategory;
-});
-
 let extractMethod = "domExtract";
-const extractMethodArg = args.find((arg) => arg.startsWith("--extract-method="));
-if (extractMethodArg) {
-  extractMethod = extractMethodArg.split("=")[1];
+const extractMethodArgIndex = args.findIndex((arg) =>
+  arg.startsWith("--extract-method="),
+);
+if (extractMethodArgIndex !== -1) {
+  extractMethod = args[extractMethodArgIndex].split("=")[1];
+  args.splice(extractMethodArgIndex, 1);
 }
 
 process.env.EXTRACT_METHOD = extractMethod;
@@ -41,47 +36,13 @@ const useTextExtract = process.env.EXTRACT_METHOD === "textExtract";
 let filterByCategory: string | null = null;
 let filterByEvalName: string | null = null;
 
-const generateTasksAndCategories = (): {
-  tasks: Record<
-    string,
-    Promise<{
-      [name: string]: EvalFunction;
-    }>
-  >;
-  taskCategories: Record<string, string>;
-} => {
-  const tasks: Record<
-    string,
-    Promise<{
-      [name: string]: EvalFunction;
-    }>
-  > = {};
-  const taskCategories: Record<string, string> = {};
+const CATEGORIES: EvalCategory[] = DEFAULT_EVAL_CATEGORIES.map((category) => {
+  if (!EvalCategorySchema.safeParse(category).success) {
+    throw new Error(`Category ${category} is not a valid category`);
+  }
 
-  CATEGORIES.map((category) => {
-    const categoryPath = path.join(__dirname, category);
-    try {
-      const files = fs.readdirSync(categoryPath);
-      files.map((file) => {
-        if (file.endsWith(".ts")) {
-          const taskName = file.replace(".ts", "");
-          const taskModule = import(`./${category}/${taskName}`) as Promise<{
-            [name: string]: EvalFunction;
-          }>;
-          tasks[taskName] = taskModule;
-          taskCategories[taskName] = category;
-        }
-      });
-    } catch (error) {
-      console.warn(`Warning: Category directory ${category} not found`);
-      console.log(error);
-    }
-  });
-
-  return { tasks, taskCategories };
-};
-
-const { tasks, taskCategories } = generateTasksAndCategories();
+  return category as EvalCategory;
+});
 
 if (args.length > 0) {
   if (args[0].toLowerCase() === "category") {
@@ -102,11 +63,54 @@ if (args.length > 0) {
     }
   } else {
     filterByEvalName = args[0];
-    if (!Object.keys(tasks).includes(filterByEvalName)) {
-      console.error(`Error: Evaluation "${filterByEvalName}" does not exist.`);
-      process.exit(1);
-    }
   }
+}
+
+const generateTasksAndCategories = (): {
+  tasks: Record<
+    string,
+    Promise<{
+      [name: string]: EvalFunction;
+    }>
+  >;
+  taskCategories: Record<string, string>;
+} => {
+  const tasks: Record<
+    string,
+    Promise<{
+      [name: string]: EvalFunction;
+    }>
+  > = {};
+  const taskCategories: Record<string, string> = {};
+
+  CATEGORIES.forEach((category) => {
+    const categoryPath = path.join(__dirname, category);
+    try {
+      const files = fs.readdirSync(categoryPath);
+      files.forEach((file) => {
+        if (file.endsWith(".ts")) {
+          const taskName = file.replace(".ts", "");
+          const taskModule = import(`./${category}/${taskName}`) as Promise<{
+            [name: string]: EvalFunction;
+          }>;
+          tasks[taskName] = taskModule;
+          taskCategories[taskName] = category;
+        }
+      });
+    } catch (error) {
+      console.warn(`Warning: Category directory ${category} not found`);
+      console.log(error);
+    }
+  });
+
+  return { tasks, taskCategories };
+};
+
+const { tasks, taskCategories } = generateTasksAndCategories();
+
+if (filterByEvalName && !Object.keys(tasks).includes(filterByEvalName)) {
+  console.error(`Error: Evaluation "${filterByEvalName}" does not exist.`);
+  process.exit(1);
 }
 
 const DEFAULT_EVAL_MODELS = process.env.EVAL_MODELS
