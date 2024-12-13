@@ -5,6 +5,7 @@ import { EvalFunction } from "../../types/evals";
 export const extract_aigrant_companies: EvalFunction = async ({
   modelName,
   logger,
+  useTextExtract,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
@@ -26,6 +27,8 @@ export const extract_aigrant_companies: EvalFunction = async ({
         }),
       ),
     }),
+    modelName,
+    useTextExtract,
   });
 
   await stagehand.close();

@@ -2,7 +2,7 @@ import { EvalFunction } from "../../types/evals";
 import { initStagehand } from "../utils";
 import { z } from "zod";
 
-export const extract_rockauto: EvalFunction = async ({ modelName, logger }) => {
+export const extract_rockauto: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
@@ -26,6 +26,7 @@ export const extract_rockauto: EvalFunction = async ({ modelName, logger }) => {
       ),
     }),
     modelName,
+    useTextExtract,
     domSettleTimeoutMs: 10000,
   });
 

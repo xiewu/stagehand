@@ -2,7 +2,7 @@ import { initStagehand } from "../utils";
 import { EvalFunction } from "../../types/evals";
 import { z } from "zod";
 
-export const costar: EvalFunction = async ({ modelName, logger }) => {
+export const costar: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
@@ -29,7 +29,8 @@ export const costar: EvalFunction = async ({ modelName, logger }) => {
       schema: z.object({
         title: z.string().describe("the title of the article").nullable(),
       }),
-      modelName: "gpt-4o-2024-08-06",
+      modelName,
+      useTextExtract,
     });
 
     logger.log({

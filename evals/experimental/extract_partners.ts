@@ -2,7 +2,7 @@ import { EvalFunction } from "../../types/evals";
 import { initStagehand } from "../utils";
 import { z } from "zod";
 
-export const extract_partners: EvalFunction = async ({ modelName, logger }) => {
+export const extract_partners: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
@@ -40,6 +40,8 @@ export const extract_partners: EvalFunction = async ({ modelName, logger }) => {
           .optional()
           .describe("Any explanation about partner listing or absence thereof"),
       }),
+      modelName,
+      useTextExtract,
     });
 
     const expectedPartners = [
