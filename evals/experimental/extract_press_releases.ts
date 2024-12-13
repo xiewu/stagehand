@@ -5,6 +5,7 @@ import { z } from "zod";
 export const extract_press_releases: EvalFunction = async ({
   modelName,
   logger,
+  useTextExtract,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
@@ -15,19 +16,23 @@ export const extract_press_releases: EvalFunction = async ({
   const { debugUrl, sessionUrl } = initResponse;
 
   try {
-    await stagehand.page.goto("https://www.landerfornyc.com/news");
+    await stagehand.page.goto("https://www.landerfornyc.com/news", {waitUntil : "networkidle"});
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
 
     const result = await stagehand.extract({
       instruction:
-        "extract a list of press releases on this page, with the title and publish date",
+        "extract the title and corresponding publish date of EACH AND EVERY press releases on this page. DO NOT MISS ANY PRESS RELEASES.",
       schema: z.object({
         items: z.array(
           z.object({
-            title: z.string(),
-            publishedOn: z.string(),
+            title: z.string().describe("The title of the press release"),
+            publish_date: z.string().describe("The date the press release was published, eg 'Oct 12, 2021'"),
           }),
         ),
       }),
+      modelName,
+      useTextExtract,
     });
 
     await stagehand.close();
@@ -35,11 +40,11 @@ export const extract_press_releases: EvalFunction = async ({
     const expectedLength = 28;
     const expectedFirstItem = {
       title: "UAW Region 9A Endorses Brad Lander for Mayor",
-      publishedOn: "Dec 4, 2024",
+      publish_date: "Dec 4, 2024",
     };
     const expectedLastItem = {
       title: "An Unassuming Liberal Makes a Rapid Ascent to Power Broker",
-      publishedOn: "Jan 23, 2014",
+      publish_date: "Jan 23, 2014",
     };
 
     if (items.length !== expectedLength) {
@@ -68,10 +73,10 @@ export const extract_press_releases: EvalFunction = async ({
 
     const firstItemMatches =
       items[0].title === expectedFirstItem.title &&
-      items[0].publishedOn === expectedFirstItem.publishedOn;
+      items[0].publish_date === expectedFirstItem.publish_date;
     const lastItemMatches =
       items[items.length - 1].title === expectedLastItem.title &&
-      items[items.length - 1].publishedOn === expectedLastItem.publishedOn;
+      items[items.length - 1].publish_date === expectedLastItem.publish_date;
 
     return {
       _success: firstItemMatches && lastItemMatches,
