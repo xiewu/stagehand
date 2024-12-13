@@ -22,12 +22,17 @@ const DEFAULT_EVAL_CATEGORIES = process.env.EVAL_CATEGORIES
   : ["observe", "act", "combination", "extract", "experimental", "textextract"];
 
 let extractMethod = "domExtract";
-const extractMethodArgIndex = args.findIndex((arg) =>
+const extractMethodArg = args.find((arg) =>
   arg.startsWith("--extract-method="),
 );
-if (extractMethodArgIndex !== -1) {
-  extractMethod = args[extractMethodArgIndex].split("=")[1];
-  args.splice(extractMethodArgIndex, 1);
+if (extractMethodArg) {
+  extractMethod = extractMethodArg.split("=")[1];
+
+  if (extractMethod === "textExtract") {
+    throw new Error(
+      "NotImplementedError: textExtract method is not implemented on this branch.",
+    );
+  }
 }
 
 process.env.EXTRACT_METHOD = extractMethod;
