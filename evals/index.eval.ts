@@ -342,7 +342,7 @@ const generateFilteredTestcases = (): Testcase[] => {
             console.log(`❌ ${input.name}: Failed`);
           }
           return result;
-        } catch (error: any) {
+        } catch (error) {
           console.error(`❌ ${input.name}: Error - ${error}`);
           logger.error({
             message: `Error in task ${input.name}`,
