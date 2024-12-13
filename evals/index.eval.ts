@@ -4,28 +4,29 @@ import path from "path";
 import process from "process";
 import {
   EvalArgs,
-  EvalCategory,
-  EvalCategorySchema,
   EvalFunction,
   EvalInput,
   EvalResult,
   SummaryResult,
   Testcase,
 } from "../types/evals";
-import { AvailableModel, AvailableModelSchema } from "../types/model";
+import { AvailableModel } from "../types/model";
 import { EvalLogger, env } from "./utils";
 
-const DEFAULT_EVAL_CATEGORIES = process.env.EVAL_CATEGORIES
-  ? process.env.EVAL_CATEGORIES.split(",")
-  : ["observe", "act", "combination", "extract", "experimental"];
+const CATEGORIES = ["observe", "act", "combination", "extract", "experimental", "textextract"];
 
-const CATEGORIES: EvalCategory[] = DEFAULT_EVAL_CATEGORIES.map((category) => {
-  if (!EvalCategorySchema.safeParse(category).success) {
-    throw new Error(`Category ${category} is not a valid category`);
-  }
+const args = process.argv.slice(2);
+let filterByCategory: string | null = null;
+let filterByEvalName: string | null = null;
 
-  return category as EvalCategory;
-});
+let extractMethod = "domExtract";
+const extractMethodArg = args.find((arg) => arg.startsWith("--extract-method="));
+if (extractMethodArg) {
+  extractMethod = extractMethodArg.split("=")[1];
+}
+
+process.env.EXTRACT_METHOD = extractMethod;
+const useTextExtract = process.env.EXTRACT_METHOD === "textExtract";
 
 const generateTasksAndCategories = (): {
   tasks: Record<
@@ -69,10 +70,6 @@ const generateTasksAndCategories = (): {
 
 const { tasks, taskCategories } = generateTasksAndCategories();
 
-const args = process.argv.slice(2);
-let filterByCategory: string | null = null;
-let filterByEvalName: string | null = null;
-
 if (args.length > 0) {
   if (args[0].toLowerCase() === "category") {
     filterByCategory = args[1];
@@ -80,9 +77,7 @@ if (args.length > 0) {
       console.error("Error: Category name not specified.");
       process.exit(1);
     }
-    try {
-      EvalCategorySchema.parse(filterByCategory);
-    } catch {
+    if (!CATEGORIES.includes(filterByCategory)) {
       console.error(
         `Error: Invalid category "${filterByCategory}". Valid categories are: ${CATEGORIES.join(
           ", ",
@@ -99,30 +94,10 @@ if (args.length > 0) {
   }
 }
 
-const DEFAULT_EVAL_MODELS = process.env.EVAL_MODELS
-  ? process.env.EVAL_MODELS.split(",")
-  : ["gpt-4o", "claude-3-5-sonnet-latest"];
-
-const EXPERIMENTAL_EVAL_MODELS = process.env.EXPERIMENTAL_EVAL_MODELS
-  ? process.env.EXPERIMENTAL_EVAL_MODELS.split(",")
-  : ["o1-mini", "o1-preview"];
-
-const getModelList = (category: string | null): string[] => {
-  if (category === "experimental") {
-    // to remove duplicates
-    return Array.from(
-      new Set([...DEFAULT_EVAL_MODELS, ...EXPERIMENTAL_EVAL_MODELS]),
-    );
-  }
-  return DEFAULT_EVAL_MODELS;
-};
-
-const MODELS: AvailableModel[] = getModelList(filterByCategory).map((model) => {
-  if (!AvailableModelSchema.safeParse(model).success) {
-    throw new Error(`Model ${model} is not a supported model`);
-  }
-  return model as AvailableModel;
-});
+const models: AvailableModel[] =
+  filterByCategory === "experimental"
+    ? ["gpt-4o", "claude-3-5-sonnet-latest", "o1-mini", "o1-preview"]
+    : ["gpt-4o", "claude-3-5-sonnet-latest"];
 
 const generateTimestamp = (): string => {
   const now = new Date();
@@ -256,7 +231,7 @@ const generateSummary = async (
 };
 
 const generateFilteredTestcases = (): Testcase[] => {
-  let allTestcases = MODELS.flatMap((model) =>
+  let allTestcases = models.flatMap((model) =>
     Object.keys(tasks).map((test) => ({
       input: { name: test, modelName: model },
       name: test,
@@ -320,6 +295,7 @@ const generateFilteredTestcases = (): Testcase[] => {
           const result = await taskFunction({
             modelName: input.modelName,
             logger,
+            useTextExtract,
           });
           if (result && result._success) {
             console.log(`✅ ${input.name}: Passed`);

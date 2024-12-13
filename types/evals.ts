@@ -7,6 +7,7 @@ import { EvalCase } from "braintrust";
 export type EvalFunction = (args: {
   modelName: AvailableModel;
   logger: EvalLogger;
+  useTextExtract: boolean;
 }) => Promise<{
   _success: boolean;
   logs: LogLine[];
