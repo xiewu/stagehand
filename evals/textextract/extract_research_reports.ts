@@ -26,7 +26,11 @@ export const extract_research_reports: EvalFunction = async ({
     schema: z.object({
       reports: z.array(
         z.object({
-          report_name: z.string().describe("The name or title of the research report. NOT the name of the PDF attachment."),
+          report_name: z
+            .string()
+            .describe(
+              "The name or title of the research report. NOT the name of the PDF attachment.",
+            ),
         }),
       ),
     }),

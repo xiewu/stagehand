@@ -38,7 +38,9 @@ export const extract_area_codes: EvalFunction = async ({
             ),
           area_code: z
             .string()
-            .describe("The area code for the Primary Center. This will either be 2 or 3 digits."),
+            .describe(
+              "The area code for the Primary Center. This will either be 2 or 3 digits.",
+            ),
         }),
       ),
     }),
@@ -52,17 +54,15 @@ export const extract_area_codes: EvalFunction = async ({
   const expectedLength = 56;
 
   const expectedFirstItem = {
-    zone_name:
-      "Lagos Zone",
+    zone_name: "Lagos Zone",
     primary_center_name: "Lagos",
     area_code: "01",
   };
 
   const expectedLastItem = {
-    zone_name:
-      "South-East Zone",
+    zone_name: "South-East Zone",
     primary_center_name: "Yenagoa",
-    area_code: "089"
+    area_code: "089",
   };
 
   if (primaryCenterList.length !== expectedLength) {
@@ -89,9 +89,9 @@ export const extract_area_codes: EvalFunction = async ({
     };
   }
   const firstItemMatches =
-    primaryCenterList[0].zone_name ===
-      expectedFirstItem.zone_name &&
-    primaryCenterList[0].primary_center_name === expectedFirstItem.primary_center_name &&
+    primaryCenterList[0].zone_name === expectedFirstItem.zone_name &&
+    primaryCenterList[0].primary_center_name ===
+      expectedFirstItem.primary_center_name &&
     primaryCenterList[0].area_code === expectedFirstItem.area_code;
 
   if (!firstItemMatches) {
@@ -136,7 +136,9 @@ export const extract_area_codes: EvalFunction = async ({
           type: "object",
         },
         actual: {
-          value: JSON.stringify(primaryCenterList[primaryCenterList.length - 1]),
+          value: JSON.stringify(
+            primaryCenterList[primaryCenterList.length - 1],
+          ),
           type: "object",
         },
       },

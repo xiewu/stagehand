@@ -6,7 +6,7 @@ import { compareStrings } from "../utils";
 export const extract_memorial_healthcare: EvalFunction = async ({
   modelName,
   logger,
-  useTextExtract
+  useTextExtract,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,

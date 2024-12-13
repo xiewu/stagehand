@@ -2,7 +2,11 @@ import { initStagehand } from "../utils";
 import { EvalFunction } from "../../types/evals";
 import { z } from "zod";
 
-export const allrecipes: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
+export const allrecipes: EvalFunction = async ({
+  modelName,
+  logger,
+  useTextExtract,
+}) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,

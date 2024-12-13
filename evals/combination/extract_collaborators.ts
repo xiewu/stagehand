@@ -33,7 +33,7 @@ export const extract_collaborators: EvalFunction = async ({
         ),
       }),
       modelName,
-      useTextExtract
+      useTextExtract,
     });
 
     await stagehand.close();

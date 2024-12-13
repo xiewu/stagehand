@@ -2,7 +2,11 @@ import { EvalFunction } from "../../types/evals";
 import { initStagehand } from "../utils";
 import { z } from "zod";
 
-export const arxiv: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
+export const arxiv: EvalFunction = async ({
+  modelName,
+  logger,
+  useTextExtract,
+}) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
@@ -30,7 +34,7 @@ export const arxiv: EvalFunction = async ({ modelName, logger, useTextExtract })
           .describe("list of papers"),
       }),
       modelName,
-      useTextExtract
+      useTextExtract,
     });
 
     if (

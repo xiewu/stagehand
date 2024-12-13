@@ -6,7 +6,7 @@ import { compareStrings } from "../utils";
 export const extract_public_notices: EvalFunction = async ({
   modelName,
   logger,
-  useTextExtract
+  useTextExtract,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
@@ -90,10 +90,21 @@ export const extract_public_notices: EvalFunction = async ({
     };
   }
   const firstItemMatches =
-    compareStrings(publicNotices[0].notice_description, expectedFirstItem.notice_description, 0.90) &&
-    compareStrings(publicNotices[0].gg_number, expectedFirstItem.gg_number, 0.90) &&
-    compareStrings(publicNotices[0].publication_date, expectedFirstItem.publication_date, 0.90);
-
+    compareStrings(
+      publicNotices[0].notice_description,
+      expectedFirstItem.notice_description,
+      0.9,
+    ) &&
+    compareStrings(
+      publicNotices[0].gg_number,
+      expectedFirstItem.gg_number,
+      0.9,
+    ) &&
+    compareStrings(
+      publicNotices[0].publication_date,
+      expectedFirstItem.publication_date,
+      0.9,
+    );
 
   if (!firstItemMatches) {
     logger.error({
@@ -120,9 +131,21 @@ export const extract_public_notices: EvalFunction = async ({
   }
 
   const lastItemMatches =
-    compareStrings(publicNotices[publicNotices.length - 1].notice_description, expectedLastItem.notice_description, 0.90) &&
-    compareStrings(publicNotices[publicNotices.length - 1].gg_number, expectedLastItem.gg_number, 0.90) &&
-    compareStrings(publicNotices[publicNotices.length - 1].publication_date, expectedLastItem.publication_date, 0.90);
+    compareStrings(
+      publicNotices[publicNotices.length - 1].notice_description,
+      expectedLastItem.notice_description,
+      0.9,
+    ) &&
+    compareStrings(
+      publicNotices[publicNotices.length - 1].gg_number,
+      expectedLastItem.gg_number,
+      0.9,
+    ) &&
+    compareStrings(
+      publicNotices[publicNotices.length - 1].publication_date,
+      expectedLastItem.publication_date,
+      0.9,
+    );
 
   if (!lastItemMatches) {
     logger.error({

@@ -6,7 +6,7 @@ import { z } from "zod";
 export const extract_capacitor_info: EvalFunction = async ({
   modelName,
   logger,
-  useTextExtract
+  useTextExtract,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,

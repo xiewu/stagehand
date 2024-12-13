@@ -3,7 +3,11 @@ import { initStagehand } from "../utils";
 import { normalizeString } from "../utils";
 import { z } from "zod";
 
-export const ted_talk: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
+export const ted_talk: EvalFunction = async ({
+  modelName,
+  logger,
+  useTextExtract,
+}) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
