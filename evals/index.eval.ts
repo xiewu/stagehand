@@ -19,7 +19,7 @@ const args = process.argv.slice(2);
 
 const DEFAULT_EVAL_CATEGORIES = process.env.EVAL_CATEGORIES
   ? process.env.EVAL_CATEGORIES.split(",")
-  : ["observe", "act", "combination", "extract", "experimental", "textextract"];
+  : ["observe", "act", "combination", "extract", "experimental", "text_extract"];
 
 let extractMethod = "domExtract";
 const extractMethodArg = args.find((arg) =>
