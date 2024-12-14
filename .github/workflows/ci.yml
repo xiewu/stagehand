@@ -95,7 +95,6 @@ jobs:
 #      - name: Save Extract Text Results
 #        run: mv eval-summary.json eval-summary-extract-text.json
 
-
       - name: Log and Compare Extract Evals Performance
         run: |
           experimentNameDom=$(jq -r '.experimentName' eval-summary-extract-dom.json)
