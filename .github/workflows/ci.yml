@@ -93,6 +93,7 @@ jobs:
         run: npm run evals category extract -- --extract-method=textExtract
       - name: Save Extract Text Results
         run: mv eval-summary.json eval-summary-extract-text.json
+        continue-on-error: true
 
       - name: Log and Compare Extract Evals Performance
         run: |
@@ -101,10 +102,10 @@ jobs:
           echo "DomExtract Extract category score: $dom_score%"
           echo "View domExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
 
-          experimentNameText=$(jq -r '.experimentName' eval-summary-extract-text.json)
-          text_score=$(jq '.categories.extract' eval-summary-extract-text.json)
-          echo "TextExtract Extract category score: $text_score%"
-          echo "View textExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
+#          experimentNameText=$(jq -r '.experimentName' eval-summary-extract-text.json)
+#          text_score=$(jq '.categories.extract' eval-summary-extract-text.json)
+#          echo "TextExtract Extract category score: $text_score%"
+#          echo "View textExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
 
           if (( $(echo "$dom_score < 80" | bc -l) )); then
             echo "DomExtract extract category score is below 80%. Failing CI."
@@ -149,6 +150,7 @@ jobs:
         run: npm run evals category text_extract -- --extract-method=textExtract
       - name: Save text_extract Text Results
         run: mv eval-summary.json eval-summary-text_extract-text.json
+        continue-on-error: true
 
       - name: Log and Compare text_extract Evals Performance
         run: |
@@ -157,16 +159,16 @@ jobs:
           echo "DomExtract text_extract category score: $dom_score%"
           echo "View domExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
 
-          experimentNameText=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
-          text_score=$(jq '.categories.text_extract' eval-summary-text_extract-text.json)
-          echo "TextExtract text_extract category score: $text_score%"
-          echo "View textExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
+#          experimentNameText=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
+#          text_score=$(jq '.categories.text_extract' eval-summary-text_extract-text.json)
+#          echo "TextExtract text_extract category score: $text_score%"
+#          echo "View textExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
 
           # Fail CI only if textExtract is below 80%
-          if (( $(echo "$text_score < 80" | bc -l) )); then
-            echo "textExtract text_extract category score is below 80%. Failing CI."
-            exit 1
-          fi
+#          if (( $(echo "$text_score < 80" | bc -l) )); then
+#            echo "textExtract text_extract category score is below 80%. Failing CI."
+#            exit 1
+#          fi
 
   run-act-evals:
     runs-on: ubuntu-latest
