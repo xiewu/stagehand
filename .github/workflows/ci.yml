@@ -115,7 +115,7 @@ jobs:
   run-text-extract-evals:
     needs: [run-extract-evals]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -173,7 +173,7 @@ jobs:
   run-act-evals:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: [run-extract-evals]
+    needs: [run-text-extract-evals]
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -266,7 +266,7 @@ jobs:
 
   run-combination-evals:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     needs: [run-observe-evals]
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
