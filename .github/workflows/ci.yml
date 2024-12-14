@@ -91,9 +91,10 @@ jobs:
       # Run extract category with textExtract
       - name: Run Extract Evals (textExtract)
         run: npm run evals category extract -- --extract-method=textExtract
-      - name: Save Extract Text Results
-        run: mv eval-summary.json eval-summary-extract-text.json
         continue-on-error: true
+#      - name: Save Extract Text Results
+#        run: mv eval-summary.json eval-summary-extract-text.json
+
 
       - name: Log and Compare Extract Evals Performance
         run: |
@@ -148,9 +149,9 @@ jobs:
       # Run text_extract category with textExtract
       - name: Run text_extract Evals (textExtract)
         run: npm run evals category text_extract -- --extract-method=textExtract
-      - name: Save text_extract Text Results
-        run: mv eval-summary.json eval-summary-text_extract-text.json
         continue-on-error: true
+#      - name: Save text_extract Text Results
+#        run: mv eval-summary.json eval-summary-text_extract-text.json
 
       - name: Log and Compare text_extract Evals Performance
         run: |
