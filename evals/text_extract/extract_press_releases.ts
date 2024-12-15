@@ -82,10 +82,11 @@ export const extract_press_releases: EvalFunction = async ({
       item: { title: string; publish_date: string },
       expected: { title: string; publish_date: string },
     ) => {
-      const titleComparison = compareStrings(item.title, expected.title);
+      const titleComparison = compareStrings(item.title, expected.title, 0.9);
       const dateComparison = compareStrings(
         item.publish_date,
         expected.publish_date,
+        0.9,
       );
       return titleComparison.meetsThreshold && dateComparison.meetsThreshold;
     };
