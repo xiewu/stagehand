@@ -45,11 +45,11 @@ export const extract_press_releases: EvalFunction = async ({
     await stagehand.close();
     const items = result.items;
     const expectedLength = 28;
-    const expectedFirstItem = {
+    const expectedFirstItem: { title: string; publish_date: string } = {
       title: "UAW Region 9A Endorses Brad Lander for Mayor",
       publish_date: "Dec 4, 2024",
     };
-    const expectedLastItem = {
+    const expectedLastItem: { title: string; publish_date: string } = {
       title: "An Unassuming Liberal Makes a Rapid Ascent to Power Broker",
       publish_date: "Jan 23, 2014",
     };
