@@ -82,18 +82,19 @@ jobs:
       - name: Install Playwright browsers
         run: npm exec playwright install --with-deps
 
-      # Run extract category with domExtract
+      # 1. Run extract category with domExtract
       - name: Run Extract Evals (domExtract)
         run: npm run evals category extract -- --extract-method=domExtract
       - name: Save Extract Dom Results
         run: mv eval-summary.json eval-summary-extract-dom.json
 
-      # Run extract category with textExtract
+      # 2. Once domExtract finishes, run extract category with textExtract
       - name: Run Extract Evals (textExtract)
         run: npm run evals category extract -- --extract-method=textExtract
       - name: Save Extract Text Results
         run: mv eval-summary.json eval-summary-extract-text.json
 
+      # 3. Log and Compare Extract Evals Performance
       - name: Log and Compare Extract Evals Performance
         run: |
           experimentNameDom=$(jq -r '.experimentName' eval-summary-extract-dom.json)
@@ -106,6 +107,7 @@ jobs:
           echo "TextExtract Extract category score: $text_score%"
           echo "View textExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
 
+          # 4. If domExtract <80% fail CI
           if (( $(echo "$dom_score < 80" | bc -l) )); then
             echo "DomExtract extract category score is below 80%. Failing CI."
             exit 1
@@ -138,31 +140,32 @@ jobs:
       - name: Install Playwright browsers
         run: npm exec playwright install --with-deps
 
-      # Run text_extract category with domExtract
-      - name: Run text_extract Evals (domExtract)
-        run: npm run evals category text_extract -- --extract-method=domExtract
-      - name: Save text_extract Dom Results
-        run: mv eval-summary.json eval-summary-text_extract-dom.json
-
-      # Run text_extract category with textExtract
+      # 1. Run text_extract category with textExtract first
       - name: Run text_extract Evals (textExtract)
         run: npm run evals category text_extract -- --extract-method=textExtract
       - name: Save text_extract Text Results
         run: mv eval-summary.json eval-summary-text_extract-text.json
 
+      # 2. Then run text_extract category with domExtract
+      - name: Run text_extract Evals (domExtract)
+        run: npm run evals category text_extract -- --extract-method=domExtract
+      - name: Save text_extract Dom Results
+        run: mv eval-summary.json eval-summary-text_extract-dom.json
+
+      # 3. Log and Compare text_extract Evals Performance
       - name: Log and Compare text_extract Evals Performance
         run: |
-          experimentNameDom=$(jq -r '.experimentName' eval-summary-text_extract-dom.json)
-          dom_score=$(jq '.categories.text_extract' eval-summary-text_extract-dom.json)
-          echo "DomExtract text_extract category score: $dom_score%"
-          echo "View domExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
-
           experimentNameText=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
           text_score=$(jq '.categories.text_extract' eval-summary-text_extract-text.json)
           echo "TextExtract text_extract category score: $text_score%"
           echo "View textExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
 
-          # Fail CI only if textExtract is below 80%
+          experimentNameDom=$(jq -r '.experimentName' eval-summary-text_extract-dom.json)
+          dom_score=$(jq '.categories.text_extract' eval-summary-text_extract-dom.json)
+          echo "DomExtract text_extract category score: $dom_score%"
+          echo "View domExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
+
+          # 4. If textExtract (for text_extract category) <80% fail CI
           if (( $(echo "$text_score < 80" | bc -l) )); then
             echo "textExtract text_extract category score is below 80%. Failing CI."
             exit 1
