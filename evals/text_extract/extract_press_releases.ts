@@ -23,7 +23,7 @@ export const extract_press_releases: EvalFunction = async ({
     // timeout for 5 seconds to allow for the page to load
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    const result = await stagehand.extract({
+    const { items } = (await stagehand.extract({
       instruction:
         "extract the title and corresponding publish date of EACH AND EVERY press releases on this page. DO NOT MISS ANY PRESS RELEASES.",
       schema: z.object({
@@ -40,16 +40,16 @@ export const extract_press_releases: EvalFunction = async ({
       }),
       modelName,
       useTextExtract,
-    });
+    })) as { items: { title: string; publish_date: string }[] };
 
     await stagehand.close();
-    const items = result.items;
+
     const expectedLength = 28;
-    const expectedFirstItem: { title: string; publish_date: string } = {
+    const expectedFirstItem = {
       title: "UAW Region 9A Endorses Brad Lander for Mayor",
       publish_date: "Dec 4, 2024",
     };
-    const expectedLastItem: { title: string; publish_date: string } = {
+    const expectedLastItem = {
       title: "An Unassuming Liberal Makes a Rapid Ascent to Power Broker",
       publish_date: "Jan 23, 2014",
     };
@@ -91,11 +91,9 @@ export const extract_press_releases: EvalFunction = async ({
       return titleComparison.meetsThreshold && dateComparison.meetsThreshold;
     };
 
-    // Check if expectedFirstItem is found anywhere in the list
     const foundFirstItem = items.some((item) =>
       isItemMatch(item, expectedFirstItem),
     );
-    // Check if expectedLastItem is found anywhere in the list
     const foundLastItem = items.some((item) =>
       isItemMatch(item, expectedLastItem),
     );
