@@ -4,12 +4,10 @@ import { LogLine } from "../types/log";
 import stringComparison from "string-comparison";
 const { jaroWinkler } = stringComparison;
 
-// export const env: "BROWSERBASE" | "LOCAL" =
-//   process.env.EVAL_ENV?.toLowerCase() === "browserbase"
-//     ? "BROWSERBASE"
-//     : "LOCAL";
-
-export const env = "BROWSERBASE";
+export const env: "BROWSERBASE" | "LOCAL" =
+  process.env.EVAL_ENV?.toLowerCase() === "browserbase"
+    ? "BROWSERBASE"
+    : "LOCAL";
 
 const enableCaching = process.env.EVAL_ENABLE_CACHING?.toLowerCase() === "true";
 
