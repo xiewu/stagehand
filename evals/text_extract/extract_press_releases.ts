@@ -23,24 +23,28 @@ export const extract_press_releases: EvalFunction = async ({
     // timeout for 5 seconds to allow for the page to load
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    const { items } = (await stagehand.extract({
+    const schema = z.object({
+      items: z.array(
+        z.object({
+          title: z.string().describe("The title of the press release"),
+          publish_date: z
+            .string()
+            .describe(
+              "The date the press release was published, eg 'Oct 12, 2021'",
+            ),
+        }),
+      ),
+    });
+
+    const rawResult = await stagehand.extract({
       instruction:
         "extract the title and corresponding publish date of EACH AND EVERY press releases on this page. DO NOT MISS ANY PRESS RELEASES.",
-      schema: z.object({
-        items: z.array(
-          z.object({
-            title: z.string().describe("The title of the press release"),
-            publish_date: z
-              .string()
-              .describe(
-                "The date the press release was published, eg 'Oct 12, 2021'",
-              ),
-          }),
-        ),
-      }),
+      schema,
       modelName,
       useTextExtract,
-    })) satisfies { items: { title: string; publish_date: string }[] };
+    });
+
+    const { items } = schema.parse(rawResult);
 
     await stagehand.close();
 
@@ -104,7 +108,7 @@ export const extract_press_releases: EvalFunction = async ({
       debugUrl,
       sessionUrl,
     };
-  } catch (error) {
+  } catch (error: any) {
     logger.error({
       message: `Error in extract_press_releases function`,
       level: 0,
