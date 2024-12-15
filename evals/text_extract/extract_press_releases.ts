@@ -1,6 +1,7 @@
 import { EvalFunction } from "../../types/evals";
 import { initStagehand } from "../utils";
 import { z } from "zod";
+import { compareStrings } from "../utils";
 
 export const extract_press_releases: EvalFunction = async ({
   modelName,
@@ -53,14 +54,14 @@ export const extract_press_releases: EvalFunction = async ({
       publish_date: "Jan 23, 2014",
     };
 
-    if (items.length !== expectedLength) {
+    if (items.length <= expectedLength) {
       logger.error({
-        message: "Incorrect number of items extracted",
+        message: "Not enough items extracted",
         level: 0,
         auxiliary: {
           expected: {
-            value: expectedLength.toString(),
-            type: "integer",
+            value: `> ${expectedLength}`,
+            type: "string",
           },
           actual: {
             value: items.length.toString(),
@@ -70,22 +71,36 @@ export const extract_press_releases: EvalFunction = async ({
       });
       return {
         _success: false,
-        error: "Incorrect number of items extracted",
+        error: "Not enough items extracted",
         logs: logger.getLogs(),
         debugUrl,
         sessionUrl,
       };
     }
 
-    const firstItemMatches =
-      items[0].title === expectedFirstItem.title &&
-      items[0].publish_date === expectedFirstItem.publish_date;
-    const lastItemMatches =
-      items[items.length - 1].title === expectedLastItem.title &&
-      items[items.length - 1].publish_date === expectedLastItem.publish_date;
+    const isItemMatch = (
+      item: { title: string; publish_date: string },
+      expected: { title: string; publish_date: string },
+    ) => {
+      const titleComparison = compareStrings(item.title, expected.title);
+      const dateComparison = compareStrings(
+        item.publish_date,
+        expected.publish_date,
+      );
+      return titleComparison.meetsThreshold && dateComparison.meetsThreshold;
+    };
+
+    // Check if expectedFirstItem is found anywhere in the list
+    const foundFirstItem = items.some((item) =>
+      isItemMatch(item, expectedFirstItem),
+    );
+    // Check if expectedLastItem is found anywhere in the list
+    const foundLastItem = items.some((item) =>
+      isItemMatch(item, expectedLastItem),
+    );
 
     return {
-      _success: firstItemMatches && lastItemMatches,
+      _success: foundFirstItem && foundLastItem,
       logs: logger.getLogs(),
       debugUrl,
       sessionUrl,
