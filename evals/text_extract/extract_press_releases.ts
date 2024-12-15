@@ -40,7 +40,7 @@ export const extract_press_releases: EvalFunction = async ({
       }),
       modelName,
       useTextExtract,
-    })) as { items: { title: string; publish_date: string }[] };
+    })) satisfies { items: { title: string; publish_date: string }[] };
 
     await stagehand.close();
 
