@@ -108,7 +108,7 @@ export const extract_press_releases: EvalFunction = async ({
       debugUrl,
       sessionUrl,
     };
-  } catch (error: any) {
+  } catch (error) {
     logger.error({
       message: `Error in extract_press_releases function`,
       level: 0,
