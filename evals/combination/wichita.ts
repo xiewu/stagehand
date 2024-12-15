@@ -2,7 +2,7 @@ import { initStagehand } from "../utils";
 import { EvalFunction } from "../../types/evals";
 import { z } from "zod";
 
-export const sciquest: EvalFunction = async ({
+export const wichita: EvalFunction = async ({
   modelName,
   logger,
   useTextExtract,
@@ -14,17 +14,14 @@ export const sciquest: EvalFunction = async ({
 
   const { debugUrl, sessionUrl } = initResponse;
 
-  await stagehand.page.goto(
-    "https://bids.sciquest.com/apps/Router/PublicEvent?tab=PHX_NAV_SourcingAllOpps&CustomerOrg=StateOfUtah",
-  );
+  await stagehand.page.goto("https://www.wichitafallstx.gov/Bids.aspx");
 
   await stagehand.act({
-    action: 'Click on the "Closed" tab',
+    action: 'Click on "Show Closed/Awarded/Cancelled bids"',
   });
 
   const result = await stagehand.extract({
-    instruction:
-      "Extract the total number of results that the search produced. Not the number of results displayed on the page.",
+    instruction: "Extract the total number of bids that the search produced.",
     schema: z.object({
       total_results: z.string(),
     }),
@@ -36,12 +33,12 @@ export const sciquest: EvalFunction = async ({
 
   const { total_results } = result;
 
-  const expectedNumber = 12637;
+  const expectedNumber = 405;
   const extractedNumber = parseInt(total_results.replace(/[^\d]/g, ""), 10);
 
   const isWithinRange =
-    extractedNumber >= expectedNumber - 1000 &&
-    extractedNumber <= expectedNumber + 1000;
+    extractedNumber >= expectedNumber - 10 &&
+    extractedNumber <= expectedNumber + 10;
 
   if (!isWithinRange) {
     logger.error({
@@ -49,7 +46,7 @@ export const sciquest: EvalFunction = async ({
       level: 0,
       auxiliary: {
         expected: {
-          value: `${expectedNumber} ± 1000`,
+          value: `${expectedNumber} ± 10`,
           type: "string",
         },
         actual: {

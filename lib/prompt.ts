@@ -216,6 +216,7 @@ export function buildExtractSystemPrompt(
   const contentDetail = useTextExtract
     ? `A text representation of a webpage to extract information from.`
     : `A list of DOM elements to extract from.`;
+
   const instructions = `
 Print the exact text from the ${
     useTextExtract ? "text-rendered webpage" : "DOM elements"
@@ -240,6 +241,7 @@ ONLY print the content using the print_extracted_data tool provided.
     `${baseContent}${contentDetail}\n\n${instructions}\n${toolInstructions}${
       additionalInstructions ? `\n\n${additionalInstructions}` : ""
     }`.replace(/\s+/g, " ");
+
   return {
     role: "system",
     content,
