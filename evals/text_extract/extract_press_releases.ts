@@ -16,25 +16,24 @@ export const extract_press_releases: EvalFunction = async ({
 
   const { debugUrl, sessionUrl } = initResponse;
 
+  const schema = z.object({
+    items: z.array(
+      z.object({
+        title: z.string().describe("The title of the press release"),
+        publish_date: z
+          .string()
+          .describe("The date the press release was published"),
+      }),
+    ),
+  });
+
+  type PressRelease = z.infer<typeof schema>["items"][number];
+
   try {
     await stagehand.page.goto("https://www.landerfornyc.com/news", {
       waitUntil: "networkidle",
     });
-    // timeout for 5 seconds to allow for the page to load
     await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    const schema = z.object({
-      items: z.array(
-        z.object({
-          title: z.string().describe("The title of the press release"),
-          publish_date: z
-            .string()
-            .describe(
-              "The date the press release was published, eg 'Oct 12, 2021'",
-            ),
-        }),
-      ),
-    });
 
     const rawResult = await stagehand.extract({
       instruction:
@@ -44,16 +43,17 @@ export const extract_press_releases: EvalFunction = async ({
       useTextExtract,
     });
 
-    const { items } = schema.parse(rawResult);
+    const parsed = schema.parse(rawResult);
+    const { items } = parsed;
 
     await stagehand.close();
 
     const expectedLength = 28;
-    const expectedFirstItem = {
+    const expectedFirstItem: PressRelease = {
       title: "UAW Region 9A Endorses Brad Lander for Mayor",
       publish_date: "Dec 4, 2024",
     };
-    const expectedLastItem = {
+    const expectedLastItem: PressRelease = {
       title: "An Unassuming Liberal Makes a Rapid Ascent to Power Broker",
       publish_date: "Jan 23, 2014",
     };
@@ -82,10 +82,7 @@ export const extract_press_releases: EvalFunction = async ({
       };
     }
 
-    const isItemMatch = (
-      item: { title: string; publish_date: string },
-      expected: { title: string; publish_date: string },
-    ) => {
+    const isItemMatch = (item: PressRelease, expected: PressRelease) => {
       const titleComparison = compareStrings(item.title, expected.title, 0.9);
       const dateComparison = compareStrings(
         item.publish_date,
@@ -114,11 +111,11 @@ export const extract_press_releases: EvalFunction = async ({
       level: 0,
       auxiliary: {
         error: {
-          value: error.message || JSON.stringify(error),
+          value: (error as Error).message || JSON.stringify(error),
           type: "string",
         },
         trace: {
-          value: error.stack,
+          value: (error as Error).stack,
           type: "string",
         },
       },
