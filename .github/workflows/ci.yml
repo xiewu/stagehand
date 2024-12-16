@@ -116,7 +116,7 @@ jobs:
   run-text-extract-evals:
     needs: [run-extract-evals]
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 120
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
