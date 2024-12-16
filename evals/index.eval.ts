@@ -248,7 +248,7 @@ const generateFilteredTestcases = (): Testcase[] => {
       tags: [model, testName],
       metadata: {
         model,
-        testName,
+        test: testName,
       },
       expected: true,
     })),
