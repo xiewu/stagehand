@@ -25,9 +25,48 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
     // Track success for each navigation step
     let allStepsSucceeded = true;
 
-    // Navigate to the initial URL before performing actions
+    // Navigate to the initial URL with retry logic
     const initialUrl = task.evaluation[0].content.url;
-    await stagehand.page.goto(initialUrl);
+    let navigationSuccess = false;
+    const maxRetries = 3;
+
+    for (let attempt = 0; attempt < maxRetries && !navigationSuccess; attempt++) {
+      try {
+        // Increase timeout and wait for networkidle
+        await stagehand.page.goto(initialUrl, {
+          timeout: 60000,
+          waitUntil: 'networkidle',
+        });
+
+        // Additional wait for page stabilization
+        await stagehand.page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
+          logger.warn({
+            message: 'Network idle timeout reached during initial navigation',
+            level: 1,
+            auxiliary: {
+              attempt: { value: String(attempt + 1), type: "string" },
+              url: { value: initialUrl, type: "string" },
+            },
+          });
+        });
+
+        navigationSuccess = true;
+      } catch (navError) {
+        if (attempt === maxRetries - 1) {
+          throw new Error(`Failed to navigate to ${initialUrl} after ${maxRetries} attempts: ${navError.message}`);
+        }
+        logger.warn({
+          message: `Navigation attempt ${attempt + 1} failed, retrying...`,
+          level: 1,
+          auxiliary: {
+            error: { value: navError.message, type: "string" },
+            attempt: { value: String(attempt + 1), type: "string" },
+          },
+        });
+        // Short delay before retry
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    }
 
     // Process each navigation step with timeout
     for (const step of task.evaluation) {
@@ -53,7 +92,6 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
 
         // Wait for any navigation to complete
         await stagehand.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
-          // Ignore timeout errors for network idle
           logger.warn({
             message: 'Network idle timeout reached',
             level: 1,
