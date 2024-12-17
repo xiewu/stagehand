@@ -10,15 +10,19 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
   });
 
   const { debugUrl, sessionUrl } = initResponse;
+  let success = false;
+  let currentStepIndex = 0;
+  let totalSteps = 0;
+  let taskData = null;
 
   try {
     // Load a task from the dataset
     const tasks = await loadMind2WebDataset();
     const task = tasks[0]; // Start with first task for testing
+    taskData = task;
+    totalSteps = task.evaluation.length;
 
     // Track success for each navigation step
-    let currentStepIndex = 0;
-    const totalSteps = task.evaluation.length;
     let allStepsSucceeded = true;
 
     // Navigate to the initial URL before performing actions
@@ -46,6 +50,18 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             setTimeout(() => reject(new Error('Action timeout after 35 seconds')), 35000)
           ),
         ]);
+
+        // Wait for any navigation to complete
+        await stagehand.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+          // Ignore timeout errors for network idle
+          logger.warn({
+            message: 'Network idle timeout reached',
+            level: 1,
+            auxiliary: {
+              step: { value: JSON.stringify(step), type: "string" },
+            },
+          });
+        });
 
         // Validate the navigation result
         const currentUrl = stagehand.page.url();
@@ -82,17 +98,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
       }
     }
 
-    await stagehand.close();
-
-    return {
-      _success: allStepsSucceeded,
-      task: task.task,
-      stepsCompleted: currentStepIndex,
-      totalSteps,
-      logs: logger.getLogs(),
-      debugUrl,
-      sessionUrl,
-    };
+    success = allStepsSucceeded;
   } catch (error) {
     logger.error({
       message: `Error in mind2web eval`,
@@ -102,12 +108,26 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         trace: { value: error.stack, type: "string" },
       },
     });
-
-    await stagehand.close();
+    success = false;
+  } finally {
+    // Ensure browser is properly closed
+    try {
+      await stagehand.close();
+    } catch (closeError) {
+      logger.warn({
+        message: 'Error while closing stagehand',
+        level: 1,
+        auxiliary: {
+          error: { value: closeError.message, type: "string" },
+        },
+      });
+    }
 
     return {
-      _success: false,
-      error,
+      _success: success,
+      task: taskData?.task,
+      stepsCompleted: currentStepIndex,
+      totalSteps,
       logs: logger.getLogs(),
       debugUrl,
       sessionUrl,
