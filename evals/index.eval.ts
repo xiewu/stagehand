@@ -283,7 +283,8 @@ const generateFilteredTestcases = (): Testcase[] => {
     category: filterByCategory || undefined,
     environment: env,
   });
-  const braintrustProjectName = process.env.CI === "true" ? "stagehand" : "stagehand-dev";
+  const braintrustProjectName =
+    process.env.CI === "true" ? "stagehand" : "stagehand-dev";
   try {
     const evalResult = await Eval(braintrustProjectName, {
       experimentName,
