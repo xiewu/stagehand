@@ -5,7 +5,7 @@ import { validateUrlPath, validateUrlMatch } from "../utils/url_validation";
 import { LogLine } from '../../types/log';
 
 // Increase max listeners to handle multiple event emitters
-process.setMaxListeners(20);
+process.setMaxListeners(50);
 
 const MAX_ACTION_RETRIES = 5;
 const ACTION_TIMEOUT = 30000;
@@ -20,9 +20,8 @@ const STEP_DELAY = 2000;
 // Add delay between test cases for cleanup
 const TEST_CASE_DELAY = 5000;
 
-// Track active browser instances
-let activeBrowsers = 0;
-const MAX_CONCURRENT_BROWSERS = 1;
+// Semaphore for browser instance management
+let browserLock = false;
 
 async function handleCommonObstacles(stagehand: any, logger: any): Promise<boolean> {
     const MAX_OBSTACLE_ATTEMPTS = 3;
@@ -205,6 +204,12 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       level: 1,
     });
 
+    // Wait for browser lock to be released
+    while (browserLock) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    browserLock = true;
+
     // Initialize single Stagehand instance for all test cases
     stagehand = new Stagehand({
       env: "LOCAL",
@@ -216,7 +221,6 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
     });
 
     await stagehand.init();
-    activeBrowsers++;
     currentSession = stagehand.page;
     debugUrl = stagehand.debugUrl || '';
     sessionUrl = stagehand.sessionUrl || '';
@@ -374,12 +378,13 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
     if (stagehand) {
       try {
         await stagehand.close();
-        activeBrowsers--;
+        browserLock = false;
         logger.log({
           message: 'Successfully cleaned up browser instance',
           level: 1,
         });
       } catch (e) {
+        browserLock = false;  // Release lock even if cleanup fails
         logger.warn({
           message: 'Error during cleanup',
           level: 1,
