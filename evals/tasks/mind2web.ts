@@ -57,6 +57,14 @@ async function handleCommonObstacles(stagehand: any, logger: any): Promise<boole
             "[aria-label='reject cookies']",
             "button:has-text('Reject')",
             "button:has-text('Reject All')",
+            // Additional selectors
+            "#CybotCookiebotDialogBodyButtonDecline",
+            "button[aria-label*='reject' i]",
+            ".qc-cmp2-buttons button:last-child",
+            "[id*='cookie'] button:has-text(/reject|decline/i)",
+            "[class*='cookie'] button:has-text(/reject|decline/i)",
+            "[data-testid='cookie-policy-dialog'] button:last-child",
+            ".cookie-notice button:last-child",
         ];
 
         let cookieAttempts = 0;
@@ -109,6 +117,12 @@ async function handleCommonObstacles(stagehand: any, logger: any): Promise<boole
             "button:has-text('×')",
             "[aria-label='close']",
             ".close-button",
+            // Additional selectors
+            "[id*='newsletter'] button:has-text(/close|dismiss/i)",
+            "[class*='newsletter'] button:has-text(/close|dismiss/i)",
+            "[role='dialog'] button:has-text(/close|dismiss/i)",
+            "[data-testid='modal-close-button']",
+            ".modal-dialog button:has-text('Close')",
         ];
 
         let overlayAttempts = 0;
@@ -229,6 +243,29 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       headless: true,
       verbose: 1,
       enableCaching: true,
+      browserbaseSessionCreateParams: {
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        extraHttpHeaders: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'DNT': '1',
+        },
+        storageState: {
+          cookies: [{
+            name: 'OptanonAlertBoxClosed',
+            value: new Date().toISOString(),
+            domain: '.nfl.com',
+            path: '/',
+          }],
+          origins: [{
+            origin: 'https://www.nfl.com',
+            localStorage: [{
+              name: 'OptanonConsent',
+              value: 'groups=C0001:0,C0002:0,C0003:0,C0004:0',
+            }],
+          }],
+        },
+      },
     });
 
     await stagehand.init();
@@ -371,6 +408,29 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
               headless: true,
               verbose: 1,
               enableCaching: true,
+              browserbaseSessionCreateParams: {
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                extraHttpHeaders: {
+                  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                  'Accept-Language': 'en-US,en;q=0.5',
+                  'DNT': '1',
+                },
+                storageState: {
+                  cookies: [{
+                    name: 'OptanonAlertBoxClosed',
+                    value: new Date().toISOString(),
+                    domain: '.nfl.com',
+                    path: '/',
+                  }],
+                  origins: [{
+                    origin: 'https://www.nfl.com',
+                    localStorage: [{
+                      name: 'OptanonConsent',
+                      value: 'groups=C0001:0,C0002:0,C0003:0,C0004:0',
+                    }],
+                  }],
+                },
+              },
             });
             await stagehand.init();
             currentSession = stagehand.page;
