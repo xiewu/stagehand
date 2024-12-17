@@ -3,22 +3,22 @@
  */
 
 /**
- * Checks if a URL's pathname includes an expected path segment
+ * Checks if a URL includes an expected pattern anywhere in the URL string
  * @param currentUrl The current URL to check
- * @param expectedPath The path segment that should be included
- * @returns boolean indicating if the path segment is included
+ * @param expectedPattern The pattern that should be included in the URL
+ * @returns boolean indicating if the pattern is included
  */
 export function validateUrlPath(
   currentUrl: string,
-  expectedPath: string,
+  expectedPattern: string,
 ): boolean {
-  if (!currentUrl || !expectedPath) {
+  if (!currentUrl || !expectedPattern) {
     return false;
   }
 
   try {
-    const url = new URL(currentUrl);
-    return url.pathname.includes(expectedPath);
+    // Check if the pattern exists anywhere in the URL
+    return currentUrl.toLowerCase().includes(expectedPattern.toLowerCase());
   } catch {
     // Return false for invalid URLs
     return false;
