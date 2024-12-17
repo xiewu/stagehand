@@ -7,6 +7,25 @@ import { LogLine } from '../../types/log';
 // Increase max listeners to handle multiple event emitters
 process.setMaxListeners(50);
 
+// Site-specific configurations
+const SITE_CONFIGS = {
+  'nfl.com': {
+    timeout: 120000,
+    waitUntil: 'domcontentloaded' as const,
+    bypassInteractivityCheck: true,
+  },
+  'tesla.com': {
+    timeout: 90000,
+    waitUntil: 'domcontentloaded' as const,
+    bypassInteractivityCheck: true,
+  },
+  'rei.com': {
+    timeout: 90000,
+    waitUntil: 'domcontentloaded' as const,
+    bypassInteractivityCheck: true,
+  },
+};
+
 const MAX_ACTION_RETRIES = 8;  // Increased from 5
 const ACTION_TIMEOUT = 45000;  // Increased from 30000
 const PAGE_LOAD_TIMEOUT = 60000;  // Increased from 45000
@@ -248,16 +267,22 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
             // Navigate to the URL with improved retry logic
             await retryAction(
               async () => {
+                // Get site-specific configuration
+                const url = new URL(step.content.url);
+                const siteConfig = Object.entries(SITE_CONFIGS).find(([domain]) => url.hostname.includes(domain))?.[1];
+
                 const result = await stagehand.page.goto(step.content.url, {
-                  timeout: PAGE_LOAD_TIMEOUT,
-                  waitUntil: 'networkidle0',
+                  timeout: siteConfig?.timeout || PAGE_LOAD_TIMEOUT,
+                  waitUntil: siteConfig?.waitUntil || 'networkidle0',
                 });
 
-                // Additional check for page interactivity
-                await stagehand.page.waitForFunction(
-                  'document.readyState === "complete" && performance.now() > 1000',
-                  { timeout: PAGE_LOAD_TIMEOUT }
-                );
+                // Additional check for page interactivity unless bypassed
+                if (!siteConfig?.bypassInteractivityCheck) {
+                  await stagehand.page.waitForFunction(
+                    'document.readyState === "complete" && performance.now() > 1000',
+                    { timeout: siteConfig?.timeout || PAGE_LOAD_TIMEOUT }
+                  );
+                }
 
                 return result;
               },
@@ -282,7 +307,6 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
 
             logger.log({
               message: `Successfully completed step ${stepIndex + 1}`,
-              level: 1,
               auxiliary: {
                 currentUrl: { value: currentUrl, type: "string" },
               },
