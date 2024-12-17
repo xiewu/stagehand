@@ -16,6 +16,10 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
     const tasks = await loadMind2WebDataset();
     const task = tasks[0]; // Start with first task for testing
 
+    // Navigate to the initial URL before performing actions
+    const initialUrl = task.evaluation[0].content.url;
+    await stagehand.page.goto(initialUrl);
+
     // Execute the web navigation task
     await stagehand.act({
       action: task.task,
