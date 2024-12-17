@@ -277,17 +277,15 @@ const generateFilteredTestcases = (): Testcase[] => {
   return allTestcases;
 };
 
-// const braintrustProjectName = process.env.CI ? "stagehand" : "stagehand-dev";
-
 (async () => {
   const experimentName = generateExperimentName({
     evalName: filterByEvalName || undefined,
     category: filterByCategory || undefined,
     environment: env,
   });
-
+  const braintrustProjectName = process.env.CI === "true" ? "stagehand" : "stagehand-dev";
   try {
-    const evalResult = await Eval("stagehand", {
+    const evalResult = await Eval(braintrustProjectName, {
       experimentName,
       data: generateFilteredTestcases,
       task: async (input: { name: string; modelName: AvailableModel }) => {
