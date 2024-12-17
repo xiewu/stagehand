@@ -7,12 +7,12 @@ import { LogLine } from '../../types/log';
 // Increase max listeners to handle multiple event emitters
 process.setMaxListeners(50);
 
-const MAX_ACTION_RETRIES = 5;
-const ACTION_TIMEOUT = 30000;
-const PAGE_LOAD_TIMEOUT = 45000;
+const MAX_ACTION_RETRIES = 8;  // Increased from 5
+const ACTION_TIMEOUT = 45000;  // Increased from 30000
+const PAGE_LOAD_TIMEOUT = 60000;  // Increased from 45000
 const RETRY_DELAY = 3000;
 const OBSTACLE_CHECK_TIMEOUT = 8000;
-const MAX_RETRY_DELAY = 10000;
+const MAX_RETRY_DELAY = 15000;  // Increased from 10000
 
 // Add delay between navigation steps to prevent race conditions
 const STEP_DELAY = 2000;
@@ -145,49 +145,41 @@ async function handleCommonObstacles(stagehand: any, logger: any): Promise<boole
 }
 
 async function retryAction(
-  action: () => Promise<boolean>,
-  maxRetries: number = MAX_ACTION_RETRIES,
-  logger?: (message: LogLine) => void,
-): Promise<boolean> {
-  let retryCount = 0;
-  let lastError: Error | null = null;
+  action: () => Promise<any>,
+  maxRetries: number,
+  logger: any,
+  errorMessage: string,
+  initialDelay: number = RETRY_DELAY
+): Promise<any> {
+  let lastError;
+  let currentDelay = initialDelay;
 
-  while (retryCount < maxRetries) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const result = await action();
-      if (result) {
-        return true;
-      }
+      return await action();
     } catch (error) {
-      lastError = error as Error;
-      if (logger) {
-        logger({
-          message: `Action failed, attempt ${retryCount + 1}/${maxRetries}`,
+      lastError = error;
+      logger.warn({
+        message: `Attempt ${attempt}/${maxRetries} failed: ${error.message}`,
+        level: 1,
+      });
+
+      if (attempt < maxRetries) {
+        // Exponential backoff with jitter
+        const jitter = Math.random() * 1000;
+        currentDelay = Math.min(currentDelay * 1.5 + jitter, MAX_RETRY_DELAY);
+
+        logger.log({
+          message: `Waiting ${Math.floor(currentDelay)}ms before retry...`,
           level: 1,
-          auxiliary: {
-            error: { value: error.message, type: "string" },
-          },
         });
+
+        await new Promise(resolve => setTimeout(resolve, currentDelay));
       }
     }
-
-    // Exponential backoff
-    const delay = Math.min(1000 * Math.pow(2, retryCount), MAX_RETRY_DELAY);
-    await new Promise(resolve => setTimeout(resolve, delay));
-    retryCount++;
   }
 
-  if (lastError && logger) {
-    logger({
-      message: `Action failed after ${maxRetries} attempts`,
-      level: 1,
-      auxiliary: {
-        error: { value: lastError.message, type: "string" },
-      },
-    });
-  }
-
-  return false;
+  throw new Error(`${errorMessage}\n${lastError?.message || ''}`);
 }
 
 export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
@@ -246,78 +238,92 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
 
         // Process each navigation step
         for (const [stepIndex, step] of testCase.evaluation.entries()) {
+          const startTime = Date.now();
           logger.log({
             message: `Step ${stepIndex + 1}: Navigating to ${step.content.url}`,
             level: 1,
           });
 
-          // Handle navigation with retries
-          const navigationResult = await retryAction(
-            async () => {
-              try {
-                await stagehand.page.goto(step.content.url, {
-                  waitUntil: 'networkidle',
-                  timeout: 30000,
+          try {
+            // Navigate to the URL with improved retry logic
+            await retryAction(
+              async () => {
+                const result = await stagehand.page.goto(step.content.url, {
+                  timeout: PAGE_LOAD_TIMEOUT,
+                  waitUntil: 'networkidle0',
                 });
-                return true;
-              } catch (error) {
-                return false;
-              }
-            },
-            5,
-            logger.log.bind(logger)
-          );
 
-          if (!navigationResult) {
-            throw new Error(`Failed to navigate to ${step.content.url} after multiple retries`);
-          }
+                // Additional check for page interactivity
+                await stagehand.page.waitForFunction(
+                  'document.readyState === "complete" && performance.now() > 1000',
+                  { timeout: PAGE_LOAD_TIMEOUT }
+                );
 
-          // Wait for page to be interactive
-          const pageInteractive = await retryAction(
-            async () => {
-              const result = await handleCommonObstacles(stagehand.page, logger);
-              return result === true;
-            },
-            3,
-            logger.log.bind(logger)
-          );
-
-          if (!pageInteractive) {
-            throw new Error(`Page not interactive after handling obstacles`);
-          }
-
-          // Verify URL matches expected pattern
-          const currentUrl = stagehand.page.url();
-          const isMatch = step.match_function_name === "url_included_match"
-            ? validateUrlPath(currentUrl, step.content.reference_answer)
-            : validateUrlMatch(currentUrl, step.content.url);
-
-          if (!isMatch) {
-            throw new Error(
-              `URL validation failed. Current: ${currentUrl}, Expected: ${
-                step.match_function_name === "url_included_match"
-                  ? step.content.reference_answer
-                  : step.content.url
-              }`
+                return result;
+              },
+              MAX_ACTION_RETRIES,
+              logger,
+              `Failed to navigate to ${step.content.url} after multiple retries`,
+              RETRY_DELAY
             );
-          }
 
+            // Handle common obstacles after navigation
+            await handleCommonObstacles(stagehand, logger);
+
+            // Verify URL matches expected pattern
+            const currentUrl = stagehand.page.url();
+            const isMatch = step.match_function_name === "url_included_match"
+              ? validateUrlPath(currentUrl, step.content.reference_answer)
+              : validateUrlMatch(currentUrl, step.content.url);
+
+            if (!isMatch) {
+              throw new Error(`URL validation failed. Expected pattern: ${step.content.reference_answer}, got: ${currentUrl}`);
+            }
+
+            logger.log({
+              message: `Successfully completed step ${stepIndex + 1}`,
+              level: 1,
+              auxiliary: {
+                currentUrl: { value: currentUrl, type: "string" },
+              },
+            });
+
+            // Add delay between steps
+            if (stepIndex < testCase.evaluation.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, STEP_DELAY));
+            }
+          } catch (error) {
+            testSuccess = false;
+            logger.error({
+              message: `Test case ${testIndex + 1} failed`,
+              level: 1,
+              auxiliary: {
+                error: { value: error.message, type: "string" },
+              },
+            });
+            break;
+          }
+        }
+
+        if (testSuccess) {
           logger.log({
-            message: `Successfully completed step ${stepIndex + 1}`,
+            message: `Successfully completed test case ${testIndex + 1}`,
             level: 1,
             auxiliary: {
-              currentUrl: { value: currentUrl, type: "string" },
+              duration: { value: String(Date.now() - testStartTime), type: "string" },
             },
           });
         }
 
-        logger.log({
-          message: `Successfully completed test case ${testIndex + 1}`,
-          level: 1,
-          auxiliary: {
-            duration: { value: String(Date.now() - testStartTime), type: "string" },
-          },
+        testResults.push({
+          success: testSuccess,
+          logs: testLogs,
         });
+
+        // Add delay between test cases
+        if (testIndex < dataset.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, TEST_CASE_DELAY));
+        }
       } catch (error) {
         testSuccess = false;
         logger.error({
@@ -358,11 +364,6 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
           }
         }
       }
-
-      testResults.push({
-        success: testSuccess,
-        logs: testLogs,
-      });
     }
   } catch (error) {
     logger.error({
