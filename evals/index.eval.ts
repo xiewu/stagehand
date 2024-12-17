@@ -277,7 +277,7 @@ const generateFilteredTestcases = (): Testcase[] => {
   return allTestcases;
 };
 
-const braintrustProjectName = process.env.CI ? "stagehand" : "stagehand-dev";
+// const braintrustProjectName = process.env.CI ? "stagehand" : "stagehand-dev";
 
 (async () => {
   const experimentName = generateExperimentName({
@@ -287,7 +287,7 @@ const braintrustProjectName = process.env.CI ? "stagehand" : "stagehand-dev";
   });
 
   try {
-    const evalResult = await Eval(braintrustProjectName, {
+    const evalResult = await Eval("stagehand", {
       experimentName,
       data: generateFilteredTestcases,
       task: async (input: { name: string; modelName: AvailableModel }) => {
