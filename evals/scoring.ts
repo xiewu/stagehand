@@ -1,3 +1,7 @@
+/**
+ * This file implements scoring functions needed by braintrust.
+ */
+
 import { EvalArgs, EvalInput, EvalResult } from "../types/evals";
 
 /**
@@ -37,7 +41,6 @@ export function exactMatch(
   };
 }
 
-
 /**
  * Scoring function: errorMatch
  * Determines if an error occurred in the task.
@@ -49,7 +52,7 @@ export function errorMatch(
     boolean | { _success: boolean; error?: unknown },
     unknown
   >,
-): { EvalResult : EvalResult } {
+): { EvalResult: EvalResult } {
   console.log(`Task "${args.input.name}" returned: ${args.output}`);
 
   return {
