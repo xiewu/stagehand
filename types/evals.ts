@@ -63,6 +63,6 @@ export interface EvalResult {
   score: number;
 }
 
-type LogLineEval = LogLine & {
+export type LogLineEval = LogLine & {
   parsedAuxiliary?: string | object;
 };
