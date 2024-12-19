@@ -71,7 +71,7 @@ export function compareStrings(
  * Used to create unique experiment names, ensuring that results can be
  * distinguished by the time they were generated.
  */
-export function generateTimestamp(): { timestamp: string } {
+export function generateTimestamp(): string {
   const now = new Date();
   return now
     .toISOString()
@@ -93,7 +93,7 @@ export function generateExperimentName({
   evalName?: string;
   category?: string;
   environment: string;
-}): { experimentName: string } {
+}): string {
   const timestamp = generateTimestamp();
   if (evalName) {
     return `${evalName}_${environment.toLowerCase()}_${timestamp}`;

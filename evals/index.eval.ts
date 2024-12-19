@@ -180,7 +180,7 @@ const generateFilteredTestcases = (): Testcase[] => {
  */
 (async () => {
   // Generate a unique name for the experiment
-  const experimentName = generateExperimentName({
+  const experimentName: string = generateExperimentName({
     evalName: filterByEvalName || undefined,
     category: filterByCategory || undefined,
     environment: env,

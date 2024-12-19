@@ -15,7 +15,7 @@ import { EvalArgs, EvalInput, EvalResult } from "../types/evals";
  */
 export function exactMatch(
   args: EvalArgs<EvalInput, boolean | { _success: boolean }, unknown>,
-): { EvalResult: EvalResult } {
+): EvalResult {
   console.log(`Task "${args.input.name}" returned: ${args.output}`);
 
   const expected = args.expected ?? true;
@@ -52,7 +52,7 @@ export function errorMatch(
     boolean | { _success: boolean; error?: unknown },
     unknown
   >,
-): { EvalResult: EvalResult } {
+): EvalResult {
   console.log(`Task "${args.input.name}" returned: ${args.output}`);
 
   return {
