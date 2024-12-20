@@ -20,8 +20,7 @@ export const extract_capacitor_info: EvalFunction = async ({
   );
 
   const result = await stagehand.extract({
-    instruction:
-      "Extract the ECCN Code, RoHS Status, and Impedance.",
+    instruction: "Extract the ECCN Code, RoHS Status, and Impedance.",
     schema: z.object({
       ECCN_code: z.string(),
       RoHS_Status: z.string(),
@@ -41,10 +40,7 @@ export const extract_capacitor_info: EvalFunction = async ({
     Impedance: "12mOhm",
   };
 
-  if (
-    normalizeString(ECCN_code) !==
-    normalizeString(expected.ECCN_code)
-  ) {
+  if (normalizeString(ECCN_code) !== normalizeString(expected.ECCN_code)) {
     logger.error({
       message: "ECCN code extracted does not match expected",
       level: 0,
@@ -68,10 +64,7 @@ export const extract_capacitor_info: EvalFunction = async ({
     };
   }
 
-  if (
-    normalizeString(RoHS_Status) !==
-    normalizeString(expected.RoHS_Status)
-  ) {
+  if (normalizeString(RoHS_Status) !== normalizeString(expected.RoHS_Status)) {
     logger.error({
       message: "RoHS Status extracted does not match expected",
       level: 0,
@@ -95,13 +88,9 @@ export const extract_capacitor_info: EvalFunction = async ({
     };
   }
 
-  if (
-    normalizeString(Impedance) !==
-    normalizeString(expected.Impedance)
-  ) {
+  if (normalizeString(Impedance) !== normalizeString(expected.Impedance)) {
     logger.error({
-      message:
-        "Impedance extracted does not match expected",
+      message: "Impedance extracted does not match expected",
       level: 0,
       auxiliary: {
         expected: {
