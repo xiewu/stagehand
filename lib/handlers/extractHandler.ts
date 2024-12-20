@@ -135,6 +135,7 @@ export class StagehandExtractHandler {
     requestId,
     domSettleTimeoutMs,
     useTextExtract = false,
+    useAccessibilityTree = false,
   }: {
     instruction: string;
     schema: T;
@@ -144,8 +145,18 @@ export class StagehandExtractHandler {
     requestId?: string;
     domSettleTimeoutMs?: number;
     useTextExtract?: boolean;
+    useAccessibilityTree?: boolean;
   }): Promise<z.infer<T>> {
-    if (useTextExtract) {
+    if (useAccessibilityTree) {
+      return this.accessibilityExtract({
+        instruction,
+        schema,
+        content,
+        llmClient,
+        requestId,
+        domSettleTimeoutMs,
+      });
+    } else if (useTextExtract) {
       return this.textExtract({
         instruction,
         schema,
@@ -202,7 +213,7 @@ export class StagehandExtractHandler {
     // we need to store the original DOM here because calling createTextBoundingBoxes()
     // will mutate the DOM by adding spans around every word
     const originalDOM = await this.stagehand.page.evaluate(() =>
-      window.storeDOM(),
+      window.storeDOM()
     );
 
     // **3:** Process the DOM to generate a selector map of candidate elements
@@ -520,4 +531,78 @@ export class StagehandExtractHandler {
       });
     }
   }
+
+  private async accessibilityExtract<T extends z.AnyZodObject>({
+    instruction,
+    schema,
+    content = {},
+    llmClient,
+    requestId,
+    domSettleTimeoutMs,
+  }: {
+    instruction: string;
+    schema: T;
+    content?: z.infer<T>;
+    llmClient: LLMClient;
+    requestId?: string;
+    domSettleTimeoutMs?: number;
+  }): Promise<z.infer<T>> {
+    // 1. Get accessibility snapshot
+    const snapshot = await this.stagehand.page.accessibility.snapshot();
+    const cleanedSnapshot = cleanObject(snapshot);
+
+    // 2. Format the accessibility tree for LLM
+    const formattedTree = formatAccessibilityTree(cleanedSnapshot);
+
+    // 3. Extract using LLM
+    const extractionResponse = await extract({
+      instruction,
+      previouslyExtractedContent: content,
+      domElements: formattedTree,
+      schema,
+      chunksSeen: 1,
+      chunksTotal: 1,
+      llmClient,
+      requestId,
+    });
+
+    const { metadata: { completed }, ...output } = extractionResponse;
+
+    return output;
+  }
+}
+
+function cleanObject(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(cleanObject);
+  }
+  if (typeof obj === 'object' && obj !== null) {
+    const cleaned = Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, value]) => value !== undefined)
+        .map(([key, value]) => [key, cleanObject(value)])
+    );
+    // Preserve children as array if it exists
+    if (obj.children) {
+      cleaned.children = cleanObject(obj.children);
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+
+function formatAccessibilityTree(node: any, level = 0): string {
+    if (!node) return '';
+    
+    const indent = '  '.repeat(level);
+    let result = `${indent}${node.role || 'unknown'}: ${node.name || ''}\n`;
+    
+    if (Array.isArray(node.children)) {
+        for (const child of node.children) {
+            result += formatAccessibilityTree(child, level + 1);
+        }
+    }
+    
+    return result;
 }

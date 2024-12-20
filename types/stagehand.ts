@@ -71,6 +71,7 @@ export interface ExtractOptions<T extends z.AnyZodObject> {
   modelClientOptions?: ClientOptions;
   domSettleTimeoutMs?: number;
   useTextExtract?: boolean;
+  useAccessibilityTree?: boolean;
 }
 
 export type ExtractResult<T extends z.AnyZodObject> = z.infer<T>;
