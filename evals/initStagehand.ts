@@ -59,10 +59,18 @@ export const initStagehand = async ({
   domSettleTimeoutMs?: number;
   logger: EvalLogger;
 }) => {
+  let chosenApiKey: string | undefined = process.env.OPENAI_API_KEY;
+  if (modelName.startsWith("claude")) {
+    chosenApiKey = process.env.ANTHROPIC_API_KEY;
+  }
+
   const config = {
     ...StagehandConfig,
     modelName,
     ...(domSettleTimeoutMs && { domSettleTimeoutMs }),
+    modelClientOptions: {
+      apiKey: chosenApiKey,
+    },
     logger: (logLine: LogLine) => {
       logger.log(logLine);
     },
