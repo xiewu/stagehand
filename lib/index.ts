@@ -23,7 +23,6 @@ import {
   ObserveResult,
 } from "../types/stagehand";
 import { scriptContent } from "./dom/build/scriptContent";
-import { StagehandActHandler } from "./handlers/actHandler";
 import { StagehandExtractHandler } from "./handlers/extractHandler";
 import { StagehandObserveHandler } from "./handlers/observeHandler";
 import { LLMClient } from "./llm/LLMClient";
@@ -321,11 +320,10 @@ export class Stagehand {
   private projectId: string | undefined;
   private externalLogger?: (logLine: LogLine) => void;
   private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
-  private variables: { [key: string]: unknown };
+  public variables: { [key: string]: unknown };
   private contextPath?: string;
   private llmClient: LLMClient;
 
-  private actHandler?: StagehandActHandler;
   private extractHandler?: StagehandExtractHandler;
   private observeHandler?: StagehandObserveHandler;
 
@@ -591,84 +589,14 @@ export class Stagehand {
     }
   }
 
-  async act({
-    action,
-    modelName,
-    modelClientOptions,
-    useVision = "fallback",
-    variables = {},
-    domSettleTimeoutMs,
-  }: ActOptions): Promise<ActResult> {
-    if (!this.actHandler) {
-      throw new Error("Act handler not initialized");
-    }
-
-    useVision = useVision ?? "fallback";
-    const requestId = Math.random().toString(36).substring(2);
-    const llmClient: LLMClient = modelName
-      ? this.llmProvider.getClient(modelName, modelClientOptions)
-      : this.llmClient;
-
-    this.log({
+  /** @deprecated Use stagehand.page.act() instead. This will be removed in the next major release. */
+  async act(options: ActOptions): Promise<ActResult> {
+    this.logger({
       category: "act",
       message: "running act",
       level: 1,
-      auxiliary: {
-        action: {
-          value: action,
-          type: "string",
-        },
-        requestId: {
-          value: requestId,
-          type: "string",
-        },
-        modelName: {
-          value: llmClient.modelName,
-          type: "string",
-        },
-      },
     });
-
-    if (variables) {
-      this.variables = { ...this.variables, ...variables };
-    }
-
-    return this.actHandler
-      .act({
-        action,
-        llmClient,
-        chunksSeen: [],
-        useVision,
-        verifierUseVision: useVision !== false,
-        requestId,
-        variables,
-        previousSelectors: [],
-        skipActionCacheForThisStep: false,
-        domSettleTimeoutMs,
-      })
-      .catch((e) => {
-        this.log({
-          category: "act",
-          message: "error acting",
-          level: 1,
-          auxiliary: {
-            error: {
-              value: e.message,
-              type: "string",
-            },
-            trace: {
-              value: e.stack,
-              type: "string",
-            },
-          },
-        });
-
-        return {
-          success: false,
-          message: `Internal error: Error acting: ${e.message}`,
-          action: action,
-        };
-      });
+    return this.stagehandPage.act(options);
   }
 
   async extract<T extends z.AnyZodObject>({

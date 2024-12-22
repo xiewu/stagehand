@@ -3,7 +3,7 @@ import type {
   BrowserContext as PlaywrightContext,
 } from "@playwright/test";
 import { LLMClient } from "./llm/LLMClient";
-import { GotoOptions, Stagehand } from "./index";
+import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
 import { StagehandActHandler } from "./handlers/actHandler";
 import { StagehandContext } from "./StagehandContext";
 
@@ -12,6 +12,7 @@ export class StagehandPage {
   private intPage: PlaywrightPage;
   private intContext: StagehandContext;
   private actHandler: StagehandActHandler;
+  private llmClient: LLMClient;
 
   constructor(
     page: PlaywrightPage,
@@ -31,6 +32,7 @@ export class StagehandPage {
       stagehandContext: this.intContext,
       llmClient: llmClient,
     });
+    this.llmClient = llmClient;
   }
 
   async init(
@@ -176,5 +178,81 @@ export class StagehandPage {
     if (this.stagehand.debugDom) {
       await this.page.evaluate(() => window.cleanupDebug()).catch(() => {});
     }
+  }
+
+  async act({
+    action,
+    modelName,
+    modelClientOptions,
+    useVision = "fallback",
+    variables = {},
+    domSettleTimeoutMs,
+  }: ActOptions): Promise<ActResult> {
+    if (!this.actHandler) {
+      throw new Error("Act handler not initialized");
+    }
+
+    useVision = useVision ?? "fallback";
+    const requestId = Math.random().toString(36).substring(2);
+    const llmClient: LLMClient = modelName
+      ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
+      : this.llmClient;
+
+    this.stagehand.log({
+      category: "act",
+      message: "running act",
+      level: 1,
+      auxiliary: {
+        action: {
+          value: action,
+          type: "string",
+        },
+        requestId: {
+          value: requestId,
+          type: "string",
+        },
+        modelName: {
+          value: llmClient.modelName,
+          type: "string",
+        },
+      },
+    });
+
+    return this.actHandler
+      .act({
+        action,
+        llmClient,
+        chunksSeen: [],
+        useVision,
+        verifierUseVision: useVision !== false,
+        requestId,
+        variables,
+        previousSelectors: [],
+        skipActionCacheForThisStep: false,
+        domSettleTimeoutMs,
+      })
+      .catch((e) => {
+        this.stagehand.log({
+          category: "act",
+          message: "error acting",
+          level: 1,
+          auxiliary: {
+            error: {
+              value: e.message,
+              type: "string",
+            },
+            trace: {
+              value: e.stack,
+              type: "string",
+            },
+          },
+        });
+
+        return {
+          success: false,
+          message: `Internal error: Error acting: ${e.message}`,
+          action: action,
+        };
+      });
   }
 }
