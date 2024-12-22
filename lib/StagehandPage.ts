@@ -1,13 +1,36 @@
-import type { Page as PlaywrightPage } from "@playwright/test";
+import type {
+  Page as PlaywrightPage,
+  BrowserContext as PlaywrightContext,
+} from "@playwright/test";
+import { LLMClient } from "./llm/LLMClient";
 import { GotoOptions, Stagehand } from "./index";
+import { StagehandActHandler } from "./handlers/actHandler";
+import { StagehandContext } from "./StagehandContext";
 
 export class StagehandPage {
   private stagehand: Stagehand;
   private intPage: PlaywrightPage;
+  private intContext: StagehandContext;
+  private actHandler: StagehandActHandler;
 
-  constructor(page: PlaywrightPage, stagehand: Stagehand) {
+  constructor(
+    page: PlaywrightPage,
+    stagehand: Stagehand,
+    context: StagehandContext,
+    llmClient: LLMClient,
+  ) {
     this.intPage = page;
     this.stagehand = stagehand;
+    this.intContext = context;
+    this.actHandler = new StagehandActHandler({
+      verbose: this.stagehand.verbose,
+      llmProvider: this.stagehand.llmProvider,
+      enableCaching: this.stagehand.enableCaching,
+      logger: this.stagehand.logger,
+      stagehandPage: this,
+      stagehandContext: this.intContext,
+      llmClient: llmClient,
+    });
   }
 
   async init(
@@ -40,6 +63,10 @@ export class StagehandPage {
 
   public get page(): PlaywrightPage {
     return this.intPage;
+  }
+
+  public get context(): PlaywrightContext {
+    return this.intContext.context;
   }
 
   // We can make methods public because StagehandPage is private to the Stagehand class.

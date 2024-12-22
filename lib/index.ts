@@ -304,25 +304,26 @@ async function applyStealthScripts(context: BrowserContext) {
 }
 
 export class Stagehand {
-  private llmProvider: LLMProvider;
-  private llmClient: LLMClient;
   private stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
-  public browserbaseSessionID?: string;
-
   private intEnv: "LOCAL" | "BROWSERBASE";
+
+  public browserbaseSessionID?: string;
   public readonly domSettleTimeoutMs: number;
   public readonly debugDom: boolean;
   public readonly headless: boolean;
-  private logger: (logLine: LogLine) => void;
+  public verbose: 0 | 1 | 2;
+  public llmProvider: LLMProvider;
+  public enableCaching: boolean;
+
+  private internalLogger: (logLine: LogLine) => void;
   private apiKey: string | undefined;
   private projectId: string | undefined;
-  private verbose: 0 | 1 | 2;
   private externalLogger?: (logLine: LogLine) => void;
   private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
-  private enableCaching: boolean;
   private variables: { [key: string]: unknown };
   private contextPath?: string;
+  private llmClient: LLMClient;
 
   private actHandler?: StagehandActHandler;
   private extractHandler?: StagehandExtractHandler;
@@ -349,7 +350,7 @@ export class Stagehand {
     },
   ) {
     this.externalLogger = logger;
-    this.logger = this.log.bind(this);
+    this.internalLogger = this.log.bind(this);
     this.enableCaching =
       enableCaching ??
       (process.env.ENABLE_CACHING && process.env.ENABLE_CACHING === "true");
@@ -370,6 +371,15 @@ export class Stagehand {
     this.browserbaseSessionID = browserbaseSessionID;
   }
 
+  public get logger(): (logLine: LogLine) => void {
+    return (logLine: LogLine) => {
+      this.internalLogger(logLine);
+      if (this.externalLogger) {
+        this.externalLogger(logLine);
+      }
+    };
+  }
+
   public get page(): Page {
     // End users should not be able to access the StagehandPage directly
     // This is a proxy to the underlying Playwright Page
@@ -382,7 +392,10 @@ export class Stagehand {
   }
 
   public get env(): "LOCAL" | "BROWSERBASE" {
-    return this.intEnv;
+    if (this.intEnv === "BROWSERBASE" && this.browserbaseSessionID) {
+      return "BROWSERBASE";
+    }
+    return "LOCAL";
   }
 
   public get context(): BrowserContext {
@@ -422,10 +435,12 @@ export class Stagehand {
     this.contextPath = contextPath;
     this.stagehandContext = await StagehandContext.init(context, this);
     const defaultPage = this.context.pages()[0];
-    this.stagehandPage = await new StagehandPage(defaultPage, this).init(
+    this.stagehandPage = await new StagehandPage(
       defaultPage,
       this,
-    );
+      this.stagehandContext,
+      this.llmClient,
+    ).init(defaultPage, this);
 
     // Set the browser to headless mode if specified
     if (this.headless) {
@@ -434,16 +449,6 @@ export class Stagehand {
 
     await this.context.addInitScript({
       content: scriptContent,
-    });
-
-    this.actHandler = new StagehandActHandler({
-      stagehand: this,
-      verbose: this.verbose,
-      llmProvider: this.llmProvider,
-      enableCaching: this.enableCaching,
-      logger: this.logger,
-      stagehandPage: this.stagehandPage,
-      llmClient: this.llmClient,
     });
 
     this.extractHandler = new StagehandExtractHandler({
@@ -470,7 +475,12 @@ export class Stagehand {
     console.warn(
       "initFromPage is deprecated and will be removed in the next major version. To instantiate from a page, use `browserbaseSessionID` in the constructor.",
     );
-    this.stagehandPage = await new StagehandPage(page, this).init(page, this);
+    this.stagehandPage = await new StagehandPage(
+      page,
+      this,
+      this.stagehandContext,
+      this.llmClient,
+    ).init(page, this);
     this.stagehandContext = await StagehandContext.init(page.context(), this);
 
     const originalGoto = this.page.goto.bind(this.page);
