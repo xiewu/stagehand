@@ -1,13 +1,39 @@
-import type { Page as PlaywrightPage } from "@playwright/test";
-import { GotoOptions, Stagehand } from "./index";
+import type {
+  Page as PlaywrightPage,
+  BrowserContext as PlaywrightContext,
+} from "@playwright/test";
+import { LLMClient } from "./llm/LLMClient";
+import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
+import { StagehandActHandler } from "./handlers/actHandler";
+import { StagehandContext } from "./StagehandContext";
+import { Page } from "../types/page";
 
 export class StagehandPage {
   private stagehand: Stagehand;
-  private intPage: PlaywrightPage;
+  private intPage: Page;
+  private intContext: StagehandContext;
+  private actHandler: StagehandActHandler;
+  private llmClient: LLMClient;
 
-  constructor(page: PlaywrightPage, stagehand: Stagehand) {
+  constructor(
+    page: PlaywrightPage,
+    stagehand: Stagehand,
+    context: StagehandContext,
+    llmClient: LLMClient,
+  ) {
     this.intPage = page;
     this.stagehand = stagehand;
+    this.intContext = context;
+    this.actHandler = new StagehandActHandler({
+      verbose: this.stagehand.verbose,
+      llmProvider: this.stagehand.llmProvider,
+      enableCaching: this.stagehand.enableCaching,
+      logger: this.stagehand.logger,
+      stagehandPage: this,
+      stagehandContext: this.intContext,
+      llmClient: llmClient,
+    });
+    this.llmClient = llmClient;
   }
 
   async init(
@@ -31,6 +57,12 @@ export class StagehandPage {
             return result;
           };
 
+        if (prop === "act") {
+          return async (options: ActOptions) => {
+            return this.act(options);
+          };
+        }
+
         return target[prop as keyof PlaywrightPage];
       },
     });
@@ -38,8 +70,12 @@ export class StagehandPage {
     return this;
   }
 
-  public get page(): PlaywrightPage {
+  public get page(): Page {
     return this.intPage;
+  }
+
+  public get context(): PlaywrightContext {
+    return this.intContext.context;
   }
 
   // We can make methods public because StagehandPage is private to the Stagehand class.
@@ -149,5 +185,81 @@ export class StagehandPage {
     if (this.stagehand.debugDom) {
       await this.page.evaluate(() => window.cleanupDebug()).catch(() => {});
     }
+  }
+
+  async act({
+    action,
+    modelName,
+    modelClientOptions,
+    useVision = "fallback",
+    variables = {},
+    domSettleTimeoutMs,
+  }: ActOptions): Promise<ActResult> {
+    if (!this.actHandler) {
+      throw new Error("Act handler not initialized");
+    }
+
+    useVision = useVision ?? "fallback";
+    const requestId = Math.random().toString(36).substring(2);
+    const llmClient: LLMClient = modelName
+      ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
+      : this.llmClient;
+
+    this.stagehand.log({
+      category: "act",
+      message: "running act",
+      level: 1,
+      auxiliary: {
+        action: {
+          value: action,
+          type: "string",
+        },
+        requestId: {
+          value: requestId,
+          type: "string",
+        },
+        modelName: {
+          value: llmClient.modelName,
+          type: "string",
+        },
+      },
+    });
+
+    return this.actHandler
+      .act({
+        action,
+        llmClient,
+        chunksSeen: [],
+        useVision,
+        verifierUseVision: useVision !== false,
+        requestId,
+        variables,
+        previousSelectors: [],
+        skipActionCacheForThisStep: false,
+        domSettleTimeoutMs,
+      })
+      .catch((e) => {
+        this.stagehand.log({
+          category: "act",
+          message: "error acting",
+          level: 1,
+          auxiliary: {
+            error: {
+              value: e.message,
+              type: "string",
+            },
+            trace: {
+              value: e.stack,
+              type: "string",
+            },
+          },
+        });
+
+        return {
+          success: false,
+          message: `Internal error: Error acting: ${e.message}`,
+          action: action,
+        };
+      });
   }
 }
