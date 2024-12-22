@@ -209,6 +209,9 @@ This constructor is used to create an instance of Stagehand.
 
 `act()` allows Stagehand to interact with a web page. Provide an `action` like `"search for 'x'"`, or `"select the cheapest flight presented"` (small atomic goals perform the best).
 
+> [!NOTE]  
+> `act()` on the Stagehand instance is deprecated and will be removed in the next major version. Use `stagehand.page.act()` instead.
+
 - **Arguments:**
 
   - `action`: a `string` describing the action to perform
@@ -229,10 +232,10 @@ This constructor is used to create an instance of Stagehand.
 
   ```javascript
   // Basic usage
-  await stagehand.act({ action: "click on add to cart" });
+  await stagehand.page.act({ action: "click on add to cart" });
 
   // Using variables
-  await stagehand.act({
+  await stagehand.page.act({
     action: "enter %username% into the username field",
     variables: {
       username: "john.doe@example.com",
@@ -240,7 +243,7 @@ This constructor is used to create an instance of Stagehand.
   });
 
   // Multiple variables
-  await stagehand.act({
+  await stagehand.page.act({
     action: "fill in the form with %username% and %password%",
     variables: {
       username: "john.doe",

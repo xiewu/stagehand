@@ -5,8 +5,8 @@ import StagehandConfig from "../stagehand.config";
 
 // Configuration
 const CONTEXT_TEST_URL = "https://docs.browserbase.com";
-const BROWSERBASE_PROJECT_ID = process.env["BROWSERBASE_PROJECT_ID"]!;
-const BROWSERBASE_API_KEY = process.env["BROWSERBASE_API_KEY"]!;
+const BROWSERBASE_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID!;
+const BROWSERBASE_API_KEY = process.env.BROWSERBASE_API_KEY!;
 
 const bb = new Browserbase({
   apiKey: BROWSERBASE_API_KEY,
