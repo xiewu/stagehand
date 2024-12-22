@@ -6,10 +6,11 @@ import { LLMClient } from "./llm/LLMClient";
 import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
 import { StagehandActHandler } from "./handlers/actHandler";
 import { StagehandContext } from "./StagehandContext";
+import { Page } from "../types/page";
 
 export class StagehandPage {
   private stagehand: Stagehand;
-  private intPage: PlaywrightPage;
+  private intPage: Page;
   private intContext: StagehandContext;
   private actHandler: StagehandActHandler;
   private llmClient: LLMClient;
@@ -56,6 +57,12 @@ export class StagehandPage {
             return result;
           };
 
+        if (prop === "act") {
+          return async (options: ActOptions) => {
+            return this.act(options);
+          };
+        }
+
         return target[prop as keyof PlaywrightPage];
       },
     });
@@ -63,7 +70,7 @@ export class StagehandPage {
     return this;
   }
 
-  public get page(): PlaywrightPage {
+  public get page(): Page {
     return this.intPage;
   }
 

@@ -58,7 +58,7 @@ async function getBrowser(
           "BROWSERBASE_API_KEY is required to use BROWSERBASE env. Defaulting to LOCAL.",
         level: 0,
       });
-      this.env = "LOCAL";
+      env = "LOCAL";
     }
     if (!projectId) {
       logger({
@@ -390,7 +390,7 @@ export class Stagehand {
   }
 
   public get env(): "LOCAL" | "BROWSERBASE" {
-    if (this.intEnv === "BROWSERBASE" && this.browserbaseSessionID) {
+    if (this.intEnv === "BROWSERBASE" && this.apiKey && this.projectId) {
       return "BROWSERBASE";
     }
     return "LOCAL";
