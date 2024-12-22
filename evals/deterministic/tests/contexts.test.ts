@@ -8,9 +8,6 @@ const CONTEXT_TEST_URL = "https://docs.browserbase.com";
 const BROWSERBASE_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID!;
 const BROWSERBASE_API_KEY = process.env.BROWSERBASE_API_KEY!;
 
-console.log("BROWSERBASE_PROJECT_ID", BROWSERBASE_PROJECT_ID);
-console.log("BROWSERBASE_API_KEY", BROWSERBASE_API_KEY);
-
 const bb = new Browserbase({
   apiKey: BROWSERBASE_API_KEY,
 });
@@ -65,7 +62,7 @@ async function setRandomCookie(contextId: string, stagehand: Stagehand) {
 }
 
 test.describe("Contexts", () => {
-  test.only("Persists and re-uses a context", async () => {
+  test("Persists and re-uses a context", async () => {
     let contextId: string;
     let testCookieName: string;
     let testCookieValue: string;
