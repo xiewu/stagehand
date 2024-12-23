@@ -21,7 +21,7 @@ export const imdb_movie_details: EvalFunction = async ({
     action: "click on the movie ratings",
   });
 
-  const movieDetails = await stagehand.extract({
+  const movieDetails = await stagehand.page.extract({
     instruction: "Extract the list of countries with the most ratings.",
     schema: z.object({
       countries: z

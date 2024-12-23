@@ -22,7 +22,7 @@ export const sciquest: EvalFunction = async ({
     action: 'Click on the "Closed" tab',
   });
 
-  const result = await stagehand.extract({
+  const result = await stagehand.page.extract({
     instruction:
       "Extract the total number of results that the search produced. Not the number of results displayed on the page.",
     schema: z.object({

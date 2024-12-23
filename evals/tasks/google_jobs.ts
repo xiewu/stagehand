@@ -23,7 +23,7 @@ export const google_jobs: EvalFunction = async ({
     await stagehand.page.act({ action: "click on the search button" });
     await stagehand.page.act({ action: "click on the first job link" });
 
-    const jobDetails = await stagehand.extract({
+    const jobDetails = await stagehand.page.extract({
       instruction:
         "Extract the following details from the job posting: application deadline, minimum qualifications (degree and years of experience), and preferred qualifications (degree and years of experience)",
       schema: z.object({

@@ -21,7 +21,7 @@ export const arxiv: EvalFunction = async ({
       action: "search for papers about web agents with multimodal models",
     });
 
-    const paper_links = await stagehand.extract({
+    const paper_links = await stagehand.page.extract({
       instruction: "extract the titles and links for two papers",
       schema: z.object({
         papers: z
@@ -56,7 +56,7 @@ export const arxiv: EvalFunction = async ({
     for (const paper of paper_links.papers) {
       if (paper.link) {
         await stagehand.page.goto(paper.link);
-        const abstract = await stagehand.extract({
+        const abstract = await stagehand.page.extract({
           instruction: "extract details of the paper from the abstract",
           schema: z.object({
             category: z

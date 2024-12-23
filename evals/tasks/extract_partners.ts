@@ -29,7 +29,7 @@ export const extract_partners: EvalFunction = async ({
       action: "Find and click on the link that leads to the partners page.",
     });
 
-    const partners = await stagehand.extract({
+    const partners = await stagehand.page.extract({
       instruction: `
       Extract all of the partner categories on the page.
     `,

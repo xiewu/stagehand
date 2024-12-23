@@ -17,7 +17,7 @@ export const ibm: EvalFunction = async ({ modelName, logger }) => {
       action: "if there is a cookies popup, accept it",
     });
 
-    const { title } = await stagehand.extract({
+    const { title } = await stagehand.page.extract({
       instruction: "extract the title of the article",
       schema: z.object({
         title: z.string().describe("the title of the article"),
