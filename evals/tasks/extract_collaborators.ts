@@ -20,7 +20,7 @@ export const extract_collaborators: EvalFunction = async ({
       action: "find the contributors section",
     });
 
-    const { contributors } = await stagehand.extract({
+    const { contributors } = await stagehand.page.extract({
       instruction: "Extract top 20 contributors of this repository",
       schema: z.object({
         contributors: z.array(

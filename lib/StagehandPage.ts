@@ -36,6 +36,12 @@ export class StagehandPage {
       act: () => {
         throw new Error("act() is not implemented on the base page object");
       },
+      extract: () => {
+        throw new Error("extract() is not implemented on the base page object");
+      },
+      observe: () => {
+        throw new Error("observe() is not implemented on the base page object");
+      },
     });
     this.stagehand = stagehand;
     this.intContext = context;
@@ -84,6 +90,18 @@ export class StagehandPage {
         if (prop === "act") {
           return async (options: ActOptions) => {
             return this.act(options);
+          };
+        }
+
+        if (prop === "extract") {
+          return async (options: ExtractOptions<z.AnyZodObject>) => {
+            return this.extract(options);
+          };
+        }
+
+        if (prop === "observe") {
+          return async (options: ObserveOptions) => {
+            return this.observe(options);
           };
         }
 

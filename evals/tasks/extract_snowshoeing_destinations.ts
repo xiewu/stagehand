@@ -21,7 +21,7 @@ export const extract_snowshoeing_destinations: EvalFunction = async ({
 
     await stagehand.page.act({ action: "reject the cookies" });
 
-    const snowshoeing_regions = await stagehand.extract({
+    const snowshoeing_regions = await stagehand.page.extract({
       instruction:
         "Extract all the snowshoeing regions and the names of the trails within each region.",
       schema: z.object({

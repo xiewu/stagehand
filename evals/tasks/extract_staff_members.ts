@@ -17,7 +17,7 @@ export const extract_staff_members: EvalFunction = async ({
 
   await stagehand.page.goto("https://panamcs.org/about/staff/");
 
-  const result = await stagehand.extract({
+  const result = await stagehand.page.extract({
     instruction:
       "extract a list of staff members on this page, with their name and their job title",
     schema: z.object({

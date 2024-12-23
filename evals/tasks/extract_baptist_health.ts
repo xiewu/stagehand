@@ -19,7 +19,7 @@ export const extract_baptist_health: EvalFunction = async ({
     "https://www.baptistfirst.org/location/baptist-health-ent-partners",
   );
 
-  const result = await stagehand.extract({
+  const result = await stagehand.page.extract({
     instruction:
       "Extract the address, phone number, and fax number of the healthcare location.",
     schema: z.object({

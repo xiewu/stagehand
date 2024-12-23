@@ -17,7 +17,7 @@ export const combination_sauce: EvalFunction = async ({
   try {
     await stagehand.page.goto("https://www.saucedemo.com/");
 
-    const { usernames, password } = await stagehand.extract({
+    const { usernames, password } = await stagehand.page.extract({
       instruction: "extract the accepted usernames and the password for login",
       schema: z.object({
         usernames: z.array(z.string()).describe("the accepted usernames"),
