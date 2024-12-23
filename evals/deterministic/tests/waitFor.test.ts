@@ -41,7 +41,6 @@ test.describe("StagehandPage - waitFor", () => {
     );
 
     await disappearingElement.click();
-
     await disappearingElement.waitFor({ state: "detached" });
 
     const isAttachedAfter = await disappearingElement.isVisible();
@@ -55,7 +54,6 @@ test.describe("StagehandPage - waitFor", () => {
     await stagehand.init();
 
     const page = stagehand.page;
-
     await page.goto("https://docs.browserbase.com/introduction");
 
     const consolePromise = page.waitForEvent("console");
@@ -77,12 +75,26 @@ test.describe("StagehandPage - waitFor", () => {
 
     await page.evaluate(() => {
       setTimeout(() => {
-        window.__stagehandFlag = true;
+        const w = window as typeof window & {
+          __stagehandFlag?: boolean;
+        };
+        w.__stagehandFlag = true;
       }, 1000);
     });
 
-    await page.waitForFunction(() => window.__stagehandFlag === true);
-    const value = await page.evaluate(() => window.__stagehandFlag);
+    await page.waitForFunction(() => {
+      const w = window as typeof window & {
+        __stagehandFlag?: boolean;
+      };
+      return w.__stagehandFlag === true;
+    });
+
+    const value = await page.evaluate(() => {
+      const w = window as typeof window & {
+        __stagehandFlag?: boolean;
+      };
+      return w.__stagehandFlag;
+    });
     expect(value).toBe(true);
 
     await stagehand.close();
@@ -106,14 +118,12 @@ test.describe("StagehandPage - waitFor", () => {
     await stagehand.init();
 
     const page = stagehand.page;
-
     const requestPromise = page.waitForRequest((req) =>
       req.url().includes("mintlify"),
     );
 
     await page.goto("https://docs.browserbase.com/introduction");
     const matchingRequest = await requestPromise;
-
     expect(matchingRequest.url()).toContain("mintlify");
 
     await stagehand.close();
@@ -124,7 +134,6 @@ test.describe("StagehandPage - waitFor", () => {
     await stagehand.init();
 
     const page = stagehand.page;
-
     const responsePromise = page.waitForResponse(
       (res) => res.url().includes("introduction") && res.status() === 200,
     );
@@ -149,7 +158,6 @@ test.describe("StagehandPage - waitFor", () => {
     await quickstartLink.click();
 
     await page.waitForURL(/.*quickstart.*/);
-
     expect(page.url()).toContain("/quickstart");
 
     await stagehand.close();

@@ -16,6 +16,7 @@ test.describe("StagehandPage - evaluateHandle, exposeBinding, exposeFunction", (
 
   test("demonstrates evaluateHandle, exposeBinding, and exposeFunction", async () => {
     const { page } = stagehand;
+
     await page.setContent(`
       <html>
         <body>
@@ -33,20 +34,29 @@ test.describe("StagehandPage - evaluateHandle, exposeBinding, exposeFunction", (
 
     const text = await page.locator("#myDiv").textContent();
     expect(text).toBe("Text updated via evaluateHandle");
+
     await page.exposeBinding("myBinding", async (source, arg: string) => {
       console.log("myBinding called from page with arg:", arg);
       return `Node responded with: I got your message: "${arg}"`;
     });
 
     const responseFromBinding = await page.evaluate(async () => {
-      return await window.myBinding("Hello from the browser");
+      const w = window as typeof window & {
+        myBinding?: (arg: string) => Promise<string>;
+      };
+      return w.myBinding?.("Hello from the browser");
     });
     expect(responseFromBinding).toMatch(/I got your message/);
+
     await page.exposeFunction("addNumbers", (a: number, b: number) => {
       return a + b;
     });
+
     const sum = await page.evaluate(async () => {
-      return await window.addNumbers(3, 7);
+      const w = window as typeof window & {
+        addNumbers?: (a: number, b: number) => number;
+      };
+      return w.addNumbers?.(3, 7);
     });
     expect(sum).toBe(10);
   });

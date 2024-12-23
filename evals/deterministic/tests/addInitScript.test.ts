@@ -10,19 +10,28 @@ test.describe("StagehandPage - addInitScript", () => {
     const page = stagehand.page;
 
     await page.addInitScript(() => {
-      window.__testInitScriptVar = "Hello from init script!";
+      const w = window as typeof window & {
+        __testInitScriptVar?: string;
+      };
+      w.__testInitScriptVar = "Hello from init script!";
     });
 
     await page.goto("https://example.com");
 
     const result = await page.evaluate(() => {
-      return window.__testInitScriptVar;
+      const w = window as typeof window & {
+        __testInitScriptVar?: string;
+      };
+      return w.__testInitScriptVar;
     });
     expect(result).toBe("Hello from init script!");
 
     await page.goto("https://www.browserbase.com/");
     const resultAfterNavigation = await page.evaluate(() => {
-      return window.__testInitScriptVar;
+      const w = window as typeof window & {
+        __testInitScriptVar?: string;
+      };
+      return w.__testInitScriptVar;
     });
     expect(resultAfterNavigation).toBe("Hello from init script!");
 

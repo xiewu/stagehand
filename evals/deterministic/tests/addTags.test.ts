@@ -34,7 +34,10 @@ test.describe("StagehandPage - addScriptTag and addStyleTag", () => {
     });
 
     await page.evaluate(() => {
-      window.sayHello();
+      const w = window as typeof window & {
+        sayHello?: () => void;
+      };
+      w.sayHello?.();
     });
 
     const text = await page.locator("#greeting").textContent();
@@ -65,7 +68,6 @@ test.describe("StagehandPage - addScriptTag and addStyleTag", () => {
       const el = document.getElementById("styledDiv");
       return window.getComputedStyle(el!).color;
     });
-
     expect(color).toBe("rgb(255, 0, 0)");
 
     const fontWeight = await page.evaluate(() => {
