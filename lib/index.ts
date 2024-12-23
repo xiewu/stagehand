@@ -1,5 +1,5 @@
 import { Browserbase } from "@browserbasehq/sdk";
-import { type BrowserContext, chromium, Page } from "@playwright/test";
+import { type BrowserContext, chromium } from "@playwright/test";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -9,6 +9,7 @@ import { z } from "zod";
 import { BrowserResult } from "../types/browser";
 import { LogLine } from "../types/log";
 import { GotoOptions } from "../types/playwright";
+import { Page } from "../types/page";
 import {
   ActOptions,
   ActResult,
@@ -438,7 +439,7 @@ export class Stagehand {
       this,
       this.stagehandContext,
       this.llmClient,
-    ).init(defaultPage, this);
+    ).init();
 
     // Set the browser to headless mode if specified
     if (this.headless) {
@@ -478,7 +479,7 @@ export class Stagehand {
       this,
       this.stagehandContext,
       this.llmClient,
-    ).init(page, this);
+    ).init();
     this.stagehandContext = await StagehandContext.init(page.context(), this);
 
     const originalGoto = this.page.goto.bind(this.page);
