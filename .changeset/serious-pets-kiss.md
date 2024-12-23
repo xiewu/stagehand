@@ -2,4 +2,4 @@
 "@browserbasehq/stagehand": patch
 ---
 
-moves extract and act -> page and deprecates stagehand.extract and stagehand.page.observe
+moves extract and act -> page and deprecates stagehand.extract and stagehand.observe
