@@ -52,7 +52,7 @@ test.describe("StagehandPage - page.context()", () => {
 
     // The newly created page should be recognized by stagehandContext as well.
     const foundExtraPage = contextPages.find(
-      (p) => p.url() === "https://example.com/"
+      (p) => p.url() === "https://example.com/",
     );
     expect(foundExtraPage).toBeDefined();
   });

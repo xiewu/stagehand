@@ -10,14 +10,14 @@ test.describe("StagehandPage - waitFor", () => {
     const page = stagehand.page;
     await page.goto("https://docs.browserbase.com/introduction");
     const dynamicElement = page.locator(
-      "div.grid:nth-child(1) > a:nth-child(1) > div:nth-child(1)"
+      "div.grid:nth-child(1) > a:nth-child(1) > div:nth-child(1)",
     );
 
     const isVisibleBefore = await dynamicElement.isVisible();
     expect(isVisibleBefore).toBe(false);
 
     const clickableElement = page.locator(
-      "div.mt-12:nth-child(3) > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1)"
+      "div.mt-12:nth-child(3) > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1)",
     );
     await clickableElement.click();
 
@@ -37,7 +37,7 @@ test.describe("StagehandPage - waitFor", () => {
     await page.goto("https://docs.browserbase.com/introduction");
 
     const disappearingElement = page.locator(
-      "div.not-prose:nth-child(2) > a:nth-child(1) > div:nth-child(1)"
+      "div.not-prose:nth-child(2) > a:nth-child(1) > div:nth-child(1)",
     );
 
     await disappearingElement.click();
@@ -108,7 +108,7 @@ test.describe("StagehandPage - waitFor", () => {
     const page = stagehand.page;
 
     const requestPromise = page.waitForRequest((req) =>
-      req.url().includes("mintlify")
+      req.url().includes("mintlify"),
     );
 
     await page.goto("https://docs.browserbase.com/introduction");
@@ -125,8 +125,8 @@ test.describe("StagehandPage - waitFor", () => {
 
     const page = stagehand.page;
 
-    const responsePromise = page.waitForResponse((res) =>
-      res.url().includes("introduction") && res.status() === 200
+    const responsePromise = page.waitForResponse(
+      (res) => res.url().includes("introduction") && res.status() === 200,
     );
 
     await page.goto("https://docs.browserbase.com/introduction");
@@ -143,8 +143,9 @@ test.describe("StagehandPage - waitFor", () => {
     const page = stagehand.page;
     await page.goto("https://docs.browserbase.com");
 
-
-    const quickstartLink = page.locator("div.mt-12:nth-child(3) > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1) > div:nth-child(1)");
+    const quickstartLink = page.locator(
+      "div.mt-12:nth-child(3) > ul:nth-child(2) > li:nth-child(2) > div:nth-child(1) > div:nth-child(1)",
+    );
     await quickstartLink.click();
 
     await page.waitForURL(/.*quickstart.*/);

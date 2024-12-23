@@ -37,7 +37,10 @@ test.describe("StagehandPage - frame operations", () => {
     await page.waitForSelector('iframe[name="frame-two"]');
 
     const frames = page.frames();
-    console.log("All frames found:", frames.map((f) => f.name()));
+    console.log(
+      "All frames found:",
+      frames.map((f) => f.name()),
+    );
     expect(frames).toHaveLength(3);
 
     const mainFrame = page.mainFrame();

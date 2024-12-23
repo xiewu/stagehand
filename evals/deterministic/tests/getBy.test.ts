@@ -40,7 +40,9 @@ test.describe("StagehandPage - Built-in locators", () => {
     await expect(signInButton).toBeVisible();
     const greetingDiv = page.getByTestId("greeting");
     await expect(greetingDiv).toHaveText("Hello World!");
-    const descriptiveText = page.getByText("This is some descriptive text on the page.");
+    const descriptiveText = page.getByText(
+      "This is some descriptive text on the page.",
+    );
     await expect(descriptiveText).toBeVisible();
     const heading = page.getByTitle("A heading for the page");
     await expect(heading).toHaveText("Site Title");

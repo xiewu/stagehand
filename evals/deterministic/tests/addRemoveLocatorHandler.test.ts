@@ -40,7 +40,7 @@ test.describe("StagehandPage - addLocatorHandler and removeLocatorHandler", () =
       async () => {
         console.log("Overlay detected. Clicking 'No thanks' to remove it...");
         await page.getByRole("button", { name: "No thanks" }).click();
-      }
+      },
     );
 
     await page.goto("https://example.com");
