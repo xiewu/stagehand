@@ -21,7 +21,7 @@ export const extract_github_commits: EvalFunction = async ({
       action:
         "find commit history, generally described by the number of commits",
     });
-    const { commits } = await stagehand.extract({
+    const { commits } = await stagehand.page.extract({
       instruction: "Extract last 20 commits",
       schema: z.object({
         commits: z.array(

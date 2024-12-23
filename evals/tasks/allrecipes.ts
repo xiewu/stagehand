@@ -22,7 +22,7 @@ export const allrecipes: EvalFunction = async ({
     action: 'Search for "chocolate chip cookies" using the search bar',
   });
 
-  const recipeDetails = await stagehand.extract({
+  const recipeDetails = await stagehand.page.extract({
     instruction:
       "Extract the title of the first recipe and the total number of ratings it has received.",
     schema: z.object({

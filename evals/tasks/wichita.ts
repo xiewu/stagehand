@@ -20,7 +20,7 @@ export const wichita: EvalFunction = async ({
     action: 'Click on "Show Closed/Awarded/Cancelled bids"',
   });
 
-  const result = await stagehand.extract({
+  const result = await stagehand.page.extract({
     instruction: "Extract the total number of bids that the search produced.",
     schema: z.object({
       total_results: z.string(),

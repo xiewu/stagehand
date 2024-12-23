@@ -22,7 +22,7 @@ export const homedepot: EvalFunction = async ({
     await stagehand.page.act({ action: "click on the Product Details" });
     await stagehand.page.act({ action: "find the Primary Burner BTU" });
 
-    const productSpecs = await stagehand.extract({
+    const productSpecs = await stagehand.page.extract({
       instruction: "Extract the Primary exact Burner BTU of the product",
       schema: z.object({
         productSpecs: z
