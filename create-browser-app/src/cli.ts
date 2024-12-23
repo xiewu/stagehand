@@ -13,7 +13,7 @@ const REPO_URL = "https://github.com/browserbase/playbook";
 const EXAMPLE_PATH = "stagehand-quickstart";
 const TEMP_DIR = path.join(
   os.tmpdir(),
-  "browserbase-clone-" + Math.random().toString(36).substr(2, 9)
+  "browserbase-clone-" + Math.random().toString(36).substr(2, 9),
 );
 
 type StagehandConfig = ConstructorParams & {
@@ -34,7 +34,7 @@ async function cloneExample(stagehandConfig: StagehandConfig) {
     // Clone the repository
     console.log(
       chalk.cyan(`Cloning template from the Browserbase Playbook:`) +
-        ` ${REPO_URL}/tree/main/${EXAMPLE_PATH}`
+        ` ${REPO_URL}/tree/main/${EXAMPLE_PATH}`,
     );
     execSync(`git clone --depth 1 ${REPO_URL} ${TEMP_DIR}`, {
       stdio: "ignore",
@@ -44,18 +44,18 @@ async function cloneExample(stagehandConfig: StagehandConfig) {
     const exampleDir = path.join(TEMP_DIR, EXAMPLE_PATH);
     if (!fs.existsSync(exampleDir)) {
       throw new Error(
-        `Example directory '${EXAMPLE_PATH}' not found in repository`
+        `Example directory '${EXAMPLE_PATH}' not found in repository`,
       );
     }
 
     // Create project directory
     const projectDir = path.resolve(
       process.cwd(),
-      stagehandConfig?.projectName
+      stagehandConfig?.projectName,
     );
     if (fs.existsSync(projectDir)) {
       throw new Error(
-        `Directory ${stagehandConfig?.projectName} already exists`
+        `Directory ${stagehandConfig?.projectName} already exists`,
       );
     }
 
@@ -78,11 +78,11 @@ async function cloneExample(stagehandConfig: StagehandConfig) {
     console.log(
       "BROWSERBASE_PROJECT_ID=",
       stagehandConfig?.browserbaseProjectId ??
-        process.env.BROWSERBASE_PROJECT_ID
+        process.env.BROWSERBASE_PROJECT_ID,
     );
     console.log(
       "BROWSERBASE_API_KEY=",
-      stagehandConfig?.browserbaseApiKey ?? process.env.BROWSERBASE_API_KEY
+      stagehandConfig?.browserbaseApiKey ?? process.env.BROWSERBASE_API_KEY,
     );
     if (
       stagehandConfig?.browserbaseProjectId ||
@@ -113,7 +113,7 @@ async function cloneExample(stagehandConfig: StagehandConfig) {
     }
 
     console.log(
-      `Wrote environment variables to ${projectDir}/.env. Existing environment variables were taken from your environment.`
+      `Wrote environment variables to ${projectDir}/.env. Existing environment variables were taken from your environment.`,
     );
 
     // Write all environment variables at once if we have any content
@@ -124,7 +124,7 @@ async function cloneExample(stagehandConfig: StagehandConfig) {
     // Write stagehand config
     fs.writeFileSync(
       path.join(projectDir, "stagehand.config.ts"),
-      generateConfig(stagehandConfig)
+      generateConfig(stagehandConfig),
     );
 
     console.log(
@@ -136,15 +136,15 @@ async function cloneExample(stagehandConfig: StagehandConfig) {
           chalk.cyan("  npm start") +
           "\n\n" +
           `View and edit the code in ${chalk.cyan(
-            `${stagehandConfig?.projectName}/index.ts`
+            `${stagehandConfig?.projectName}/index.ts`,
           )}.\nRun the app with ${chalk.cyan("npm start")}`,
         {
           padding: 1,
           margin: 1,
           borderStyle: "round",
           borderColor: "green",
-        }
-      )
+        },
+      ),
     );
   } catch (error) {
     console.error(chalk.red("Error creating project:"), error);
@@ -153,7 +153,7 @@ async function cloneExample(stagehandConfig: StagehandConfig) {
     // Cleanup temporary directory
     try {
       fs.rmSync(TEMP_DIR, { recursive: true, force: true });
-    } catch (error) {
+    } catch {
       console.warn(chalk.yellow("Warning: Failed to clean up temporary files"));
     }
   }
@@ -261,7 +261,7 @@ async function getStagehandConfig(projectName?: string) {
 program
   .name("create-browser-app")
   .description(
-    "Create a new browser application from browserbase/playbook examples"
+    "Create a new browser application from browserbase/playbook examples",
   )
   .argument("[project-name]", "Name of the project")
   .action(async (projectName?: string) => {

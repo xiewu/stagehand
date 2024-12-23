@@ -1,4 +1,4 @@
-import type { ConstructorParams, LogLine } from "@browserbasehq/stagehand";
+import type { ConstructorParams } from "@browserbasehq/stagehand";
 
 export function generateConfig(config: ConstructorParams): string {
   return `import type { ConstructorParams, LogLine } from "@browserbasehq/stagehand";
