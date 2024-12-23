@@ -93,6 +93,18 @@ export class StagehandPage {
           };
         }
 
+        if (prop === "extract") {
+          return async (options: ExtractOptions<z.AnyZodObject>) => {
+            return this.extract(options);
+          };
+        }
+
+        if (prop === "observe") {
+          return async (options: ObserveOptions) => {
+            return this.observe(options);
+          };
+        }
+
         return target[prop as keyof PlaywrightPage];
       },
     });
