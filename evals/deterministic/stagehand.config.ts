@@ -6,7 +6,7 @@ const StagehandConfig: ConstructorParams = {
   projectId: process.env.BROWSERBASE_PROJECT_ID! /* Project identifier */,
   verbose: 1 /* Logging verbosity level (0=quiet, 1=normal, 2=verbose) */,
   debugDom: true /* Enable DOM debugging features */,
-  headless: false /* Run browser in headless mode */,
+  headless: true /* Run browser in headless mode */,
   logger: (message: LogLine) =>
     console.log(
       `[stagehand::${message.category}] ${message.message}`,
