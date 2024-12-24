@@ -46,10 +46,11 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       total: testCases.length * testCases[0].evaluation.length,
     };
 
-    // Initialize browser settings with proper type handling for both compile-time and runtime
-    const rawSettings = {
+    // Initialize browser settings with string literal for httpVersion
+    const browserSettings: Browserbase.SessionCreateParams["browserSettings"] = {
       fingerprint: {
-        httpVersion: 1,
+        // Use type assertion to satisfy both runtime and compile-time requirements
+        httpVersion: ("1" as unknown) as 1,
       },
       viewport: {
         width: 1280,
@@ -57,10 +58,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       },
       logSession: true,
       recordSession: true,
-    } as const;
-
-    // Convert settings to runtime-compatible format while preserving type safety
-    const browserSettings = ensureRuntimeCompatibleSettings(rawSettings) as unknown as Browserbase.SessionCreateParams["browserSettings"];
+    };
 
     stagehand = new Stagehand({
       env: "BROWSERBASE",
