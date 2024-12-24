@@ -302,13 +302,15 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           level: 1,
           auxiliary: {
             value: {
-              value: error instanceof Error ? error.message : JSON.stringify(error),
+              value:
+                error instanceof Error ? error.message : JSON.stringify(error),
               type: "string",
             },
           },
         });
 
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         return {
           _success: false,
           logs,
@@ -327,7 +329,10 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
               level: 2,
               auxiliary: {
                 value: {
-                  value: error instanceof Error ? error.message : JSON.stringify(error),
+                  value:
+                    error instanceof Error
+                      ? error.message
+                      : JSON.stringify(error),
                   type: "string",
                 },
               },
