@@ -43,10 +43,10 @@ interface CategoryScores {
   };
 }
 
-export const mind2web: EvalFunction = async ({ modelName, logger }) => {
+export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
   const logs: LogLine[] = [];
   let currentStagehand: Stagehand | undefined;
-  let currentInitResult: InitResult | undefined;
+  let initResult: InitResult | undefined;
 
   // Initialize scores
   const scores: CategoryScores = {
@@ -60,17 +60,30 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
     const allTestCases = await loadMind2WebDataset();
     const testCases = allTestCases.slice(0, 5);
 
-    // Initialize Stagehand
+    // Initialize Stagehand with optimized settings for Mind2Web dataset
     currentStagehand = new Stagehand({
-      env: "LOCAL",
+      env: "BROWSERBASE",
       modelName,
-      logger: (message: LogLine) => logger.log(message),
-      headless: true,
-      verbose: 1,
       enableCaching: true,
+      logger: (line) => logs.push(line),
+      browserbaseSessionCreateParams: {
+        projectId: process.env.BROWSERBASE_PROJECT_ID || "",
+        timeout: 60, // 60 seconds timeout
+        browserSettings: {
+          fingerprint: {
+            httpVersion: 1, // Use HTTP/1.1 for better compatibility
+          },
+          viewport: {
+            width: 1280,
+            height: 800,
+          },
+          logSession: true,
+          recordSession: true,
+        },
+      },
     });
 
-    currentInitResult = await currentStagehand.init();
+    initResult = await currentStagehand.init();
 
     for (const [index, testCase] of testCases.entries()) {
       logs.push({
@@ -79,204 +92,117 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
       });
 
       try {
-        // Initialize state for tracking progress and handling retries
-        const currentState = {
-          progress: [] as string[],
-          retryCount: 0,
-          maxRetries: 3,
-          waitBetweenRetries: 5000, // 5 seconds
-        };
+        // Initialize state for tracking progress
+        let currentUrl = "";
+        let retryCount = 0;
+        const maxRetries = 3;
 
         // Process each evaluation step sequentially
         for (const [stepIndex, step] of testCase.evaluation.entries()) {
-          // Handle potential security blocks and rate limits
           try {
-            await currentStagehand.page.waitForLoadState("domcontentloaded");
-
-            // Check for common block indicators
-            const isBlocked = await currentStagehand.page.evaluate(() => {
-              const blockTexts = ['blocked', 'access denied', 'security check', 'cloudflare'];
-              const pageText = document.body.innerText.toLowerCase();
-              return blockTexts.some(text => pageText.includes(text));
-            });
-
-            if (isBlocked) {
-              if (currentState.retryCount < currentState.maxRetries) {
-                currentState.retryCount++;
-                logger.log({
-                  message: `Detected security block, waiting ${currentState.waitBetweenRetries}ms before retry ${currentState.retryCount}/${currentState.maxRetries}`,
-                  level: 1,
-                });
-                await new Promise(resolve => setTimeout(resolve, currentState.waitBetweenRetries));
-                await currentStagehand.page.reload();
-                continue;
-              } else {
-                logger.log({
-                  message: `Max retries (${currentState.maxRetries}) reached for blocked page, skipping step`,
-                  level: 1,
-                });
-                scores.act.total++;
-                scores.extract.total++;
-                scores.observe.total++;
-                continue;
-              }
+            // Navigate to URL if different from current
+            if (step.content.url !== currentUrl) {
+              await currentStagehand.page.goto(step.content.url, {
+                waitUntil: "domcontentloaded",
+              });
+              currentUrl = step.content.url;
+              await currentStagehand.page.waitForLoadState("domcontentloaded");
             }
-            currentState.retryCount = 0;
-          } catch (error) {
-            logger.log({
-              message: `Error during page load: ${error.message}`,
-              level: 1,
-            });
-            if (currentState.retryCount < currentState.maxRetries) {
-              currentState.retryCount++;
-              continue;
-            }
-            scores.act.total++;
-            scores.extract.total++;
-            scores.observe.total++;
-            continue;
-          }
 
-          // Validate URL match
-          const urlMatches = validateUrlMatch(
-            step.content.url,
-            step.content.reference_answer,
-          );
-          if (!urlMatches) {
-            logger.log({
-              message: `URL validation failed for ${step.content.url}`,
-              level: 2,
-            });
-            continue;
-          }
-
-          // Navigate to URL if different from current
-          if (step.content.url !== currentState.progress[currentState.progress.length - 1]) {
-            await currentStagehand.page.goto(step.content.url, {
-              waitUntil: "networkidle",
-            });
-            currentState.progress.push(step.content.url);
-            await currentStagehand.page.waitForLoadState("domcontentloaded");
-          }
-
-          // Create step-specific schema based on Mind2Web task structure
-          const schema = z.object({
-            currentUrl: z.string().describe("Current URL of the page"),
-            elementDetails: z.object({
-              found: z.boolean().describe("Whether the target element was found"),
-              text: z.string().describe("Text content of the found element"),
-              type: z.string().describe("Type of element (link, button, input, etc.)"),
-            }).describe("Details about the target element"),
-            nextAction: z.string().describe("Next action needed to complete the task"),
-          });
-
-          // Build context from previous steps
-          const stepContext = currentState.progress.join(" -> ");
-
-          // Perform action with specific instruction and context
-          try {
+            // 1. Act: Perform the required action
             const actResult = await currentStagehand.act({
-              action: `For task "${testCase.task}":
-1. Find element containing "${step.content.reference_answer}"
-2. Previous steps completed: ${stepContext}
-3. Current URL: ${step.content.url}
-4. Target pattern: ${step.content.reference_answer}`
+              action: `Find and interact with element containing "${step.content.reference_answer}" to complete task: ${testCase.task}`,
             });
 
             if (actResult.success) {
               scores.act.success++;
-              currentState.progress.push(`Found and interacted with ${step.content.reference_answer}`);
             }
             scores.act.total++;
-          } catch (error) {
-            logger.log({
-              message: `Error during action: ${error.message}`,
-              level: 1,
-            });
-            scores.act.total++;
-          }
 
-          // Extract information with context from previous steps
-          try {
+            // 2. Extract: Get information about the target element
+            const extractSchema = z.object({
+              elementFound: z.boolean(),
+              elementText: z.string(),
+              elementType: z.string(),
+              currentUrl: z.string(),
+            });
+
             const extractResult = await currentStagehand.extract({
-              instruction: `For task "${testCase.task}":
-1. Extract information about element containing "${step.content.reference_answer}"
-2. Previous steps completed: ${stepContext}
-3. Target pattern: ${step.content.reference_answer}`,
-              schema,
+              instruction: `Find and extract information about element containing "${step.content.reference_answer}"`,
+              schema: extractSchema,
+              useTextExtract,
             });
 
-            // Validate extraction against reference and element properties
-            const extractSuccess =
-              extractResult.elementDetails.found &&
-              (extractResult.elementDetails.text.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
-               extractResult.currentUrl.includes(step.content.reference_answer));
+            const extractSuccess = extractResult.elementFound && (
+              extractResult.elementText.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
+              extractResult.currentUrl.includes(step.content.reference_answer)
+            );
 
             if (extractSuccess) {
               scores.extract.success++;
             }
             scores.extract.total++;
-          } catch (error) {
-            logger.log({
-              message: `Error during extraction: ${error.message}`,
-              level: 1,
-            });
-            scores.extract.total++;
-          }
 
-          // Observe page state with context from previous steps
-          try {
+            // 3. Observe: Check page state and available interactions
             const observeResults = await currentStagehand.observe();
             const observeSuccess = observeResults.some(result =>
-              result.description.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
-              (result.selector && result.selector.toLowerCase().includes(step.content.reference_answer.toLowerCase()))
+              result.description.toLowerCase().includes(step.content.reference_answer.toLowerCase())
             );
 
             if (observeSuccess) {
               scores.observe.success++;
             }
             scores.observe.total++;
-          } catch (error) {
+
+            // Log progress for current step
             logger.log({
-              message: `Error during observation: ${error.message}`,
+              message: `Step ${stepIndex + 1}/${testCase.evaluation.length} completed`,
               level: 1,
-            });
-            scores.observe.total++;
-          }
-
-          // Log detailed progress
-          const updateScores = {
-            act: (scores.act.success / scores.act.total) * 100,
-            extract: (scores.extract.success / scores.extract.total) * 100,
-            observe: (scores.observe.success / scores.observe.total) * 100,
-          };
-
-          logger.log({
-            message: `Step ${stepIndex + 1}/${testCase.evaluation.length} - Act: ${updateScores.act.toFixed(1)}%, Extract: ${updateScores.extract.toFixed(1)}%, Observe: ${updateScores.observe.toFixed(1)}%`,
-            level: 1,
-            auxiliary: {
-              value: {
-                value: JSON.stringify({
-                  task: testCase.task,
-                  step: stepIndex + 1,
-                  url: step.content.url,
-                  scores: updateScores,
-                  progress: currentState.progress,
-                }),
-                type: "object",
+              auxiliary: {
+                scores: {
+                  value: JSON.stringify({
+                    act: (scores.act.success / scores.act.total) * 100,
+                    extract: (scores.extract.success / scores.extract.total) * 100,
+                    observe: (scores.observe.success / scores.observe.total) * 100,
+                  }),
+                  type: "string",
+                },
               },
-            },
-          });
-        }
+            });
 
-    // Calculate final percentages
+          } catch (stepError) {
+            logger.log({
+              message: `Error in step ${stepIndex + 1}: ${stepError instanceof Error ? stepError.message : "Unknown error"}`,
+              level: 2,
+            });
+
+            // Count failed attempts
+            scores.act.total++;
+            scores.extract.total++;
+            scores.observe.total++;
+
+            if (retryCount < maxRetries) {
+              retryCount++;
+              continue;
+            }
+          }
+        }
+      } catch (testError) {
+        logger.log({
+          message: `Error in test case ${index + 1}: ${testError instanceof Error ? testError.message : "Unknown error"}`,
+          level: 2,
+        });
+      }
+    }
+
+    // Calculate final scores
     const finalScores = {
       act: (scores.act.success / scores.act.total) * 100,
       extract: (scores.extract.success / scores.extract.total) * 100,
       observe: (scores.observe.success / scores.observe.total) * 100,
     };
 
-    // Check if all thresholds are met
+    // Check if all scores meet the minimum threshold
     const success =
       finalScores.act >= 80 &&
       finalScores.extract >= 80 &&
@@ -285,21 +211,28 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
     return {
       _success: success,
       logs,
-      debugUrl: currentInitResult?.debugUrl || "",
-      sessionUrl: currentInitResult?.sessionUrl || "",
+      debugUrl: initResult?.debugUrl || "",
+      sessionUrl: initResult?.sessionUrl || "",
       scores: finalScores,
     };
   } catch (error) {
     return {
       _success: false,
       logs,
-      debugUrl: currentInitResult?.debugUrl || "",
-      sessionUrl: currentInitResult?.sessionUrl || "",
+      debugUrl: initResult?.debugUrl || "",
+      sessionUrl: initResult?.sessionUrl || "",
       error: error instanceof Error ? error.message : "Unknown error",
     };
   } finally {
     if (currentStagehand) {
-      await currentStagehand.close();
+      try {
+        await currentStagehand.close();
+      } catch (closeError) {
+        logger.log({
+          message: `Error closing Stagehand: ${closeError instanceof Error ? closeError.message : "Unknown error"}`,
+          level: 1,
+        });
+      }
     }
   }
 };
