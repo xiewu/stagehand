@@ -38,26 +38,37 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
     const testSubset = testCases.slice(0, maxCases);
 
     logs.push({
-      message: `Testing with ${testSubset.length} cases from Mind2Web dataset`,
+      message: `Starting Mind2Web eval with ${testSubset.length} test cases`,
       level: 1,
-      auxiliary: {
-        value: {
-          value: testSubset.length.toString(),
-          type: "integer",
-        },
-      },
     });
 
     for (const [index, testCase] of testSubset.entries()) {
+      logs.push({
+        message: `Processing test case ${index + 1}/${testSubset.length}: ${testCase.task}`,
+        level: 1,
+      });
+
       // Ensure previous browser instance is properly closed
       if (stagehand) {
         try {
+          logs.push({
+            message: "Closing previous browser instance",
+            level: 2,
+          });
           await stagehand.close();
           stagehand = null;
         } catch (error) {
-          console.error("Error closing browser:", error);
+          logs.push({
+            message: `Error closing browser: ${error instanceof Error ? error.message : "Unknown error"}`,
+            level: 2,
+          });
         }
       }
+
+      logs.push({
+        message: "Creating new Stagehand instance",
+        level: 2,
+      });
 
       stagehand = new Stagehand({
         env: "LOCAL",
@@ -122,9 +133,15 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         // Test act() functionality with retry
         scores.act.total++;
         try {
+          logs.push({
+            message: `Attempting act() with task: ${testCase.task}`,
+            level: 2,
+          });
+
           const actResult = await stagehand.act({
             action: testCase.task,
           });
+
           if (actResult.success) {
             scores.act.success++;
             logs.push({
@@ -137,23 +154,27 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
                 },
               },
             });
+          } else {
+            logs.push({
+              message: "Act test failed: action unsuccessful",
+              level: 2,
+            });
           }
         } catch (error) {
           logs.push({
-            message: "Act test failed",
+            message: `Act test failed with error: ${error instanceof Error ? error.message : "Unknown error"}`,
             level: 2,
-            auxiliary: {
-              value: {
-                value: error instanceof Error ? error.message : "Unknown error",
-                type: "string",
-              },
-            },
           });
         }
 
         // Test extract() functionality with dynamic schema
         scores.extract.total++;
         try {
+          logs.push({
+            message: "Creating dynamic schema for extraction",
+            level: 2,
+          });
+
           // Create dynamic schema based on test case
           const schemaFields: Record<string, z.ZodString> = {};
           testCase.evaluation.forEach((step, index) => {
@@ -163,6 +184,12 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           });
 
           const dynamicSchema = z.object(schemaFields);
+
+          logs.push({
+            message: `Attempting extract() with task: ${testCase.task}`,
+            level: 2,
+          });
+
           const extractResult = await stagehand.extract({
             instruction: testCase.task,
             schema: dynamicSchema,
@@ -180,17 +207,16 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
                 },
               },
             });
+          } else {
+            logs.push({
+              message: "Extract test failed: schema validation failed",
+              level: 2,
+            });
           }
         } catch (error) {
           logs.push({
-            message: "Extract test failed",
+            message: `Extract test failed with error: ${error instanceof Error ? error.message : "Unknown error"}`,
             level: 2,
-            auxiliary: {
-              value: {
-                value: error instanceof Error ? error.message : "Unknown error",
-                type: "string",
-              },
-            },
           });
         }
 
