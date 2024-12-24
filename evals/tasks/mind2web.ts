@@ -64,9 +64,9 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       ...runtimeSettings,
       fingerprint: {
         ...runtimeSettings.fingerprint,
-        httpVersion: 1,  // Use numeric value for SDK type compatibility
+        httpVersion: "1",  // Use string value for runtime compatibility
       },
-    } as Browserbase.SessionCreateParams["browserSettings"];
+    } as unknown as Browserbase.Sessions.SessionCreateParams["browserSettings"];
 
     stagehand = new Stagehand({
       env: "BROWSERBASE",
