@@ -1,8 +1,27 @@
-import { Stagehand } from "../../lib";
-import { EvalFunction } from "../../types/evals";
-import { loadMind2WebDataset } from "../datasets/mind2web";
 import { z } from "zod";
+import { EvalFunction } from "../../types/evals";
+import { Stagehand } from "../../lib";
+import { InitResult } from "../../types/stagehand";
 import { LogLine } from "../../types/log";
+import { loadMind2WebDataset } from "../datasets/mind2web";
+
+// Define types for Mind2Web evaluation steps
+interface EvaluationStep {
+  content: {
+    key: string;
+    netloc: string | null;
+    path: string | null;
+    reference_answer: string;
+    url: string;
+  };
+  match_function_name: string;
+  method: string | null;
+}
+
+interface TestCase {
+  task: string;
+  evaluation: EvaluationStep[];
+}
 
 interface CategoryScores {
   act: {
@@ -24,13 +43,14 @@ interface CategoryScores {
 
 export const mind2web: EvalFunction = async ({ modelName, logger }) => {
   const logs: LogLine[] = [];
+  let stagehand: Stagehand | undefined;
+  let initResult: InitResult | undefined;
+
   const scores: CategoryScores = {
     act: { success: 0, total: 0, percentage: 0 },
     extract: { success: 0, total: 0, percentage: 0 },
     observe: { success: 0, total: 0, percentage: 0 },
   };
-
-  let stagehand: Stagehand | null = null;
 
   try {
     const testCases = await loadMind2WebDataset();
@@ -81,16 +101,19 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
       });
 
       try {
+        let stagehand: Stagehand | undefined;
+        let initResult: InitResult | undefined;
+
         stagehand = new Stagehand({
           env: "LOCAL",
           modelName,
           logger: (message: LogLine) => logger.log(message),
           headless: true,
           verbose: 1,
-          enableCaching: false, // Disable caching for testing
+          enableCaching: true, // Re-enable caching to reduce LLM calls
         });
 
-        await stagehand.init();
+        initResult = await stagehand.init();
 
         // Add delay between browser operations
         const delay = (ms: number) =>
@@ -202,7 +225,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
 
           // Create dynamic schema based on test case
           const schemaFields: Record<string, z.ZodString> = {};
-          testCase.evaluation.forEach((step, index) => {
+          testCase.evaluation.forEach((step: EvaluationStep, index: number) => {
             if (step.content.reference_answer) {
               schemaFields[`field_${index}`] = z.string();
             }
@@ -214,7 +237,6 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             message: `Attempting extract() with task: ${testCase.task}`,
             level: 2,
           });
-
           const extractPromise = stagehand.extract({
             instruction: testCase.task,
             schema: dynamicSchema,
@@ -275,24 +297,44 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           },
         });
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
         logs.push({
-          message: "Test case failed",
+          message: "Critical error in Mind2Web eval",
           level: 1,
           auxiliary: {
             value: {
-              value: errorMessage,
+              value: error instanceof Error ? error.message : JSON.stringify(error),
               type: "string",
             },
           },
         });
-      }
-    }
 
-    // Clean up final browser instance
-    if (stagehand) {
-      await stagehand.close();
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return {
+          _success: false,
+          logs,
+          error: errorMessage,
+          debugUrl: initResult?.debugUrl,
+          sessionUrl: initResult?.sessionUrl,
+        };
+      } finally {
+        // Ensure browser cleanup in all cases
+        if (stagehand) {
+          try {
+            await stagehand.close();
+          } catch (error) {
+            logs.push({
+              message: "Error during browser cleanup",
+              level: 2,
+              auxiliary: {
+                value: {
+                  value: error instanceof Error ? error.message : JSON.stringify(error),
+                  type: "string",
+                },
+              },
+            });
+          }
+        }
+      }
     }
 
     // Final success is determined by meeting all category thresholds
