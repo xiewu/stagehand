@@ -5,6 +5,7 @@ import { loadMind2WebDataset } from "../datasets/mind2web";
 import { z } from "zod";
 import { LogLine } from "../../types/log";
 import { Browserbase } from "@browserbasehq/sdk";
+import { ensureRuntimeCompatibleSettings } from "../../types/browserbase";
 
 // Define types for Mind2Web evaluation steps
 interface EvaluationStep {
@@ -45,10 +46,10 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       total: testCases.length * testCases[0].evaluation.length,
     };
 
-    // Initialize browser settings with correct type for httpVersion
-    const browserSettings: Browserbase.SessionCreateParams["browserSettings"] = {
+    // Initialize browser settings with proper type handling for both compile-time and runtime
+    const rawSettings = {
       fingerprint: {
-        httpVersion: 1 as const,
+        httpVersion: 1,
       },
       viewport: {
         width: 1280,
@@ -56,7 +57,10 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       },
       logSession: true,
       recordSession: true,
-    };
+    } as const;
+
+    // Convert settings to runtime-compatible format while preserving type safety
+    const browserSettings = ensureRuntimeCompatibleSettings(rawSettings) as unknown as Browserbase.SessionCreateParams["browserSettings"];
 
     stagehand = new Stagehand({
       env: "BROWSERBASE",
