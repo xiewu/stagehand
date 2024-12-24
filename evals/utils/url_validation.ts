@@ -31,30 +31,33 @@ export function validateUrlPath(
 }
 
 /**
- * Checks if a URL starts with an expected URL prefix
- * @param actual The actual URL to check
- * @param expected The expected URL prefix
- * @returns boolean indicating if the actual URL starts with the expected prefix
+ * Validates if a URL matches an expected URL pattern based on Mind2Web dataset rules
+ * Mind2Web uses url_included_match which checks if the reference_answer is included in the URL
  */
 export function validateUrlMatch(actual: string, expected: string): boolean {
   if (!actual || !expected) {
     return false;
   }
 
-  try {
-    // Parse URLs to normalize them
-    const actualUrl = new URL(actual);
-    const expectedUrl = new URL(expected);
+  // For Mind2Web dataset, we want to check if the expected pattern is included in the URL
+  const normalizedActual = actual.toLowerCase();
+  const normalizedExpected = expected.toLowerCase();
 
-    // Compare hostnames and paths, ignoring protocol
-    const actualHostPath = `${actualUrl.hostname}${actualUrl.pathname}`.replace(/\/$/, "");
-    const expectedHostPath = `${expectedUrl.hostname}${expectedUrl.pathname}`.replace(/\/$/, "");
-
-    return actualHostPath.startsWith(expectedHostPath);
-  } catch {
-    // Fallback to simple string comparison if URL parsing fails
-    const normalizedActual = actual.replace(/^https?:\/\//, "").replace(/\/$/, "");
-    const normalizedExpected = expected.replace(/^https?:\/\//, "").replace(/\/$/, "");
-    return normalizedActual.startsWith(normalizedExpected);
+  // Handle special cases where expected might be a partial path or domain
+  if (normalizedExpected.startsWith('/')) {
+    // If expected starts with '/', it's a path pattern
+    return normalizedActual.includes(normalizedExpected);
+  } else if (normalizedExpected.endsWith('.')) {
+    // If expected ends with '.', it's a domain pattern (e.g., 'nfl.')
+    const domainPattern = normalizedExpected.slice(0, -1);
+    return normalizedActual.includes(`/${domainPattern}.`) ||
+           normalizedActual.includes(`//${domainPattern}.`) ||
+           normalizedActual.includes(`.${domainPattern}.`);
+  } else if (normalizedExpected.endsWith('/')) {
+    // If expected ends with '/', it's a path segment (e.g., 'scores/')
+    return normalizedActual.includes(normalizedExpected);
   }
+
+  // Default case: simple inclusion check
+  return normalizedActual.includes(normalizedExpected);
 }
