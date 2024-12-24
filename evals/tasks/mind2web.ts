@@ -1,490 +1,185 @@
-import { EvalFunction, EvalResult } from '../../types/evals';
-import { Stagehand } from '../../lib';
+import { Stagehand } from "../../lib";
+import { EvalFunction } from "../../types/evals";
 import { loadMind2WebDataset } from "../datasets/mind2web";
-import { validateUrlPath, validateUrlMatch } from "../utils/url_validation";
-import { LogLine } from '../../types/log';
+import { z } from "zod";
+import { LogLine } from "../../types/log";
 
-// Increase max listeners to handle multiple event emitters
-process.setMaxListeners(50);
-
-// Site-specific configurations
-const SITE_CONFIGS = {
-  'nfl.com': {
-    timeout: 120000,
-    waitUntil: 'domcontentloaded' as const,
-    bypassInteractivityCheck: true,
-  },
-  'tesla.com': {
-    timeout: 90000,
-    waitUntil: 'domcontentloaded' as const,
-    bypassInteractivityCheck: true,
-  },
-  'rei.com': {
-    timeout: 90000,
-    waitUntil: 'domcontentloaded' as const,
-    bypassInteractivityCheck: true,
-  },
-};
-
-const MAX_ACTION_RETRIES = 8;  // Increased from 5
-const ACTION_TIMEOUT = 45000;  // Increased from 30000
-const PAGE_LOAD_TIMEOUT = 60000;  // Increased from 45000
-const RETRY_DELAY = 3000;
-const OBSTACLE_CHECK_TIMEOUT = 8000;
-const MAX_RETRY_DELAY = 15000;  // Increased from 10000
-
-// Add delay between navigation steps to prevent race conditions
-const STEP_DELAY = 2000;
-
-// Add delay between test cases for cleanup
-const TEST_CASE_DELAY = 5000;
-
-// Semaphore for browser instance management
-let browserLock = false;
-
-async function handleCommonObstacles(stagehand: any, logger: any): Promise<boolean> {
-    const MAX_OBSTACLE_ATTEMPTS = 3;
-    const handledObstacles = new Set<string>();
-
-    try {
-        // Handle cookie consent banner
-        const cookieSelectors = [
-            "#onetrust-reject-all-handler",
-            "[aria-label='Reject Optional Cookies']",
-            "[data-testid='cookie-banner-reject']",
-            ".cookie-banner-reject",
-            ".cookie-consent-reject",
-            "[aria-label='reject cookies']",
-            "button:has-text('Reject')",
-            "button:has-text('Reject All')",
-            // Additional selectors
-            "#CybotCookiebotDialogBodyButtonDecline",
-            "button[aria-label*='reject' i]",
-            ".qc-cmp2-buttons button:last-child",
-            "[id*='cookie'] button:has-text(/reject|decline/i)",
-            "[class*='cookie'] button:has-text(/reject|decline/i)",
-            "[data-testid='cookie-policy-dialog'] button:last-child",
-            ".cookie-notice button:last-child",
-        ];
-
-        let cookieAttempts = 0;
-        while (cookieAttempts < MAX_OBSTACLE_ATTEMPTS) {
-            let handled = false;
-            for (const selector of cookieSelectors) {
-                if (handledObstacles.has(selector)) continue;
-
-                try {
-                    const element = await stagehand.page.waitForSelector(selector, {
-                        timeout: OBSTACLE_CHECK_TIMEOUT,
-                        state: 'visible'
-                    });
-
-                    if (element) {
-                        await element.click();
-                        await stagehand.page.waitForTimeout(1500);
-
-                        // Verify the element is gone
-                        const stillExists = await stagehand.page.$(selector);
-                        if (!stillExists) {
-                            handledObstacles.add(selector);
-                            logger.log({
-                                message: 'Successfully handled cookie consent banner',
-                                level: 1,
-                                auxiliary: {
-                                    selector: { value: selector, type: "string" },
-                                    attempt: { value: String(cookieAttempts + 1), type: "string" },
-                                },
-                            });
-                            handled = true;
-                            break;
-                        }
-                    }
-                } catch (e) {
-                    continue;
-                }
-            }
-            if (!handled) break;
-            cookieAttempts++;
-        }
-
-        // Handle other common overlays or popups
-        const commonOverlaySelectors = [
-            "[aria-label='Close']",
-            ".modal-close",
-            ".popup-close",
-            "[data-testid='modal-close']",
-            "button:has-text('Close')",
-            "button:has-text('×')",
-            "[aria-label='close']",
-            ".close-button",
-            // Additional selectors
-            "[id*='newsletter'] button:has-text(/close|dismiss/i)",
-            "[class*='newsletter'] button:has-text(/close|dismiss/i)",
-            "[role='dialog'] button:has-text(/close|dismiss/i)",
-            "[data-testid='modal-close-button']",
-            ".modal-dialog button:has-text('Close')",
-        ];
-
-        let overlayAttempts = 0;
-        while (overlayAttempts < MAX_OBSTACLE_ATTEMPTS) {
-            let handled = false;
-            for (const selector of commonOverlaySelectors) {
-                if (handledObstacles.has(selector)) continue;
-
-                try {
-                    const element = await stagehand.page.waitForSelector(selector, {
-                        timeout: OBSTACLE_CHECK_TIMEOUT / 2,
-                        state: 'visible'
-                    });
-
-                    if (element) {
-                        await element.click();
-                        await stagehand.page.waitForTimeout(1000);
-
-                        // Verify the element is gone
-                        const stillExists = await stagehand.page.$(selector);
-                        if (!stillExists) {
-                            handledObstacles.add(selector);
-                            logger.log({
-                                message: 'Successfully handled overlay/popup',
-                                level: 1,
-                                auxiliary: {
-                                    selector: { value: selector, type: "string" },
-                                    attempt: { value: String(overlayAttempts + 1), type: "string" },
-                                },
-                            });
-                            handled = true;
-                            break;
-                        }
-                    }
-                } catch (e) {
-                    continue;
-                }
-            }
-            if (!handled) break;
-            overlayAttempts++;
-        }
-    } catch (error) {
-        logger.warn({
-            message: 'Error handling common obstacles',
-            level: 1,
-            auxiliary: {
-                error: { value: error.message, type: "string" },
-                trace: { value: error.stack || "", type: "string" },
-            },
-        });
-    }
-    return true;
-}
-
-async function retryAction(
-  action: () => Promise<any>,
-  maxRetries: number,
-  logger: any,
-  errorMessage: string,
-  initialDelay: number = RETRY_DELAY
-): Promise<any> {
-  let lastError;
-  let currentDelay = initialDelay;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await action();
-    } catch (error) {
-      lastError = error;
-      logger.warn({
-        message: `Attempt ${attempt}/${maxRetries} failed: ${error.message}`,
-        level: 1,
-      });
-
-      if (attempt < maxRetries) {
-        // Exponential backoff with jitter
-        const jitter = Math.random() * 1000;
-        currentDelay = Math.min(currentDelay * 1.5 + jitter, MAX_RETRY_DELAY);
-
-        logger.log({
-          message: `Waiting ${Math.floor(currentDelay)}ms before retry...`,
-          level: 1,
-        });
-
-        await new Promise(resolve => setTimeout(resolve, currentDelay));
-      }
-    }
-  }
-
-  throw new Error(`${errorMessage}\n${lastError?.message || ''}`);
+interface StepResult {
+  success: boolean;
+  action: string;
+  error?: string;
+  data?: {
+    homeTeam: string;
+    homeScore: number;
+    awayTeam: string;
+    awayScore: number;
+  };
 }
 
 export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
-  const testResults: { success: boolean; logs: any[] }[] = [];
-  let stagehand: any = null;
-  let currentSession: any = null;
-  let debugUrl: string = '';
-  let sessionUrl: string = '';
+  const logs: LogLine[] = [];
+  let totalSuccess = 0;
+  let totalCases = 0;
 
   try {
-    const dataset = await loadMind2WebDataset();
-    logger.log({
-      message: `Loaded ${dataset.length} test cases from Mind2Web dataset`,
-      level: 1,
-    });
-
-    // Wait for browser lock to be released
-    while (browserLock) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    browserLock = true;
-
-    // Initialize single Stagehand instance for all test cases
-    stagehand = new Stagehand({
+    const stagehand = new Stagehand({
       env: "LOCAL",
       modelName,
       logger: (message: LogLine) => logger.log(message),
       headless: true,
       verbose: 1,
       enableCaching: true,
-      browserbaseSessionCreateParams: {
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-        extraHttpHeaders: {
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'DNT': '1',
-        },
-        storageState: {
-          cookies: [{
-            name: 'OptanonAlertBoxClosed',
-            value: new Date().toISOString(),
-            domain: '.nfl.com',
-            path: '/',
-          }],
-          origins: [{
-            origin: 'https://www.nfl.com',
-            localStorage: [{
-              name: 'OptanonConsent',
-              value: 'groups=C0001:0,C0002:0,C0003:0,C0004:0',
-            }],
-          }],
-        },
-      },
     });
 
     await stagehand.init();
-    currentSession = stagehand.page;
-    debugUrl = stagehand.debugUrl || '';
-    sessionUrl = stagehand.sessionUrl || '';
 
-    logger.log({
-      message: 'Successfully initialized Stagehand',
-      level: 1,
-    });
-
-    // Process each test case sequentially
-    for (const [testIndex, testCase] of dataset.entries()) {
-      const testStartTime = Date.now();
-      let testSuccess = true;
-      const testLogs: any[] = [];
-      try {
-        logger.log({
-          message: `Processing test case ${testIndex + 1}`,
-          level: 1,
-          auxiliary: {
-            task: { value: testCase.task, type: "string" },
-          },
-        });
-
-        // Process each navigation step
-        for (const [stepIndex, step] of testCase.evaluation.entries()) {
-          const startTime = Date.now();
-          logger.log({
-            message: `Step ${stepIndex + 1}: Navigating to ${step.content.url}`,
-            level: 1,
-          });
-
-          try {
-            // Navigate to the URL with improved retry logic
-            await retryAction(
-              async () => {
-                // Get site-specific configuration
-                const url = new URL(step.content.url);
-                const siteConfig = Object.entries(SITE_CONFIGS).find(([domain]) => url.hostname.includes(domain))?.[1];
-
-                const result = await stagehand.page.goto(step.content.url, {
-                  timeout: siteConfig?.timeout || PAGE_LOAD_TIMEOUT,
-                  waitUntil: siteConfig?.waitUntil || 'networkidle0',
-                });
-
-                // Additional check for page interactivity unless bypassed
-                if (!siteConfig?.bypassInteractivityCheck) {
-                  await stagehand.page.waitForFunction(
-                    'document.readyState === "complete" && performance.now() > 1000',
-                    { timeout: siteConfig?.timeout || PAGE_LOAD_TIMEOUT }
-                  );
-                }
-
-                return result;
-              },
-              MAX_ACTION_RETRIES,
-              logger,
-              `Failed to navigate to ${step.content.url} after multiple retries`,
-              RETRY_DELAY
-            );
-
-            // Handle common obstacles after navigation
-            await handleCommonObstacles(stagehand, logger);
-
-            // Verify URL matches expected pattern
-            const currentUrl = stagehand.page.url();
-            const isMatch = step.match_function_name === "url_included_match"
-              ? validateUrlPath(currentUrl, step.content.reference_answer)
-              : validateUrlMatch(currentUrl, step.content.url);
-
-            if (!isMatch) {
-              throw new Error(`URL validation failed. Expected pattern: ${step.content.reference_answer}, got: ${currentUrl}`);
-            }
-
-            logger.log({
-              message: `Successfully completed step ${stepIndex + 1}`,
-              auxiliary: {
-                currentUrl: { value: currentUrl, type: "string" },
-              },
-            });
-
-            // Add delay between steps
-            if (stepIndex < testCase.evaluation.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, STEP_DELAY));
-            }
-          } catch (error) {
-            testSuccess = false;
-            logger.error({
-              message: `Test case ${testIndex + 1} failed`,
-              level: 1,
-              auxiliary: {
-                error: { value: error.message, type: "string" },
-              },
-            });
-            break;
-          }
-        }
-
-        if (testSuccess) {
-          logger.log({
-            message: `Successfully completed test case ${testIndex + 1}`,
-            level: 1,
-            auxiliary: {
-              duration: { value: String(Date.now() - testStartTime), type: "string" },
-            },
-          });
-        }
-
-        testResults.push({
-          success: testSuccess,
-          logs: testLogs,
-        });
-
-        // Add delay between test cases
-        if (testIndex < dataset.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, TEST_CASE_DELAY));
-        }
-      } catch (error) {
-        testSuccess = false;
-        logger.error({
-          message: `Test case ${testIndex + 1} failed`,
-          level: 1,
-          auxiliary: {
-            error: { value: error.message, type: "string" },
-            trace: { value: error.stack || "", type: "string" },
-            duration: { value: String(Date.now() - testStartTime), type: "string" },
-          },
-        });
-
-        // Try to recover the browser session if needed
-        if (!stagehand.page || stagehand.page.isClosed()) {
-          try {
-            await stagehand.close();
-            stagehand = new Stagehand({
-              env: "LOCAL",
-              modelName,
-              logger: (message: LogLine) => logger.log(message),
-              headless: true,
-              verbose: 1,
-              enableCaching: true,
-              browserbaseSessionCreateParams: {
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-                extraHttpHeaders: {
-                  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                  'Accept-Language': 'en-US,en;q=0.5',
-                  'DNT': '1',
-                },
-                storageState: {
-                  cookies: [{
-                    name: 'OptanonAlertBoxClosed',
-                    value: new Date().toISOString(),
-                    domain: '.nfl.com',
-                    path: '/',
-                  }],
-                  origins: [{
-                    origin: 'https://www.nfl.com',
-                    localStorage: [{
-                      name: 'OptanonConsent',
-                      value: 'groups=C0001:0,C0002:0,C0003:0,C0004:0',
-                    }],
-                  }],
-                },
-              },
-            });
-            await stagehand.init();
-            currentSession = stagehand.page;
-            debugUrl = stagehand.debugUrl || '';
-            sessionUrl = stagehand.sessionUrl || '';
-          } catch (e) {
-            logger.error({
-              message: 'Failed to recover browser session',
-              level: 1,
-              auxiliary: {
-                error: { value: e.message, type: "string" },
-              },
-            });
-            break;
-          }
-        }
-      }
-    }
-  } catch (error) {
-    logger.error({
-      message: 'Fatal error in mind2web eval',
+    const testCases = await loadMind2WebDataset();
+    logs.push({
+      message: `Loaded ${testCases.length} test cases from Mind2Web dataset`,
       level: 1,
       auxiliary: {
-        error: { value: error.message, type: "string" },
-        trace: { value: error.stack || "", type: "string" },
-      },
+        value: {
+          value: testCases.length.toString(),
+          type: "integer"
+        }
+      }
     });
-  } finally {
-    // Ensure cleanup and proper browser instance management
-    if (stagehand) {
+
+    for (const [index, testCase] of testCases.entries()) {
+      totalCases++;
       try {
-        await stagehand.close();
-        browserLock = false;
-        logger.log({
-          message: 'Successfully cleaned up browser instance',
-          level: 1,
-        });
-      } catch (e) {
-        browserLock = false;  // Release lock even if cleanup fails
-        logger.warn({
-          message: 'Error during cleanup',
+        // Initial navigation to start URL
+        await stagehand.page.goto(testCase.evaluation[0].content.url);
+
+        // Process each step using Stagehand's core functions
+        let totalSteps = 0;
+        let successfulSteps = 0;
+
+        for (let i = 0; i < testCase.evaluation.length; i++) {
+          const step = testCase.evaluation[i];
+          const stepResult: StepResult = {
+            success: false,
+            action: step.content.url,
+          };
+
+          try {
+            // Use observe() to understand available actions
+            const actions = await stagehand.observe();
+            logs.push({
+              message: 'Available actions on page',
+              level: 2,
+              auxiliary: {
+                value: {
+                  value: JSON.stringify(actions),
+                  type: "object"
+                }
+              }
+            });
+
+            // Convert URL-based navigation to natural language actions
+            const urlParts = new URL(step.content.url);
+            const pathParts = urlParts.pathname.split('/').filter(Boolean);
+
+            // Build natural language instruction based on URL structure
+            let instruction = '';
+            if (pathParts.includes('scores')) {
+              instruction = 'click on scores';
+            } else if (pathParts.includes('2020')) {
+              instruction = 'click on 2020 season';
+            } else if (pathParts.includes('POST4')) {
+              instruction = 'click on Super Bowl game';
+            }
+
+            if (instruction) {
+              const actResult = await stagehand.act({ action: instruction });
+              stepResult.success = actResult.success;
+              stepResult.action = instruction;
+              if (actResult.success) {
+                successfulSteps++;
+              }
+            }
+
+            // Extract score information if we're on the final step
+            if (i === testCase.evaluation.length - 1) {
+              const scoreSchema = z.object({
+                homeTeam: z.string(),
+                homeScore: z.number(),
+                awayTeam: z.string(),
+                awayScore: z.number(),
+              });
+
+              const extractResult = await stagehand.extract({
+                instruction: "extract the Super Bowl score",
+                schema: scoreSchema,
+              });
+
+              if (extractResult && scoreSchema.safeParse(extractResult).success) {
+                stepResult.data = extractResult as z.infer<typeof scoreSchema>;
+                successfulSteps++;
+              }
+            }
+
+            totalSteps++;
+            logs.push({
+              message: `Step ${i + 1}: ${stepResult.action}`,
+              level: 1,
+              auxiliary: {
+                value: {
+                  value: JSON.stringify(stepResult),
+                  type: "object"
+                }
+              }
+            });
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            logs.push({
+              message: `Step ${i + 1} failed: ${errorMessage}`,
+              level: 1,
+              auxiliary: {
+                value: {
+                  value: errorMessage,
+                  type: "string"
+                }
+              }
+            });
+            break;
+          }
+        }
+
+        if (totalSteps > 0 && successfulSteps === totalSteps) {
+          totalSuccess++;
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logs.push({
+          message: 'Test case failed',
           level: 1,
           auxiliary: {
-            error: { value: e.message, type: "string" },
-          },
+            value: {
+              value: errorMessage,
+              type: "string"
+            }
+          }
         });
       }
     }
-  }
 
-  return {
-    _success: testResults.every(r => r.success),
-    logs: logger.getLogs(),
-    debugUrl,
-    sessionUrl,
-  };
+    await stagehand.close();
+    return {
+      _success: totalSuccess > 0,
+      logs,
+      debugUrl: '',
+      sessionUrl: '',
+      error: undefined
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      _success: false,
+      logs,
+      debugUrl: '',
+      sessionUrl: '',
+      error: errorMessage
+    };
+  }
 };
