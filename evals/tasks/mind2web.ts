@@ -71,7 +71,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
         timeout: 60, // 60 seconds timeout
         browserSettings: {
           fingerprint: {
-            httpVersion: 1 as const, // Use HTTP/1.1 for better compatibility
+            httpVersion: "1" as unknown as 1, // Satisfy both TypeScript and runtime requirements
           },
           viewport: {
             width: 1280,
