@@ -34,22 +34,22 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
   let sessionUrl = "";
   let stagehand: Stagehand | undefined;
 
-  // Load test cases from the Mind2Web dataset
-  const testCases = await loadMind2WebDataset();
-
-  // Initialize scores for each category
-  const scores = {
-    act: 0,
-    extract: 0,
-    observe: 0,
-    total: testCases.length * testCases[0].evaluation.length,
-  };
-
   try {
-    // Initialize browser settings with runtime compatibility
-    const runtimeSettings = ensureRuntimeCompatibleSettings({
+    // Load test cases from the Mind2Web dataset
+    const testCases = await loadMind2WebDataset();
+
+    // Initialize scores for each category
+    const scores = {
+      act: 0,
+      extract: 0,
+      observe: 0,
+      total: testCases.length * testCases[0].evaluation.length,
+    };
+
+    // Initialize runtime browser settings
+    const runtimeSettings: RuntimeBrowserSettings = {
       fingerprint: {
-        httpVersion: 1,
+        httpVersion: "1",
       },
       viewport: {
         width: 1280,
@@ -57,18 +57,16 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       },
       logSession: true,
       recordSession: true,
-    });
+    };
 
-    // Convert runtime settings back to SDK type for constructor using safe type assertions
+    // Convert to SDK browser settings type
     const browserSettings = {
       ...runtimeSettings,
-      fingerprint: runtimeSettings.fingerprint
-        ? {
-            ...runtimeSettings.fingerprint,
-            httpVersion: Number(runtimeSettings.fingerprint.httpVersion),
-          }
-        : undefined,
-    } as Browserbase.SessionCreateParams["browserSettings"];
+      fingerprint: {
+        ...runtimeSettings.fingerprint,
+        httpVersion: 1,
+      },
+    } satisfies Browserbase.SessionCreateParams["browserSettings"];
 
     stagehand = new Stagehand({
       env: "BROWSERBASE",
@@ -195,8 +193,16 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       error: error instanceof Error ? error.message : String(error),
     };
   } finally {
-    if (stagehand) {
-      await stagehand.close();
+    try {
+      if (stagehand?.close) {
+        await stagehand.close();
+      }
+    } catch (closeError) {
+      logs.push({
+        category: "eval",
+        message: `Error closing stagehand: ${closeError instanceof Error ? closeError.message : String(closeError)}`,
+        level: 2,
+      });
     }
   }
 };
