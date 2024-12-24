@@ -155,7 +155,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         scores.extract.total++;
         try {
           // Create dynamic schema based on test case
-          const schemaFields: Record<string, z.ZodType<any>> = {};
+          const schemaFields: Record<string, z.ZodString> = {};
           testCase.evaluation.forEach((step, index) => {
             if (step.content.reference_answer) {
               schemaFields[`field_${index}`] = z.string();
