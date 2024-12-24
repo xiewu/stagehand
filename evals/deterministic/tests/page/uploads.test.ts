@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { test, expect } from "@playwright/test";
-import { Stagehand } from "../../../lib";
-import StagehandConfig from "../stagehand.config";
+import { Stagehand } from "../../../../lib";
+import StagehandConfig from "../../stagehand.config";
 
 test.describe("Playwright Upload", () => {
   let stagehand: Stagehand;
