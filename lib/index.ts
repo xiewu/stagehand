@@ -149,7 +149,9 @@ async function getBrowser(
       const session = await browserbase.sessions.create({
         projectId,
         ...browserbaseSessionCreateParams,
-        browserSettings: browserbaseSessionCreateParams?.browserSettings ? convertToSDKSettings(browserbaseSessionCreateParams.browserSettings) : undefined,
+        browserSettings: browserbaseSessionCreateParams?.browserSettings
+          ? convertToSDKSettings(browserbaseSessionCreateParams.browserSettings)
+          : undefined,
       });
 
       sessionId = session.id;
