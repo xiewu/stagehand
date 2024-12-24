@@ -7,13 +7,14 @@ export const extract_staff_members: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const stagehand = await initStagehand({
     modelName,
     logger,
     domSettleTimeoutMs: 3000,
   });
 
-  const { debugUrl, sessionUrl } = initResponse;
+  const debugUrl = stagehand.debugUrl;
+  const sessionUrl = stagehand.sessionUrl;
 
   await stagehand.page.goto("https://panamcs.org/about/staff/");
 
@@ -74,7 +75,7 @@ export const extract_staff_members: EvalFunction = async ({
 
   // Check for the presence of the expected items
   const firstItemExists = staff_members.some(
-    (member) =>
+    (member: { name: string; job_title: string }) =>
       member.name === expectedFirstItem.name &&
       member.job_title === expectedFirstItem.job_title,
   );
@@ -107,7 +108,7 @@ export const extract_staff_members: EvalFunction = async ({
   }
 
   const lastItemExists = staff_members.some(
-    (member) =>
+    (member: { name: string; job_title: string }) =>
       member.name === expectedLastItem.name &&
       member.job_title === expectedLastItem.job_title,
   );

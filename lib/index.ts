@@ -291,6 +291,8 @@ export class Stagehand {
   public page: Page | undefined;
   public context!: BrowserContext;
   public browserbaseSessionID?: string;
+  public debugUrl?: string;
+  public sessionUrl?: string;
   private contextPath?: string;
 
   private env: "LOCAL" | "BROWSERBASE";
@@ -383,6 +385,8 @@ export class Stagehand {
     this.contextPath = contextPath;
     this.context = context;
     this.page = context.pages()[0];
+    this.debugUrl = debugUrl;
+    this.sessionUrl = sessionUrl;
     // Redundant but needed for users who are re-connecting to a previously-created session
     await this.page.waitForLoadState("domcontentloaded");
     await this._waitForSettledDom();
