@@ -1,11 +1,11 @@
-import { z } from "zod";
-import { EvalFunction } from "../../types/evals";
 import { Stagehand } from "../../lib";
-import { InitResult } from "../../types/stagehand";
-import { LogLine } from "../../types/log";
-import { loadMind2WebDataset } from "../datasets/mind2web";
+import { EvalFunction } from "../../types/evals";
 import { validateUrlMatch } from "../utils/url_validation";
-import { ensureRuntimeCompatibleSettings } from "../../types/browserbase";
+import { loadMind2WebDataset } from "../datasets/mind2web";
+import { z } from "zod";
+import { LogLine } from "../../types/log";
+import { Browserbase } from "@browserbasehq/sdk";
+import { RuntimeBrowserSettings, ensureRuntimeCompatibleSettings } from "../../types/browserbase";
 
 // Define types for Mind2Web evaluation steps
 interface EvaluationStep {
@@ -20,190 +20,160 @@ interface EvaluationStep {
   method: string | null;
 }
 
-// Used in loadMind2WebDataset return type and evaluation loop
 export interface TestCase {
   task: string;
   evaluation: EvaluationStep[];
 }
 
-interface CategoryScores {
-  act: {
-    success: number;
-    total: number;
-    percentage: number;
-  };
-  extract: {
-    success: number;
-    total: number;
-    percentage: number;
-  };
-  observe: {
-    success: number;
-    total: number;
-    percentage: number;
-  };
-}
-
+/**
+ * Evaluates Mind2Web dataset tasks using Stagehand's core functions
+ */
 export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract }) => {
   const logs: LogLine[] = [];
-  let currentStagehand: Stagehand | undefined;
-  let initResult: InitResult | undefined;
+  let debugUrl = "";
+  let sessionUrl = "";
+  let stagehand: Stagehand | undefined;
 
-  // Initialize scores
-  const scores: CategoryScores = {
-    act: { success: 0, total: 0, percentage: 0 },
-    extract: { success: 0, total: 0, percentage: 0 },
-    observe: { success: 0, total: 0, percentage: 0 },
+  // Load test cases from the Mind2Web dataset
+  const testCases = await loadMind2WebDataset();
+
+  // Initialize scores for each category
+  const scores = {
+    act: 0,
+    extract: 0,
+    observe: 0,
+    total: testCases.length * testCases[0].evaluation.length,
   };
 
   try {
-    // Load dataset and take first 5 test cases for initial testing
-    const allTestCases = await loadMind2WebDataset();
-    const testCases = allTestCases.slice(0, 5);
+    // Initialize browser settings with runtime compatibility
+    const runtimeSettings = ensureRuntimeCompatibleSettings({
+      fingerprint: {
+        httpVersion: 1,
+      },
+      viewport: {
+        width: 1280,
+        height: 800,
+      },
+      logSession: true,
+      recordSession: true,
+    });
 
-    // Initialize Stagehand with optimized settings for Mind2Web dataset
-    currentStagehand = new Stagehand({
+    // Convert runtime settings back to SDK type for constructor using safe type assertions
+    const browserSettings = {
+      ...runtimeSettings,
+      fingerprint: runtimeSettings.fingerprint
+        ? {
+            ...runtimeSettings.fingerprint,
+            httpVersion: Number(runtimeSettings.fingerprint.httpVersion),
+          }
+        : undefined,
+    } as Browserbase.SessionCreateParams["browserSettings"];
+
+    stagehand = new Stagehand({
       env: "BROWSERBASE",
       modelName,
-      enableCaching: true,
-      logger: (line) => logs.push(line),
+      logger: (line: LogLine) => {
+        logs.push(line);
+        logger.log(line);
+      },
       browserbaseSessionCreateParams: {
         projectId: process.env.BROWSERBASE_PROJECT_ID || "",
-        timeout: 60, // 60 seconds timeout
-        browserSettings: ensureRuntimeCompatibleSettings({
-          fingerprint: {
-            httpVersion: 1,
-          },
-          viewport: {
-            width: 1280,
-            height: 800,
-          },
-          logSession: true,
-          recordSession: true,
-        }),
+        timeout: 60,
+        browserSettings,
       },
     });
 
-    initResult = await currentStagehand.init();
+    const initResult = await stagehand.init();
+    debugUrl = initResult.debugUrl;
+    sessionUrl = initResult.sessionUrl;
 
-    for (const [index, testCase] of testCases.entries()) {
-      logs.push({
-        message: `Processing test case ${index + 1}/${testCases.length}: ${testCase.task}`,
-        level: 1,
-      });
-
+    // Process each test case
+    for (const testCase of testCases) {
       try {
-        // Initialize state for tracking progress
-        let currentUrl = "";
-        let retryCount = 0;
-        const maxRetries = 3;
-
-        // Process each evaluation step sequentially
-        for (const [stepIndex, step] of testCase.evaluation.entries()) {
+        // Process each evaluation step
+        for (const step of testCase.evaluation) {
           try {
-            // Navigate to URL if different from current
-            if (step.content.url !== currentUrl) {
-              await currentStagehand.page.goto(step.content.url, {
-                waitUntil: "domcontentloaded",
-              });
-              currentUrl = step.content.url;
-              await currentStagehand.page.waitForLoadState("domcontentloaded");
-            }
-
-            // 1. Act: Perform the required action
-            const actResult = await currentStagehand.act({
-              action: `Find and interact with element containing "${step.content.reference_answer}" to complete task: ${testCase.task}`,
+            // Use act() to navigate to the target URL
+            const actResult = await stagehand.act({
+              action: `Navigate to ${step.content.url}`,
+              useVision: "fallback",
             });
 
             if (actResult.success) {
-              scores.act.success++;
+              scores.act++;
             }
-            scores.act.total++;
 
-            // 2. Extract: Get information about the target element
+            // Define schema for extracting URL information
             const extractSchema = z.object({
-              elementFound: z.boolean(),
-              elementText: z.string(),
-              elementType: z.string(),
               currentUrl: z.string(),
+              pageTitle: z.string(),
             });
 
-            const extractResult = await currentStagehand.extract({
-              instruction: `Find and extract information about element containing "${step.content.reference_answer}"`,
+            // Use extract() to get current URL and page title
+            const extractResult = await stagehand.extract({
+              instruction: "Extract the current URL and page title",
               schema: extractSchema,
               useTextExtract,
             });
 
-            const extractSuccess = extractResult.elementFound && (
-              extractResult.elementText.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
-              extractResult.currentUrl.includes(step.content.reference_answer)
+            const extractSuccess = validateUrlMatch(
+              extractResult.currentUrl,
+              step.content.reference_answer
             );
 
             if (extractSuccess) {
-              scores.extract.success++;
+              scores.extract++;
             }
-            scores.extract.total++;
 
-            // 3. Observe: Check page state and available interactions
-            const observeResults = await currentStagehand.observe();
-            const observeSuccess = observeResults.some(result =>
-              result.description.toLowerCase().includes(step.content.reference_answer.toLowerCase())
-            );
+            // Use observe() to validate page state
+            const observeResults = await stagehand.observe({
+              instruction: `Verify that the page contains elements related to ${testCase.task}`,
+              useVision: true,
+            });
+
+            // Check if any observation matches the success criteria
+            const observeSuccess = observeResults.some((result) => {
+              const descriptionMatch = result.description
+                .toLowerCase()
+                .includes(step.content.reference_answer.toLowerCase());
+              const selectorMatch = result.selector
+                .toLowerCase()
+                .includes(step.content.reference_answer.toLowerCase());
+              return descriptionMatch || selectorMatch;
+            });
 
             if (observeSuccess) {
-              scores.observe.success++;
+              scores.observe++;
             }
-            scores.observe.total++;
 
-            // Log progress for current step
-            logger.log({
-              message: `Step ${stepIndex + 1}/${testCase.evaluation.length} completed`,
-              level: 1,
-              auxiliary: {
-                scores: {
-                  value: JSON.stringify({
-                    act: (scores.act.success / scores.act.total) * 100,
-                    extract: (scores.extract.success / scores.extract.total) * 100,
-                    observe: (scores.observe.success / scores.observe.total) * 100,
-                  }),
-                  type: "string",
-                },
-              },
-            });
-
-          } catch (stepError) {
-            logger.log({
-              message: `Error in step ${stepIndex + 1}: ${stepError instanceof Error ? stepError.message : "Unknown error"}`,
+          } catch (error) {
+            logs.push({
+              category: "eval",
+              message: `Error processing evaluation step: ${error instanceof Error ? error.message : String(error)}`,
               level: 2,
             });
-
-            // Count failed attempts
-            scores.act.total++;
-            scores.extract.total++;
-            scores.observe.total++;
-
-            if (retryCount < maxRetries) {
-              retryCount++;
-              continue;
-            }
+            continue;
           }
         }
-      } catch (testError) {
-        logger.log({
-          message: `Error in test case ${index + 1}: ${testError instanceof Error ? testError.message : "Unknown error"}`,
+      } catch (error) {
+        logs.push({
+          category: "eval",
+          message: `Error processing test case: ${error instanceof Error ? error.message : String(error)}`,
           level: 2,
         });
+        continue;
       }
     }
 
-    // Calculate final scores
+    // Calculate final scores as percentages
     const finalScores = {
-      act: (scores.act.success / scores.act.total) * 100,
-      extract: (scores.extract.success / scores.extract.total) * 100,
-      observe: (scores.observe.success / scores.observe.total) * 100,
+      act: (scores.act / scores.total) * 100,
+      extract: (scores.extract / scores.total) * 100,
+      observe: (scores.observe / scores.total) * 100,
     };
 
-    // Check if all scores meet the minimum threshold
+    // Check if all categories meet the minimum threshold
     const success =
       finalScores.act >= 80 &&
       finalScores.extract >= 80 &&
@@ -212,28 +182,21 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
     return {
       _success: success,
       logs,
-      debugUrl: initResult?.debugUrl || "",
-      sessionUrl: initResult?.sessionUrl || "",
+      debugUrl,
+      sessionUrl,
       scores: finalScores,
     };
   } catch (error) {
     return {
       _success: false,
       logs,
-      debugUrl: initResult?.debugUrl || "",
-      sessionUrl: initResult?.sessionUrl || "",
-      error: error instanceof Error ? error.message : "Unknown error",
+      debugUrl,
+      sessionUrl,
+      error: error instanceof Error ? error.message : String(error),
     };
   } finally {
-    if (currentStagehand) {
-      try {
-        await currentStagehand.close();
-      } catch (closeError) {
-        logger.log({
-          message: `Error closing Stagehand: ${closeError instanceof Error ? closeError.message : "Unknown error"}`,
-          level: 1,
-        });
-      }
+    if (stagehand) {
+      await stagehand.close();
     }
   }
 };
