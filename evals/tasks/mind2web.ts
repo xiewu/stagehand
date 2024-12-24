@@ -64,17 +64,17 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       ...runtimeSettings,
       fingerprint: {
         ...runtimeSettings.fingerprint,
-        httpVersion: 1,  // Will be converted to string by ensureRuntimeCompatibleSettings
+        httpVersion: "1" as unknown as 1,  // Type assertion to satisfy both compile-time and runtime
       },
     });
 
-    // Convert back to SDK-compatible BrowserSettings type
+    // Use runtime settings directly but with proper type assertions
     const browserSettings: Browserbase.Sessions.SessionCreateParams["browserSettings"] = {
       ...runtimeCompatibleSettings,
-      fingerprint: runtimeCompatibleSettings.fingerprint ? {
+      fingerprint: runtimeCompatibleSettings.fingerprint && {
         ...runtimeCompatibleSettings.fingerprint,
-        httpVersion: runtimeCompatibleSettings.fingerprint.httpVersion === "1" ? 1 : 2,
-      } : undefined,
+        httpVersion: "1" as unknown as 1,  // Type assertion to satisfy both compile-time and runtime
+      },
     };
 
     stagehand = new Stagehand({
