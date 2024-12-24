@@ -79,7 +79,10 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         // Process each evaluation step
         for (const step of testCase.evaluation) {
           // Validate URL match
-          const urlMatches = validateUrlMatch(step.content.url, step.content.reference_answer);
+          const urlMatches = validateUrlMatch(
+            step.content.url,
+            step.content.reference_answer,
+          );
           if (!urlMatches) {
             logger.log({
               message: `URL validation failed for ${step.content.url}`,
@@ -90,7 +93,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
 
           // Navigate to URL using page API
           await currentStagehand.page.goto(step.content.url, {
-            waitUntil: 'networkidle',
+            waitUntil: "networkidle",
           });
 
           // Define schema for extraction
