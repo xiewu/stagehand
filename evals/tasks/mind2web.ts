@@ -115,47 +115,61 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             await currentStagehand.page.waitForLoadState("domcontentloaded");
           }
 
-          // Create step-specific schema
+          // Create step-specific schema based on Mind2Web task structure
           const schema = z.object({
             currentUrl: z.string().describe("Current URL of the page"),
-            targetElement: z.string().describe("Element that matches the reference answer"),
+            elementDetails: z.object({
+              found: z.boolean().describe("Whether the target element was found"),
+              text: z.string().describe("Text content of the found element"),
+              type: z.string().describe("Type of element (link, button, input, etc.)"),
+            }).describe("Details about the target element"),
             nextAction: z.string().describe("Next action needed to complete the task"),
           });
 
           // Build context from previous steps
           const stepContext = currentState.progress.join(" -> ");
 
-          // Perform action with specific instruction
+          // Perform action with specific instruction and context
           const actResult = await currentStagehand.act({
-            action: `For task "${testCase.task}", find element containing "${step.content.reference_answer}". Previous steps: ${stepContext}`,
+            action: `For task "${testCase.task}":
+1. Find element containing "${step.content.reference_answer}"
+2. Previous steps completed: ${stepContext}
+3. Current URL: ${step.content.url}
+4. Target pattern: ${step.content.reference_answer}`
           });
 
           if (actResult.success) {
             scores.act.success++;
-            currentState.progress.push(`Found ${step.content.reference_answer}`);
+            currentState.progress.push(`Found and interacted with ${step.content.reference_answer}`);
           }
           scores.act.total++;
 
-          // Extract information with context
+          // Extract information with context from previous steps
           const extractResult = await currentStagehand.extract({
-            instruction: `Extract information about finding "${step.content.reference_answer}" for task: ${testCase.task}. Previous steps: ${stepContext}`,
+            instruction: `For task "${testCase.task}":
+1. Extract information about element containing "${step.content.reference_answer}"
+2. Previous steps completed: ${stepContext}
+3. Last action result: ${actResult.success ? "successful" : "failed"}
+4. Target pattern: ${step.content.reference_answer}`,
             schema,
           });
 
-          // Validate extraction against reference
+          // Validate extraction against reference and element properties
           const extractSuccess =
-            extractResult.currentUrl.includes(step.content.reference_answer) ||
-            extractResult.targetElement.includes(step.content.reference_answer);
+            extractResult.elementDetails.found &&
+            (extractResult.elementDetails.text.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
+             extractResult.currentUrl.includes(step.content.reference_answer));
 
           if (extractSuccess) {
             scores.extract.success++;
           }
           scores.extract.total++;
 
-          // Observe page state
+          // Observe page state with context from previous steps
           const observeResults = await currentStagehand.observe();
           const observeSuccess = observeResults.some(result =>
-            result.description.toLowerCase().includes(step.content.reference_answer.toLowerCase())
+            result.description.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
+            (result.selector && result.selector.toLowerCase().includes(step.content.reference_answer.toLowerCase()))
           );
 
           if (observeSuccess) {
