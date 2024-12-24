@@ -45,10 +45,10 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       total: testCases.length * testCases[0].evaluation.length,
     };
 
-    // Create browser settings object
-    const browserSettings = {
+    // Initialize browser settings with correct type for httpVersion
+    const browserSettings: Browserbase.SessionCreateParams["browserSettings"] = {
       fingerprint: {
-        httpVersion: 1,
+        httpVersion: 1 as const,
       },
       viewport: {
         width: 1280,
@@ -57,11 +57,6 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       logSession: true,
       recordSession: true,
     };
-
-    // Convert httpVersion to string at runtime
-    if (browserSettings.fingerprint) {
-      (browserSettings.fingerprint as any).httpVersion = String(browserSettings.fingerprint.httpVersion);
-    }
 
     stagehand = new Stagehand({
       env: "BROWSERBASE",
@@ -73,7 +68,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       browserbaseSessionCreateParams: {
         projectId: process.env.BROWSERBASE_PROJECT_ID || "",
         timeout: 60,
-        browserSettings: browserSettings as Browserbase.SessionCreateParams["browserSettings"],
+        browserSettings,
       },
     });
 
