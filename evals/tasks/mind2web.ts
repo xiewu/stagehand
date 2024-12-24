@@ -58,8 +58,11 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           await Promise.race([
             stagehand.close(),
             new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Browser close timeout')), 10000)
-            )
+              setTimeout(
+                () => reject(new Error("Browser close timeout")),
+                10000,
+              ),
+            ),
           ]);
           stagehand = null;
         } catch (error) {
@@ -90,7 +93,8 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         await stagehand.init();
 
         // Add delay between browser operations
-        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+        const delay = (ms: number) =>
+          new Promise((resolve) => setTimeout(resolve, ms));
         await delay(1000); // 1 second delay for browser setup
 
         // Set navigation timeout
@@ -153,12 +157,12 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             action: testCase.task,
           });
 
-          const actResult = await Promise.race([
+          const actResult = (await Promise.race([
             actPromise,
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Act timeout')), 45000)
-            )
-          ]) as { success: boolean };
+              setTimeout(() => reject(new Error("Act timeout")), 45000),
+            ),
+          ])) as { success: boolean };
 
           if (actResult.success) {
             scores.act.success++;
@@ -216,12 +220,12 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             schema: dynamicSchema,
           });
 
-          const extractResult = await Promise.race([
+          const extractResult = (await Promise.race([
             extractPromise,
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Extract timeout')), 45000)
-            )
-          ]) as z.infer<typeof dynamicSchema>;
+              setTimeout(() => reject(new Error("Extract timeout")), 45000),
+            ),
+          ])) as z.infer<typeof dynamicSchema>;
 
           if (extractResult && dynamicSchema.safeParse(extractResult).success) {
             scores.extract.success++;
