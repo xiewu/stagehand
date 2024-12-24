@@ -128,9 +128,12 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         let navigationSuccess = false;
         for (let attempt = 0; attempt < 3 && !navigationSuccess; attempt++) {
           try {
-            await currentStagehand.page.goto(testCase.evaluation[0].content.url, {
-              waitUntil: "networkidle",
-            });
+            await currentStagehand.page.goto(
+              testCase.evaluation[0].content.url,
+              {
+                waitUntil: "networkidle",
+              },
+            );
             navigationSuccess = true;
           } catch (error) {
             if (attempt === 2) throw error;
@@ -346,8 +349,10 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
 
     // Calculate final percentages
     scores.act.percentage = (scores.act.success / scores.act.total) * 100;
-    scores.extract.percentage = (scores.extract.success / scores.extract.total) * 100;
-    scores.observe.percentage = (scores.observe.success / scores.observe.total) * 100;
+    scores.extract.percentage =
+      (scores.extract.success / scores.extract.total) * 100;
+    scores.observe.percentage =
+      (scores.observe.success / scores.observe.total) * 100;
 
     // Final success is determined by meeting all category thresholds
     const success =
@@ -393,7 +398,8 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
       currentInitResult = undefined;
     }
 
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     return {
       _success: false,
       logs,
