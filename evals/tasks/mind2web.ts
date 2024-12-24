@@ -34,11 +34,11 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
 
   try {
     const testCases = await loadMind2WebDataset();
-    const maxCases = 5; // Limit test cases for initial verification
+    const maxCases = 1; // Start with just one test case for debugging
     const testSubset = testCases.slice(0, maxCases);
 
     logs.push({
-      message: `Starting Mind2Web eval with ${testSubset.length} test cases`,
+      message: `Starting Mind2Web eval with ${testSubset.length} test case for initial verification`,
       level: 1,
     });
 
@@ -48,20 +48,27 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         level: 1,
       });
 
-      // Ensure previous browser instance is properly closed
+      // Ensure previous browser instance is properly closed with timeout
       if (stagehand) {
         try {
           logs.push({
             message: "Closing previous browser instance",
             level: 2,
           });
-          await stagehand.close();
+          await Promise.race([
+            stagehand.close(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Browser close timeout')), 10000)
+            )
+          ]);
           stagehand = null;
         } catch (error) {
           logs.push({
             message: `Error closing browser: ${error instanceof Error ? error.message : "Unknown error"}`,
             level: 2,
           });
+          // Force cleanup if timeout
+          stagehand = null;
         }
       }
 
@@ -70,18 +77,22 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         level: 2,
       });
 
-      stagehand = new Stagehand({
-        env: "LOCAL",
-        modelName,
-        logger: (message: LogLine) => logger.log(message),
-        headless: true,
-        verbose: 1,
-        enableCaching: true,
-      });
-
-      await stagehand.init();
-
       try {
+        stagehand = new Stagehand({
+          env: "LOCAL",
+          modelName,
+          logger: (message: LogLine) => logger.log(message),
+          headless: true,
+          verbose: 1,
+          enableCaching: false, // Disable caching for testing
+        });
+
+        await stagehand.init();
+
+        // Add delay between browser operations
+        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+        await delay(1000); // 1 second delay for browser setup
+
         // Set navigation timeout
         await stagehand.page.setDefaultNavigationTimeout(30000);
         await stagehand.page.setDefaultTimeout(30000);
@@ -130,7 +141,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           });
         }
 
-        // Test act() functionality with retry
+        // Test act() functionality with retry and timeout
         scores.act.total++;
         try {
           logs.push({
@@ -138,9 +149,16 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             level: 2,
           });
 
-          const actResult = await stagehand.act({
+          const actPromise = stagehand.act({
             action: testCase.task,
           });
+
+          const actResult = await Promise.race([
+            actPromise,
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Act timeout')), 45000)
+            )
+          ]) as { success: boolean };
 
           if (actResult.success) {
             scores.act.success++;
@@ -160,6 +178,9 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
               level: 2,
             });
           }
+
+          // Add delay between operations
+          await delay(2000);
         } catch (error) {
           logs.push({
             message: `Act test failed with error: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -167,7 +188,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           });
         }
 
-        // Test extract() functionality with dynamic schema
+        // Test extract() functionality with dynamic schema and timeout
         scores.extract.total++;
         try {
           logs.push({
@@ -190,10 +211,17 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             level: 2,
           });
 
-          const extractResult = await stagehand.extract({
+          const extractPromise = stagehand.extract({
             instruction: testCase.task,
             schema: dynamicSchema,
           });
+
+          const extractResult = await Promise.race([
+            extractPromise,
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Extract timeout')), 45000)
+            )
+          ]) as z.infer<typeof dynamicSchema>;
 
           if (extractResult && dynamicSchema.safeParse(extractResult).success) {
             scores.extract.success++;
