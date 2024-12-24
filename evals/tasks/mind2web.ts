@@ -18,6 +18,7 @@ interface EvaluationStep {
   method: string | null;
 }
 
+// Used in loadMind2WebDataset return type and evaluation loop
 interface TestCase {
   task: string;
   evaluation: EvaluationStep[];
@@ -43,8 +44,8 @@ interface CategoryScores {
 
 export const mind2web: EvalFunction = async ({ modelName, logger }) => {
   const logs: LogLine[] = [];
-  let stagehand: Stagehand | undefined;
-  let initResult: InitResult | undefined;
+  let currentStagehand: Stagehand | undefined;
+  let currentInitResult: InitResult | undefined;
 
   const scores: CategoryScores = {
     act: { success: 0, total: 0, percentage: 0 },
@@ -69,14 +70,14 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
       });
 
       // Ensure previous browser instance is properly closed with timeout
-      if (stagehand) {
+      if (currentStagehand) {
         try {
           logs.push({
             message: "Closing previous browser instance",
             level: 2,
           });
           await Promise.race([
-            stagehand.close(),
+            currentStagehand.close(),
             new Promise((_, reject) =>
               setTimeout(
                 () => reject(new Error("Browser close timeout")),
@@ -84,14 +85,16 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
               ),
             ),
           ]);
-          stagehand = null;
+          currentStagehand = undefined;
+          currentInitResult = undefined;
         } catch (error) {
           logs.push({
             message: `Error closing browser: ${error instanceof Error ? error.message : "Unknown error"}`,
             level: 2,
           });
           // Force cleanup if timeout
-          stagehand = null;
+          currentStagehand = undefined;
+          currentInitResult = undefined;
         }
       }
 
@@ -101,10 +104,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
       });
 
       try {
-        let stagehand: Stagehand | undefined;
-        let initResult: InitResult | undefined;
-
-        stagehand = new Stagehand({
+        currentStagehand = new Stagehand({
           env: "LOCAL",
           modelName,
           logger: (message: LogLine) => logger.log(message),
@@ -113,7 +113,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           enableCaching: true, // Re-enable caching to reduce LLM calls
         });
 
-        initResult = await stagehand.init();
+        currentInitResult = await currentStagehand.init();
 
         // Add delay between browser operations
         const delay = (ms: number) =>
@@ -121,14 +121,14 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         await delay(1000); // 1 second delay for browser setup
 
         // Set navigation timeout
-        await stagehand.page.setDefaultNavigationTimeout(30000);
-        await stagehand.page.setDefaultTimeout(30000);
+        await currentStagehand.page.setDefaultNavigationTimeout(30000);
+        await currentStagehand.page.setDefaultTimeout(30000);
 
         // Initial navigation with retry logic
         let navigationSuccess = false;
         for (let attempt = 0; attempt < 3 && !navigationSuccess; attempt++) {
           try {
-            await stagehand.page.goto(testCase.evaluation[0].content.url, {
+            await currentStagehand.page.goto(testCase.evaluation[0].content.url, {
               waitUntil: "networkidle",
             });
             navigationSuccess = true;
@@ -141,7 +141,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
         // Test observe() functionality
         scores.observe.total++;
         try {
-          const actions = await stagehand.observe();
+          const actions = await currentStagehand.observe();
           if (actions && actions.length > 0) {
             scores.observe.success++;
             logs.push({
@@ -176,7 +176,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             level: 2,
           });
 
-          const actPromise = stagehand.act({
+          const actPromise = currentStagehand.act({
             action: testCase.task,
           });
 
@@ -237,7 +237,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             message: `Attempting extract() with task: ${testCase.task}`,
             level: 2,
           });
-          const extractPromise = stagehand.extract({
+          const extractPromise = currentStagehand.extract({
             instruction: testCase.task,
             schema: dynamicSchema,
           });
@@ -315,14 +315,14 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           _success: false,
           logs,
           error: errorMessage,
-          debugUrl: initResult?.debugUrl,
-          sessionUrl: initResult?.sessionUrl,
+          debugUrl: currentInitResult?.debugUrl,
+          sessionUrl: currentInitResult?.sessionUrl,
         };
       } finally {
         // Ensure browser cleanup in all cases
-        if (stagehand) {
+        if (currentStagehand) {
           try {
-            await stagehand.close();
+            await currentStagehand.close();
           } catch (error) {
             logs.push({
               message: "Error during browser cleanup",
@@ -338,9 +338,16 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
               },
             });
           }
+          currentStagehand = undefined;
+          currentInitResult = undefined;
         }
       }
     }
+
+    // Calculate final percentages
+    scores.act.percentage = (scores.act.success / scores.act.total) * 100;
+    scores.extract.percentage = (scores.extract.success / scores.extract.total) * 100;
+    scores.observe.percentage = (scores.observe.success / scores.observe.total) * 100;
 
     // Final success is determined by meeting all category thresholds
     const success =
@@ -348,27 +355,51 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
       scores.extract.percentage >= 80 &&
       scores.observe.percentage >= 80;
 
+    logs.push({
+      message: "Mind2Web eval completed",
+      level: 1,
+      auxiliary: {
+        value: {
+          value: JSON.stringify({
+            act: scores.act.percentage,
+            extract: scores.extract.percentage,
+            observe: scores.observe.percentage,
+            success,
+          }),
+          type: "object",
+        },
+      },
+    });
+
     return {
       _success: success,
       logs,
-      debugUrl: "",
-      sessionUrl: "",
       error: undefined,
+      debugUrl: currentInitResult?.debugUrl,
+      sessionUrl: currentInitResult?.sessionUrl,
     };
   } catch (error) {
     // Clean up browser instance on error
-    if (stagehand) {
-      await stagehand.close();
+    if (currentStagehand) {
+      try {
+        await currentStagehand.close();
+      } catch (cleanupError) {
+        logs.push({
+          message: `Error during final cleanup: ${cleanupError instanceof Error ? cleanupError.message : "Unknown error"}`,
+          level: 2,
+        });
+      }
+      currentStagehand = undefined;
+      currentInitResult = undefined;
     }
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return {
       _success: false,
       logs,
-      debugUrl: "",
-      sessionUrl: "",
       error: errorMessage,
+      debugUrl: currentInitResult?.debugUrl,
+      sessionUrl: currentInitResult?.sessionUrl,
     };
   }
 };
