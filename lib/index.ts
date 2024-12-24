@@ -30,10 +30,11 @@ import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString } from "./utils";
 import { convertToSDKSettings, RuntimeBrowserSettings } from "../types/browserbase";
+import { AvailableModelSchema } from "../types/model";
 
 dotenv.config({ path: ".env" });
 
-const DEFAULT_MODEL_NAME = "gpt-4o";
+const DEFAULT_MODEL_NAME = "gpt-4o" as const;
 const BROWSERBASE_REGION_DOMAIN = {
   "us-west-2": "wss://connect.usw2.browserbase.com",
   "us-east-1": "wss://connect.use1.browserbase.com",
@@ -339,7 +340,7 @@ export class Stagehand {
     browserbaseResumeSessionID?: string;
     domSettleTimeoutMs?: number;
     enableCaching?: boolean;
-    modelName?: string;
+    modelName?: z.infer<typeof AvailableModelSchema>;
     modelClientOptions?: any;
   } = {}) {
     this.externalLogger = logger;
@@ -350,7 +351,7 @@ export class Stagehand {
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.verbose = verbose ?? 0;
     this.debugDom = debugDom ?? false;
-    this.llmClient = this.llmProvider.getClient(modelName ?? DEFAULT_MODEL_NAME, modelClientOptions);
+    this.llmClient = this.llmProvider.getClient(modelName, modelClientOptions);
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
@@ -366,23 +367,19 @@ export class Stagehand {
         "Passing parameters to init() is deprecated and will be removed in the next major version. Use constructor options instead.",
       );
     }
-    const { context, debugUrl, sessionUrl, contextPath, sessionId } =
-      await getBrowser(
-        this.env,
-        this.apiKey,
-        this.logger,
-        this.browserbaseSessionCreateParams,
-        this.browserbaseResumeSessionID,
-      ).catch((e) => {
-        console.error("Error in init:", e);
-        const br: BrowserResult = {
-          context: undefined,
-          debugUrl: undefined,
-          sessionUrl: undefined,
-          sessionId: undefined,
-        };
-        return br;
-      });
+    const { context, debugUrl, sessionUrl, contextPath, sessionId } = await getBrowser(
+      this.env,
+      this.apiKey,
+      this.logger,
+      this.browserbaseSessionCreateParams,
+      this.browserbaseResumeSessionID,
+      this.headless,
+    );
+
+    if (!context) {
+      throw new Error("Failed to initialize browser context.");
+    }
+
     this.contextPath = contextPath;
     this.context = context;
     this.page = context.pages()[0];
