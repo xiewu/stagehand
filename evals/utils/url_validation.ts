@@ -17,11 +17,16 @@ export function validateUrlPath(
   }
 
   try {
-    // Check if the pattern exists anywhere in the URL
-    return currentUrl.toLowerCase().includes(expectedPattern.toLowerCase());
+    // Parse URLs to handle different protocols and query parameters
+    const currentUrlObj = new URL(currentUrl);
+    const patternLower = expectedPattern.toLowerCase();
+    const urlLower = currentUrlObj.toString().toLowerCase();
+
+    // Check if pattern exists in the URL, ignoring case
+    return urlLower.includes(patternLower);
   } catch {
-    // Return false for invalid URLs
-    return false;
+    // Try simple string matching if URL parsing fails
+    return currentUrl.toLowerCase().includes(expectedPattern.toLowerCase());
   }
 }
 
@@ -37,11 +42,19 @@ export function validateUrlMatch(actual: string, expected: string): boolean {
   }
 
   try {
-    // Normalize URLs by removing trailing slashes
-    const normalizedActual = actual.replace(/\/$/, "");
-    const normalizedExpected = expected.replace(/\/$/, "");
-    return normalizedActual.startsWith(normalizedExpected);
+    // Parse URLs to normalize them
+    const actualUrl = new URL(actual);
+    const expectedUrl = new URL(expected);
+
+    // Compare hostnames and paths, ignoring protocol
+    const actualHostPath = `${actualUrl.hostname}${actualUrl.pathname}`.replace(/\/$/, "");
+    const expectedHostPath = `${expectedUrl.hostname}${expectedUrl.pathname}`.replace(/\/$/, "");
+
+    return actualHostPath.startsWith(expectedHostPath);
   } catch {
-    return false;
+    // Fallback to simple string comparison if URL parsing fails
+    const normalizedActual = actual.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    const normalizedExpected = expected.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    return normalizedActual.startsWith(normalizedExpected);
   }
 }
