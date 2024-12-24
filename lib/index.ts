@@ -1,5 +1,5 @@
+import { chromium, Browser, BrowserContext, Page } from "playwright";
 import { Browserbase } from "@browserbasehq/sdk";
-import { type BrowserContext, chromium, type Page } from "@playwright/test";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -29,7 +29,7 @@ import { StagehandObserveHandler } from "./handlers/observeHandler";
 import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString } from "./utils";
-import { convertToSDKSettings } from "../types/browserbase";
+import { convertToSDKSettings, RuntimeBrowserSettings } from "../types/browserbase";
 
 dotenv.config({ path: ".env" });
 
@@ -42,47 +42,33 @@ const BROWSERBASE_REGION_DOMAIN = {
 };
 
 async function getBrowser(
+  env: "LOCAL" | "BROWSERBASE",
   apiKey: string | undefined,
-  projectId: string | undefined,
-  env: "LOCAL" | "BROWSERBASE" = "LOCAL",
-  headless: boolean = false,
   logger: (message: LogLine) => void,
-  browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams,
+  browserbaseSessionCreateParams?: Omit<Browserbase.Sessions.SessionCreateParams, "browserSettings"> & {
+    browserSettings?: RuntimeBrowserSettings;
+  },
   browserbaseResumeSessionID?: string,
+  headless: boolean = false,
 ): Promise<BrowserResult> {
+  let sessionId: string | undefined;
+  let connectUrl: string | undefined;
+  let debugUrl: string | undefined;
+  let sessionUrl: string | undefined;
+  let contextPath: string | undefined;
+  let browser: Browser;
+
   if (env === "BROWSERBASE") {
     if (!apiKey) {
       logger({
         category: "init",
-        message:
-          "BROWSERBASE_API_KEY is required to use BROWSERBASE env. Defaulting to LOCAL.",
-        level: 0,
+        message: "browserbase api key not found",
+        level: 2,
       });
-      env = "LOCAL";
-    }
-    if (!projectId) {
-      logger({
-        category: "init",
-        message:
-          "BROWSERBASE_PROJECT_ID is required for some Browserbase features that may not work without it.",
-        level: 1,
-      });
-    }
-  }
-
-  if (env === "BROWSERBASE") {
-    if (!apiKey) {
-      throw new Error("BROWSERBASE_API_KEY is required.");
+      throw new Error("Browserbase API key not found");
     }
 
-    let debugUrl: string | undefined = undefined;
-    let sessionUrl: string | undefined = undefined;
-    let sessionId: string;
-    let connectUrl: string;
-
-    const browserbase = new Browserbase({
-      apiKey,
-    });
+    const browserbase = new Browserbase({ apiKey });
 
     if (browserbaseResumeSessionID) {
       // Validate the session status
@@ -140,14 +126,13 @@ async function getBrowser(
         level: 0,
       });
 
-      if (!projectId) {
+      if (!browserbaseSessionCreateParams) {
         throw new Error(
-          "BROWSERBASE_PROJECT_ID is required for new Browserbase sessions.",
+          "browserbaseSessionCreateParams is required for new Browserbase sessions.",
         );
       }
 
       const session = await browserbase.sessions.create({
-        projectId,
         ...browserbaseSessionCreateParams,
         browserSettings: browserbaseSessionCreateParams?.browserSettings
           ? convertToSDKSettings(browserbaseSessionCreateParams.browserSettings)
@@ -169,7 +154,7 @@ async function getBrowser(
       });
     }
 
-    const browser = await chromium.connectOverCDP(connectUrl);
+    browser = await chromium.connectOverCDP(connectUrl);
     const { debuggerUrl } = await browserbase.sessions.debug(sessionId);
 
     debugUrl = debuggerUrl;
@@ -271,12 +256,10 @@ async function getBrowser(
 
 async function applyStealthScripts(context: BrowserContext) {
   await context.addInitScript(() => {
-    // Override the navigator.webdriver property
     Object.defineProperty(navigator, "webdriver", {
       get: () => undefined,
     });
 
-    // Mock languages and plugins to mimic a real browser
     Object.defineProperty(navigator, "languages", {
       get: () => ["en-US", "en"],
     });
@@ -285,23 +268,18 @@ async function applyStealthScripts(context: BrowserContext) {
       get: () => [1, 2, 3, 4, 5],
     });
 
-    // Remove Playwright-specific properties
-    delete window.__playwright;
-    delete window.__pw_manual;
-    delete window.__PW_inspect;
+    delete (window as any).__playwright;
+    delete (window as any).__pw_manual;
+    delete (window as any).__PW_inspect;
 
-    // Redefine the headless property
     Object.defineProperty(navigator, "headless", {
       get: () => false,
     });
 
-    // Override the permissions API
     const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = (parameters) =>
+    window.navigator.permissions.query = (parameters: any) =>
       parameters.name === "notifications"
-        ? Promise.resolve({
-            state: Notification.permission,
-          } as PermissionStatus)
+        ? Promise.resolve({ state: Notification.permission } as PermissionStatus)
         : originalQuery(parameters);
   });
 }
@@ -309,65 +287,70 @@ async function applyStealthScripts(context: BrowserContext) {
 export class Stagehand {
   private llmProvider: LLMProvider;
   private llmClient: LLMClient;
-  public page: Page;
-  public context: BrowserContext;
+  public page: Page | undefined;
+  public context!: BrowserContext;
   public browserbaseSessionID?: string;
+  private contextPath?: string;
 
   private env: "LOCAL" | "BROWSERBASE";
   private apiKey: string | undefined;
-  private projectId: string | undefined;
   private verbose: 0 | 1 | 2;
   private debugDom: boolean;
   private headless: boolean;
   private logger: (logLine: LogLine) => void;
   private externalLogger?: (logLine: LogLine) => void;
   private domSettleTimeoutMs: number;
-  private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
+  private browserbaseSessionCreateParams?: Omit<Browserbase.Sessions.SessionCreateParams, "browserSettings"> & {
+    browserSettings?: RuntimeBrowserSettings;
+  };
   private enableCaching: boolean;
-  private variables: { [key: string]: unknown };
+  private variables: { [key: string]: unknown } = {};
   private browserbaseResumeSessionID?: string;
-  private contextPath?: string;
 
   private actHandler?: StagehandActHandler;
   private extractHandler?: StagehandExtractHandler;
   private observeHandler?: StagehandObserveHandler;
 
-  constructor(
-    {
-      env,
-      apiKey,
-      projectId,
-      verbose,
-      debugDom,
-      llmProvider,
-      headless,
-      logger,
-      browserbaseSessionCreateParams,
-      domSettleTimeoutMs,
-      enableCaching,
-      browserbaseResumeSessionID,
-      modelName,
-      modelClientOptions,
-    }: ConstructorParams = {
-      env: "BROWSERBASE",
-    },
-  ) {
+  constructor({
+    env = "LOCAL",
+    apiKey,
+    verbose = 0,
+    debugDom = false,
+    llmProvider,
+    headless = false,
+    logger = console.log,
+    browserbaseSessionCreateParams,
+    domSettleTimeoutMs = 30_000,
+    enableCaching = true,
+    browserbaseResumeSessionID,
+    modelName = DEFAULT_MODEL_NAME,
+    modelClientOptions,
+  }: {
+    env?: "LOCAL" | "BROWSERBASE";
+    apiKey?: string;
+    verbose?: 0 | 1 | 2;
+    debugDom?: boolean;
+    llmProvider?: LLMProvider;
+    headless?: boolean;
+    logger?: (logLine: LogLine) => void;
+    browserbaseSessionCreateParams?: Omit<Browserbase.Sessions.SessionCreateParams, "browserSettings"> & {
+      browserSettings?: RuntimeBrowserSettings;
+    };
+    browserbaseResumeSessionID?: string;
+    domSettleTimeoutMs?: number;
+    enableCaching?: boolean;
+    modelName?: string;
+    modelClientOptions?: any;
+  } = {}) {
     this.externalLogger = logger;
     this.logger = this.log.bind(this);
-    this.enableCaching =
-      enableCaching ??
-      (process.env.ENABLE_CACHING && process.env.ENABLE_CACHING === "true");
-    this.llmProvider =
-      llmProvider || new LLMProvider(this.logger, this.enableCaching);
+    this.enableCaching = enableCaching ?? (process.env.ENABLE_CACHING === "true");
+    this.llmProvider = llmProvider || new LLMProvider(this.logger, this.enableCaching);
     this.env = env;
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
-    this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
     this.verbose = verbose ?? 0;
     this.debugDom = debugDom ?? false;
-    this.llmClient = this.llmProvider.getClient(
-      modelName ?? DEFAULT_MODEL_NAME,
-      modelClientOptions,
-    );
+    this.llmClient = this.llmProvider.getClient(modelName ?? DEFAULT_MODEL_NAME, modelClientOptions);
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
@@ -385,10 +368,8 @@ export class Stagehand {
     }
     const { context, debugUrl, sessionUrl, contextPath, sessionId } =
       await getBrowser(
-        this.apiKey,
-        this.projectId,
         this.env,
-        this.headless,
+        this.apiKey,
         this.logger,
         this.browserbaseSessionCreateParams,
         this.browserbaseResumeSessionID,
