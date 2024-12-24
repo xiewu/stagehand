@@ -55,7 +55,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           await stagehand.close();
           stagehand = null;
         } catch (error) {
-          console.error('Error closing browser:', error);
+          console.error("Error closing browser:", error);
         }
       }
 
