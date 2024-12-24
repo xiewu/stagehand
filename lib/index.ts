@@ -29,6 +29,7 @@ import { StagehandObserveHandler } from "./handlers/observeHandler";
 import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString } from "./utils";
+import { convertToSDKSettings } from "../types/browserbase";
 
 dotenv.config({ path: ".env" });
 
@@ -148,6 +149,7 @@ async function getBrowser(
       const session = await browserbase.sessions.create({
         projectId,
         ...browserbaseSessionCreateParams,
+        browserSettings: browserbaseSessionCreateParams?.browserSettings ? convertToSDKSettings(browserbaseSessionCreateParams.browserSettings) : undefined,
       });
 
       sessionId = session.id;

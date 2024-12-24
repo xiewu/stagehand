@@ -1,48 +1,36 @@
 import { Browserbase } from "@browserbasehq/sdk";
 
-// Override SDK's type to match runtime requirements
-type BrowserbaseFingerprint = Omit<Browserbase.Sessions.SessionCreateParams["browserSettings"]["fingerprint"], "httpVersion"> & {
+// SDK types for reference
+type SDKFingerprint = Browserbase.Sessions.SessionCreateParams["browserSettings"]["fingerprint"];
+type SDKBrowserSettings = Browserbase.Sessions.SessionCreateParams["browserSettings"];
+
+// Runtime types with string httpVersion
+export interface RuntimeFingerprint extends Omit<SDKFingerprint, "httpVersion"> {
   httpVersion?: "1" | "2";
-};
-
-type BrowserSettings = Omit<Browserbase.Sessions.SessionCreateParams["browserSettings"], "fingerprint"> & {
-  fingerprint?: BrowserbaseFingerprint;
-};
-
-// Runtime-compatible type for browserSettings
-export type RuntimeBrowserSettings = BrowserSettings;
-
-// Helper function to convert fingerprint settings
-function convertFingerprint(fingerprint: BrowserbaseFingerprint | undefined): RuntimeBrowserSettings["fingerprint"] | undefined {
-  if (!fingerprint) return undefined;
-  return fingerprint;
 }
 
-// Type guard to ensure runtime compatibility
-export function ensureRuntimeCompatibleSettings(
-  settings: BrowserSettings | undefined,
-): RuntimeBrowserSettings {
-  if (!settings) return {};
+export interface RuntimeBrowserSettings extends Omit<SDKBrowserSettings, "fingerprint"> {
+  fingerprint?: RuntimeFingerprint;
+}
 
-  const {
-    blockAds,
-    context,
-    extensionId,
-    fingerprint,
-    logSession,
-    recordSession,
-    solveCaptchas,
-    viewport,
-  } = settings;
+// Convert runtime fingerprint to SDK fingerprint - preserve string type for httpVersion
+function convertFingerprint(fingerprint?: RuntimeFingerprint): SDKFingerprint | undefined {
+  if (!fingerprint) return undefined;
 
+  const { httpVersion, ...rest } = fingerprint;
   return {
-    ...(blockAds !== undefined && { blockAds }),
-    ...(context !== undefined && { context }),
-    ...(extensionId !== undefined && { extensionId }),
-    ...(fingerprint !== undefined && { fingerprint: convertFingerprint(fingerprint) }),
-    ...(logSession !== undefined && { logSession }),
-    ...(recordSession !== undefined && { recordSession }),
-    ...(solveCaptchas !== undefined && { solveCaptchas }),
-    ...(viewport !== undefined && { viewport }),
+    ...rest,
+    ...(httpVersion && { httpVersion: httpVersion as unknown as 1 | 2 }),
   };
+}
+
+// Convert runtime settings to SDK settings
+export function convertToSDKSettings(settings?: RuntimeBrowserSettings): SDKBrowserSettings | undefined {
+  if (!settings) return undefined;
+
+  const { fingerprint, ...rest } = settings;
+  return {
+    ...rest,
+    ...(fingerprint && { fingerprint: convertFingerprint(fingerprint) }),
+  } as SDKBrowserSettings;
 }

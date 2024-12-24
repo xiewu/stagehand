@@ -4,7 +4,7 @@ import { validateUrlMatch } from "../utils/url_validation";
 import { loadMind2WebDataset } from "../datasets/mind2web";
 import { z } from "zod";
 import { LogLine } from "../../types/log";
-import { RuntimeBrowserSettings } from "../../types/browserbase";
+import { RuntimeBrowserSettings, convertToSDKSettings } from "../../types/browserbase";
 
 // Define types for Mind2Web evaluation steps
 interface EvaluationStep {
@@ -68,7 +68,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       browserbaseSessionCreateParams: {
         projectId: process.env.BROWSERBASE_PROJECT_ID || "",
         timeout: 60,
-        browserSettings,
+        browserSettings: convertToSDKSettings(browserSettings),
       },
     });
 
