@@ -19,7 +19,7 @@ interface EvaluationStep {
 }
 
 // Used in loadMind2WebDataset return type and evaluation loop
-interface TestCase {
+export interface TestCase {
   task: string;
   evaluation: EvaluationStep[];
 }
