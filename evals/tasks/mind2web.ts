@@ -5,6 +5,7 @@ import { InitResult } from "../../types/stagehand";
 import { LogLine } from "../../types/log";
 import { loadMind2WebDataset } from "../datasets/mind2web";
 import { validateUrlMatch } from "../utils/url_validation";
+import { ensureRuntimeCompatibleSettings } from "../../types/browserbase";
 
 // Define types for Mind2Web evaluation steps
 interface EvaluationStep {
@@ -69,9 +70,9 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       browserbaseSessionCreateParams: {
         projectId: process.env.BROWSERBASE_PROJECT_ID || "",
         timeout: 60, // 60 seconds timeout
-        browserSettings: {
+        browserSettings: ensureRuntimeCompatibleSettings({
           fingerprint: {
-            httpVersion: "1" as unknown as 1, // Satisfy both TypeScript and runtime requirements
+            httpVersion: 1,
           },
           viewport: {
             width: 1280,
@@ -79,7 +80,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
           },
           logSession: true,
           recordSession: true,
-        },
+        }),
       },
     });
 
