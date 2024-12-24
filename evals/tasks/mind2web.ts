@@ -5,7 +5,6 @@ import { loadMind2WebDataset } from "../datasets/mind2web";
 import { z } from "zod";
 import { LogLine } from "../../types/log";
 import { Browserbase } from "@browserbasehq/sdk";
-import { RuntimeBrowserSettings, ensureRuntimeCompatibleSettings } from "../../types/browserbase";
 
 // Define types for Mind2Web evaluation steps
 interface EvaluationStep {
@@ -46,8 +45,8 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       total: testCases.length * testCases[0].evaluation.length,
     };
 
-    // Initialize browser settings using RuntimeBrowserSettings and ensure compatibility
-    const runtimeSettings: RuntimeBrowserSettings = {
+    // Use runtime-compatible browser settings with type assertion for SDK compatibility
+    const browserSettings = {
       fingerprint: {
         httpVersion: "1",
       },
@@ -57,25 +56,7 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
       },
       logSession: true,
       recordSession: true,
-    };
-
-    // Convert runtime settings to BrowserSettings for SDK compatibility
-    const runtimeCompatibleSettings = ensureRuntimeCompatibleSettings({
-      ...runtimeSettings,
-      fingerprint: {
-        ...runtimeSettings.fingerprint,
-        httpVersion: "1" as unknown as 1,  // Type assertion to satisfy both compile-time and runtime
-      },
-    });
-
-    // Use runtime settings directly but with proper type assertions
-    const browserSettings: Browserbase.Sessions.SessionCreateParams["browserSettings"] = {
-      ...runtimeCompatibleSettings,
-      fingerprint: runtimeCompatibleSettings.fingerprint && {
-        ...runtimeCompatibleSettings.fingerprint,
-        httpVersion: "1" as unknown as 1,  // Type assertion to satisfy both compile-time and runtime
-      },
-    };
+    } as unknown as Browserbase.Sessions.SessionCreateParams["browserSettings"];
 
     stagehand = new Stagehand({
       env: "BROWSERBASE",

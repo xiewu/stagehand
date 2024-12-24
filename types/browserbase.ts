@@ -1,31 +1,21 @@
 import { Browserbase } from "@browserbasehq/sdk";
 
-type BrowserSettings = Browserbase.Sessions.SessionCreateParams["browserSettings"];
-type Fingerprint = NonNullable<BrowserSettings>["fingerprint"];
-
-// Runtime-compatible type for browserSettings
-export type RuntimeBrowserSettings = {
-  blockAds?: boolean;
-  context?: BrowserSettings["context"];
-  extensionId?: string;
-  fingerprint?: Omit<Fingerprint, "httpVersion"> & {
-    httpVersion?: "1" | "2";
-  };
-  logSession?: boolean;
-  recordSession?: boolean;
-  solveCaptchas?: boolean;
-  viewport?: BrowserSettings["viewport"];
+// Override SDK's type to match runtime requirements
+type BrowserbaseFingerprint = Omit<Browserbase.Sessions.SessionCreateParams["browserSettings"]["fingerprint"], "httpVersion"> & {
+  httpVersion?: "1" | "2";
 };
 
-// Helper function to convert fingerprint settings
-function convertFingerprint(fingerprint: Fingerprint | undefined): RuntimeBrowserSettings["fingerprint"] | undefined {
-  if (!fingerprint) return undefined;
+type BrowserSettings = Omit<Browserbase.Sessions.SessionCreateParams["browserSettings"], "fingerprint"> & {
+  fingerprint?: BrowserbaseFingerprint;
+};
 
-  const { httpVersion, ...rest } = fingerprint;
-  return {
-    ...rest,
-    ...(httpVersion !== undefined ? { httpVersion: String(httpVersion) as "1" | "2" } : {}),
-  };
+// Runtime-compatible type for browserSettings
+export type RuntimeBrowserSettings = BrowserSettings;
+
+// Helper function to convert fingerprint settings
+function convertFingerprint(fingerprint: BrowserbaseFingerprint | undefined): RuntimeBrowserSettings["fingerprint"] | undefined {
+  if (!fingerprint) return undefined;
+  return fingerprint;
 }
 
 // Type guard to ensure runtime compatibility
