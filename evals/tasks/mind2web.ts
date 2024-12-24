@@ -79,17 +79,62 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
       });
 
       try {
-        // Track state through evaluation steps
-        let currentState = {
-          success: true,
-          lastUrl: "",
+        // Initialize state for tracking progress and handling retries
+        const currentState = {
           progress: [] as string[],
+          retryCount: 0,
+          maxRetries: 3,
+          waitBetweenRetries: 5000, // 5 seconds
         };
 
         // Process each evaluation step sequentially
         for (const [stepIndex, step] of testCase.evaluation.entries()) {
-          if (!currentState.success) {
-            break; // Skip remaining steps if previous step failed
+          // Handle potential security blocks and rate limits
+          try {
+            await currentStagehand.page.waitForLoadState("domcontentloaded");
+
+            // Check for common block indicators
+            const isBlocked = await currentStagehand.page.evaluate(() => {
+              const blockTexts = ['blocked', 'access denied', 'security check', 'cloudflare'];
+              const pageText = document.body.innerText.toLowerCase();
+              return blockTexts.some(text => pageText.includes(text));
+            });
+
+            if (isBlocked) {
+              if (currentState.retryCount < currentState.maxRetries) {
+                currentState.retryCount++;
+                logger.log({
+                  message: `Detected security block, waiting ${currentState.waitBetweenRetries}ms before retry ${currentState.retryCount}/${currentState.maxRetries}`,
+                  level: 1,
+                });
+                await new Promise(resolve => setTimeout(resolve, currentState.waitBetweenRetries));
+                await currentStagehand.page.reload();
+                continue;
+              } else {
+                logger.log({
+                  message: `Max retries (${currentState.maxRetries}) reached for blocked page, skipping step`,
+                  level: 1,
+                });
+                scores.act.total++;
+                scores.extract.total++;
+                scores.observe.total++;
+                continue;
+              }
+            }
+            currentState.retryCount = 0;
+          } catch (error) {
+            logger.log({
+              message: `Error during page load: ${error.message}`,
+              level: 1,
+            });
+            if (currentState.retryCount < currentState.maxRetries) {
+              currentState.retryCount++;
+              continue;
+            }
+            scores.act.total++;
+            scores.extract.total++;
+            scores.observe.total++;
+            continue;
           }
 
           // Validate URL match
@@ -102,16 +147,15 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
               message: `URL validation failed for ${step.content.url}`,
               level: 2,
             });
-            currentState.success = false;
             continue;
           }
 
           // Navigate to URL if different from current
-          if (step.content.url !== currentState.lastUrl) {
+          if (step.content.url !== currentState.progress[currentState.progress.length - 1]) {
             await currentStagehand.page.goto(step.content.url, {
               waitUntil: "networkidle",
             });
-            currentState.lastUrl = step.content.url;
+            currentState.progress.push(step.content.url);
             await currentStagehand.page.waitForLoadState("domcontentloaded");
           }
 
@@ -130,55 +174,75 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
           const stepContext = currentState.progress.join(" -> ");
 
           // Perform action with specific instruction and context
-          const actResult = await currentStagehand.act({
-            action: `For task "${testCase.task}":
+          try {
+            const actResult = await currentStagehand.act({
+              action: `For task "${testCase.task}":
 1. Find element containing "${step.content.reference_answer}"
 2. Previous steps completed: ${stepContext}
 3. Current URL: ${step.content.url}
 4. Target pattern: ${step.content.reference_answer}`
-          });
+            });
 
-          if (actResult.success) {
-            scores.act.success++;
-            currentState.progress.push(`Found and interacted with ${step.content.reference_answer}`);
+            if (actResult.success) {
+              scores.act.success++;
+              currentState.progress.push(`Found and interacted with ${step.content.reference_answer}`);
+            }
+            scores.act.total++;
+          } catch (error) {
+            logger.log({
+              message: `Error during action: ${error.message}`,
+              level: 1,
+            });
+            scores.act.total++;
           }
-          scores.act.total++;
 
           // Extract information with context from previous steps
-          const extractResult = await currentStagehand.extract({
-            instruction: `For task "${testCase.task}":
+          try {
+            const extractResult = await currentStagehand.extract({
+              instruction: `For task "${testCase.task}":
 1. Extract information about element containing "${step.content.reference_answer}"
 2. Previous steps completed: ${stepContext}
-3. Last action result: ${actResult.success ? "successful" : "failed"}
-4. Target pattern: ${step.content.reference_answer}`,
-            schema,
-          });
+3. Target pattern: ${step.content.reference_answer}`,
+              schema,
+            });
 
-          // Validate extraction against reference and element properties
-          const extractSuccess =
-            extractResult.elementDetails.found &&
-            (extractResult.elementDetails.text.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
-             extractResult.currentUrl.includes(step.content.reference_answer));
+            // Validate extraction against reference and element properties
+            const extractSuccess =
+              extractResult.elementDetails.found &&
+              (extractResult.elementDetails.text.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
+               extractResult.currentUrl.includes(step.content.reference_answer));
 
-          if (extractSuccess) {
-            scores.extract.success++;
+            if (extractSuccess) {
+              scores.extract.success++;
+            }
+            scores.extract.total++;
+          } catch (error) {
+            logger.log({
+              message: `Error during extraction: ${error.message}`,
+              level: 1,
+            });
+            scores.extract.total++;
           }
-          scores.extract.total++;
 
           // Observe page state with context from previous steps
-          const observeResults = await currentStagehand.observe();
-          const observeSuccess = observeResults.some(result =>
-            result.description.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
-            (result.selector && result.selector.toLowerCase().includes(step.content.reference_answer.toLowerCase()))
-          );
+          try {
+            const observeResults = await currentStagehand.observe();
+            const observeSuccess = observeResults.some(result =>
+              result.description.toLowerCase().includes(step.content.reference_answer.toLowerCase()) ||
+              (result.selector && result.selector.toLowerCase().includes(step.content.reference_answer.toLowerCase()))
+            );
 
-          if (observeSuccess) {
-            scores.observe.success++;
+            if (observeSuccess) {
+              scores.observe.success++;
+            }
+            scores.observe.total++;
+          } catch (error) {
+            logger.log({
+              message: `Error during observation: ${error.message}`,
+              level: 1,
+            });
+            scores.observe.total++;
           }
-          scores.observe.total++;
-
-          // Update current state
-          currentState.success = actResult.success && extractSuccess && observeSuccess;
 
           // Log detailed progress
           const updateScores = {
@@ -197,7 +261,6 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
                   step: stepIndex + 1,
                   url: step.content.url,
                   scores: updateScores,
-                  stepSuccess: currentState.success,
                   progress: currentState.progress,
                 }),
                 type: "object",
@@ -205,22 +268,6 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
             },
           });
         }
-      } catch (error) {
-        logger.log({
-          message: `Error processing test case: ${error instanceof Error ? error.message : "Unknown error"}`,
-          level: 2,
-          auxiliary: {
-            value: {
-              value: JSON.stringify({
-                task: testCase.task,
-                error: error instanceof Error ? error.stack : "Unknown error"
-              }),
-              type: "object",
-            },
-          },
-        });
-      }
-    }
 
     // Calculate final percentages
     const finalScores = {
