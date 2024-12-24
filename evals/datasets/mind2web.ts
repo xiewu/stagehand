@@ -1,3 +1,6 @@
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+
 export interface Mind2WebTask {
   index: string;
   task: string;
@@ -16,21 +19,15 @@ export interface Mind2WebTask {
   time: string;
 }
 
-export async function loadMind2WebDataset(
-  split: "train" | "test" = "train",
-): Promise<Mind2WebTask[]> {
+export async function loadMind2WebDataset(): Promise<Mind2WebTask[]> {
   try {
-    const response = await fetch(
-      `https://huggingface.co/datasets/iMeanAI/Mind2Web-Live/raw/main/mind2web-live_${split}_20240528.json`,
-    );
+    const testDataPath = join(__dirname, "mind2web_test.json");
 
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch ${split} split from Mind2Web-Live dataset: ${response.statusText}`,
-      );
+    if (!existsSync(testDataPath)) {
+      throw new Error(`Test dataset not found at ${testDataPath}`);
     }
 
-    const data = await response.json();
+    const data = JSON.parse(readFileSync(testDataPath, "utf8"));
     return data;
   } catch (error) {
     console.error("Error loading Mind2Web dataset:", error);
