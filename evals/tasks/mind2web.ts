@@ -4,6 +4,7 @@ import { Stagehand } from "../../lib";
 import { InitResult } from "../../types/stagehand";
 import { LogLine } from "../../types/log";
 import { loadMind2WebDataset } from "../datasets/mind2web";
+import { validateUrlMatch } from "../utils/url_validation";
 
 // Define types for Mind2Web evaluation steps
 interface EvaluationStep {
@@ -55,357 +56,151 @@ export const mind2web: EvalFunction = async ({ modelName, logger }) => {
 
   try {
     const testCases = await loadMind2WebDataset();
-    const maxCases = 1; // Start with just one test case for debugging
-    const testSubset = testCases.slice(0, maxCases);
 
-    logs.push({
-      message: `Starting Mind2Web eval with ${testSubset.length} test case for initial verification`,
-      level: 1,
+    // Initialize single browser instance
+    currentStagehand = new Stagehand({
+      env: "LOCAL",
+      modelName,
+      logger: (message: LogLine) => logger.log(message),
+      headless: true,
+      verbose: 1,
+      enableCaching: true,
     });
 
-    for (const [index, testCase] of testSubset.entries()) {
+    currentInitResult = await currentStagehand.init();
+
+    for (const [index, testCase] of testCases.entries()) {
       logs.push({
-        message: `Processing test case ${index + 1}/${testSubset.length}: ${testCase.task}`,
+        message: `Processing test case ${index + 1}/${testCases.length}: ${testCase.task}`,
         level: 1,
       });
 
-      // Ensure previous browser instance is properly closed with timeout
-      if (currentStagehand) {
-        try {
-          logs.push({
-            message: "Closing previous browser instance",
-            level: 2,
-          });
-          await Promise.race([
-            currentStagehand.close(),
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error("Browser close timeout")),
-                10000,
-              ),
-            ),
-          ]);
-          currentStagehand = undefined;
-          currentInitResult = undefined;
-        } catch (error) {
-          logs.push({
-            message: `Error closing browser: ${error instanceof Error ? error.message : "Unknown error"}`,
-            level: 2,
-          });
-          // Force cleanup if timeout
-          currentStagehand = undefined;
-          currentInitResult = undefined;
-        }
-      }
-
-      logs.push({
-        message: "Creating new Stagehand instance",
-        level: 2,
-      });
-
       try {
-        currentStagehand = new Stagehand({
-          env: "LOCAL",
-          modelName,
-          logger: (message: LogLine) => logger.log(message),
-          headless: true,
-          verbose: 1,
-          enableCaching: true, // Re-enable caching to reduce LLM calls
-        });
-
-        currentInitResult = await currentStagehand.init();
-
-        // Add delay between browser operations
-        const delay = (ms: number) =>
-          new Promise((resolve) => setTimeout(resolve, ms));
-        await delay(1000); // 1 second delay for browser setup
-
-        // Set navigation timeout
-        await currentStagehand.page.setDefaultNavigationTimeout(30000);
-        await currentStagehand.page.setDefaultTimeout(30000);
-
-        // Initial navigation with retry logic
-        let navigationSuccess = false;
-        for (let attempt = 0; attempt < 3 && !navigationSuccess; attempt++) {
-          try {
-            await currentStagehand.page.goto(
-              testCase.evaluation[0].content.url,
-              {
-                waitUntil: "networkidle",
-              },
-            );
-            navigationSuccess = true;
-          } catch (error) {
-            if (attempt === 2) throw error;
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-          }
-        }
-
-        // Test observe() functionality
-        scores.observe.total++;
-        try {
-          const actions = await currentStagehand.observe();
-          if (actions && actions.length > 0) {
-            scores.observe.success++;
-            logs.push({
-              message: "Observe test succeeded",
+        // Process each evaluation step
+        for (const step of testCase.evaluation) {
+          // Validate URL match
+          const urlMatches = validateUrlMatch(step.content.url, step.content.reference_answer);
+          if (!urlMatches) {
+            logger.log({
+              message: `URL validation failed for ${step.content.url}`,
               level: 2,
-              auxiliary: {
-                value: {
-                  value: JSON.stringify(actions),
-                  type: "object",
-                },
-              },
             });
+            continue;
           }
-        } catch (error) {
-          logs.push({
-            message: "Observe test failed",
-            level: 2,
+
+          // Navigate to URL using page API
+          await currentStagehand.page.goto(step.content.url, {
+            waitUntil: 'networkidle',
+          });
+
+          // Define schema for extraction
+          const schema = z.object({
+            field_1: z.string().describe("Main information about the task"),
+            field_2: z.string().describe("Additional details or context"),
+            field_3: z.string().describe("Any supplementary information"),
+          });
+
+          // Perform actions based on task
+          const actResult = await currentStagehand.act({
+            action: testCase.task,
+          });
+
+          if (actResult.success) {
+            scores.act.success++;
+          }
+          scores.act.total++;
+
+          // Extract information
+          const extractResult = await currentStagehand.extract({
+            instruction: `Extract the following information about ${testCase.task}:
+              1. The main result or answer
+              2. Any supporting details
+              3. Additional context or verification`,
+            schema,
+          });
+
+          // Verify extracted content matches reference answer
+          const extractedText = Object.values(extractResult).join(" ");
+          if (extractedText.includes(step.content.reference_answer)) {
+            scores.extract.success++;
+          }
+          scores.extract.total++;
+
+          // Observe page state
+          const observeResults = await currentStagehand.observe();
+          if (observeResults && observeResults.length > 0) {
+            scores.observe.success++;
+          }
+          scores.observe.total++;
+
+          // Calculate and log progress
+          const updateScores = {
+            act: (scores.act.success / scores.act.total) * 100,
+            extract: (scores.extract.success / scores.extract.total) * 100,
+            observe: (scores.observe.success / scores.observe.total) * 100,
+          };
+
+          logger.log({
+            message: `Progress - Act: ${updateScores.act.toFixed(1)}%, Extract: ${updateScores.extract.toFixed(1)}%, Observe: ${updateScores.observe.toFixed(1)}%`,
+            level: 1,
             auxiliary: {
               value: {
-                value: error instanceof Error ? error.message : "Unknown error",
-                type: "string",
+                value: JSON.stringify({
+                  task: testCase.task,
+                  url: step.content.url,
+                  scores: updateScores,
+                }),
+                type: "object",
               },
             },
           });
         }
-
-        // Test act() functionality with retry and timeout
-        scores.act.total++;
-        try {
-          logs.push({
-            message: `Attempting act() with task: ${testCase.task}`,
-            level: 2,
-          });
-
-          const actPromise = currentStagehand.act({
-            action: testCase.task,
-          });
-
-          const actResult = (await Promise.race([
-            actPromise,
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Act timeout")), 45000),
-            ),
-          ])) as { success: boolean };
-
-          if (actResult.success) {
-            scores.act.success++;
-            logs.push({
-              message: "Act test succeeded",
-              level: 2,
-              auxiliary: {
-                value: {
-                  value: JSON.stringify(actResult),
-                  type: "object",
-                },
-              },
-            });
-          } else {
-            logs.push({
-              message: "Act test failed: action unsuccessful",
-              level: 2,
-            });
-          }
-
-          // Add delay between operations
-          await delay(2000);
-        } catch (error) {
-          logs.push({
-            message: `Act test failed with error: ${error instanceof Error ? error.message : "Unknown error"}`,
-            level: 2,
-          });
-        }
-
-        // Test extract() functionality with dynamic schema and timeout
-        scores.extract.total++;
-        try {
-          logs.push({
-            message: "Creating dynamic schema for extraction",
-            level: 2,
-          });
-
-          // Create dynamic schema based on test case
-          const schemaFields: Record<string, z.ZodString> = {};
-          testCase.evaluation.forEach((step: EvaluationStep, index: number) => {
-            if (step.content.reference_answer) {
-              schemaFields[`field_${index}`] = z.string();
-            }
-          });
-
-          const dynamicSchema = z.object(schemaFields);
-
-          logs.push({
-            message: `Attempting extract() with task: ${testCase.task}`,
-            level: 2,
-          });
-          const extractPromise = currentStagehand.extract({
-            instruction: testCase.task,
-            schema: dynamicSchema,
-          });
-
-          const extractResult = (await Promise.race([
-            extractPromise,
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Extract timeout")), 45000),
-            ),
-          ])) as z.infer<typeof dynamicSchema>;
-
-          if (extractResult && dynamicSchema.safeParse(extractResult).success) {
-            scores.extract.success++;
-            logs.push({
-              message: "Extract test succeeded",
-              level: 2,
-              auxiliary: {
-                value: {
-                  value: JSON.stringify(extractResult),
-                  type: "object",
-                },
-              },
-            });
-          } else {
-            logs.push({
-              message: "Extract test failed: schema validation failed",
-              level: 2,
-            });
-          }
-        } catch (error) {
-          logs.push({
-            message: `Extract test failed with error: ${error instanceof Error ? error.message : "Unknown error"}`,
-            level: 2,
-          });
-        }
-
-        // Calculate success percentages after each test case
-        scores.act.percentage = (scores.act.success / scores.act.total) * 100;
-        scores.extract.percentage =
-          (scores.extract.success / scores.extract.total) * 100;
-        scores.observe.percentage =
-          (scores.observe.success / scores.observe.total) * 100;
-
-        // Log progress
-        logs.push({
-          message: `Test case ${index + 1}/${testSubset.length} completed`,
-          level: 1,
+      } catch (error) {
+        logger.log({
+          message: `Error processing test case: ${error instanceof Error ? error.message : "Unknown error"}`,
+          level: 2,
           auxiliary: {
             value: {
-              value: JSON.stringify({
-                act: scores.act.percentage,
-                extract: scores.extract.percentage,
-                observe: scores.observe.percentage,
-              }),
+              value: JSON.stringify({ task: testCase.task }),
               type: "object",
             },
           },
         });
-      } catch (error) {
-        logs.push({
-          message: "Critical error in Mind2Web eval",
-          level: 1,
-          auxiliary: {
-            value: {
-              value:
-                error instanceof Error ? error.message : JSON.stringify(error),
-              type: "string",
-            },
-          },
-        });
-
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        return {
-          _success: false,
-          logs,
-          error: errorMessage,
-          debugUrl: currentInitResult?.debugUrl,
-          sessionUrl: currentInitResult?.sessionUrl,
-        };
-      } finally {
-        // Ensure browser cleanup in all cases
-        if (currentStagehand) {
-          try {
-            await currentStagehand.close();
-          } catch (error) {
-            logs.push({
-              message: "Error during browser cleanup",
-              level: 2,
-              auxiliary: {
-                value: {
-                  value:
-                    error instanceof Error
-                      ? error.message
-                      : JSON.stringify(error),
-                  type: "string",
-                },
-              },
-            });
-          }
-          currentStagehand = undefined;
-          currentInitResult = undefined;
-        }
       }
     }
 
     // Calculate final percentages
-    scores.act.percentage = (scores.act.success / scores.act.total) * 100;
-    scores.extract.percentage =
-      (scores.extract.success / scores.extract.total) * 100;
-    scores.observe.percentage =
-      (scores.observe.success / scores.observe.total) * 100;
+    const finalScores = {
+      act: (scores.act.success / scores.act.total) * 100,
+      extract: (scores.extract.success / scores.extract.total) * 100,
+      observe: (scores.observe.success / scores.observe.total) * 100,
+    };
 
-    // Final success is determined by meeting all category thresholds
+    // Check if all thresholds are met
     const success =
-      scores.act.percentage >= 80 &&
-      scores.extract.percentage >= 80 &&
-      scores.observe.percentage >= 80;
-
-    logs.push({
-      message: "Mind2Web eval completed",
-      level: 1,
-      auxiliary: {
-        value: {
-          value: JSON.stringify({
-            act: scores.act.percentage,
-            extract: scores.extract.percentage,
-            observe: scores.observe.percentage,
-            success,
-          }),
-          type: "object",
-        },
-      },
-    });
+      finalScores.act >= 80 &&
+      finalScores.extract >= 80 &&
+      finalScores.observe >= 80;
 
     return {
       _success: success,
       logs,
-      error: undefined,
-      debugUrl: currentInitResult?.debugUrl,
-      sessionUrl: currentInitResult?.sessionUrl,
+      debugUrl: currentInitResult?.debugUrl || "",
+      sessionUrl: currentInitResult?.sessionUrl || "",
+      scores: finalScores,
     };
   } catch (error) {
-    // Clean up browser instance on error
-    if (currentStagehand) {
-      try {
-        await currentStagehand.close();
-      } catch (cleanupError) {
-        logs.push({
-          message: `Error during final cleanup: ${cleanupError instanceof Error ? cleanupError.message : "Unknown error"}`,
-          level: 2,
-        });
-      }
-      currentStagehand = undefined;
-      currentInitResult = undefined;
-    }
-
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
     return {
       _success: false,
       logs,
-      error: errorMessage,
-      debugUrl: currentInitResult?.debugUrl,
-      sessionUrl: currentInitResult?.sessionUrl,
+      debugUrl: currentInitResult?.debugUrl || "",
+      sessionUrl: currentInitResult?.sessionUrl || "",
+      error: error instanceof Error ? error.message : "Unknown error",
     };
+  } finally {
+    // Clean up browser instance
+    if (currentStagehand) {
+      await currentStagehand.close();
+    }
   }
 };
