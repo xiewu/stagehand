@@ -60,13 +60,22 @@ export const mind2web: EvalFunction = async ({ modelName, logger, useTextExtract
     };
 
     // Convert runtime settings to BrowserSettings for SDK compatibility
-    const browserSettings = {
+    const runtimeCompatibleSettings = ensureRuntimeCompatibleSettings({
       ...runtimeSettings,
       fingerprint: {
         ...runtimeSettings.fingerprint,
-        httpVersion: "1",  // Use string value for runtime compatibility
+        httpVersion: 1,  // Will be converted to string by ensureRuntimeCompatibleSettings
       },
-    } as unknown as Browserbase.Sessions.SessionCreateParams["browserSettings"];
+    });
+
+    // Convert back to SDK-compatible BrowserSettings type
+    const browserSettings: Browserbase.Sessions.SessionCreateParams["browserSettings"] = {
+      ...runtimeCompatibleSettings,
+      fingerprint: runtimeCompatibleSettings.fingerprint ? {
+        ...runtimeCompatibleSettings.fingerprint,
+        httpVersion: runtimeCompatibleSettings.fingerprint.httpVersion === "1" ? 1 : 2,
+      } : undefined,
+    };
 
     stagehand = new Stagehand({
       env: "BROWSERBASE",
