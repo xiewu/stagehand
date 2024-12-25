@@ -31,7 +31,7 @@ export const extract_rockauto: EvalFunction = async ({
       ),
     }),
     modelName,
-    useTextExtract,
+    useTextExtract: true, // Switch to textExtract for better content filtering
     domSettleTimeoutMs: 10000,
   });
 

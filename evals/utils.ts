@@ -2,6 +2,7 @@ import { Stagehand } from "../lib";
 import { logLineToString } from "../lib/utils";
 import { LogLine } from "../types/log";
 import { AvailableModelSchema } from "../types/model";
+import { ConstructorParams } from "../types/stagehand";
 import { z } from "zod";
 import stringComparison from "string-comparison";
 const { jaroWinkler } = stringComparison;
@@ -13,23 +14,27 @@ export const env: "BROWSERBASE" | "LOCAL" =
 
 const enableCaching = process.env.EVAL_ENABLE_CACHING?.toLowerCase() === "true";
 
-const defaultStagehandOptions = {
+const defaultStagehandOptions: Omit<
+  ConstructorParams,
+  "modelName" | "domSettleTimeoutMs" | "logger"
+> = {
   env,
   headless: false,
   verbose: 2 as const,
   debugDom: true,
   enableCaching,
   browserbaseSessionCreateParams: {
+    projectId: "stagehand-dev",
     browserSettings: {
       viewport: { width: 1280, height: 720 },
       fingerprint: {
-        httpVersion: "2",
-        platform: "Linux x86_64",
-        userAgent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        httpVersion: 2,
+        browsers: ["chrome"],
+        devices: ["desktop"],
+        operatingSystems: ["linux"],
       },
     },
   },
-  modelName: "gpt-4o" as const satisfies z.infer<typeof AvailableModelSchema>,
 };
 
 export const initStagehand = async ({
@@ -43,12 +48,12 @@ export const initStagehand = async ({
 }) => {
   const stagehand = new Stagehand({
     ...defaultStagehandOptions,
-    modelName,
+    modelName: modelName as z.infer<typeof AvailableModelSchema>,
     domSettleTimeoutMs,
     logger: (logLine: LogLine) => {
       logger.log(logLine);
     },
-  });
+  } as ConstructorParams);
   logger.init(stagehand);
   const initResponse = await stagehand.init();
   return { stagehand, logger, initResponse };

@@ -1,0 +1,54 @@
+[
+  {
+    "index": "1",
+    "task": "Find the score of the 2020 Super Bowl in nfl.com",
+    "reference_task_length": 4,
+    "evaluation": [
+      {
+        "content": {
+          "key": "",
+          "netloc": null,
+          "path": null,
+          "reference_answer": "nfl.",
+          "url": "https://www.nfl.com/"
+        },
+        "match_function_name": "url_included_match",
+        "method": null
+      },
+      {
+        "content": {
+          "key": "",
+          "netloc": null,
+          "path": null,
+          "reference_answer": "scores/",
+          "url": "https://www.nfl.com/scores/"
+        },
+        "match_function_name": "url_included_match",
+        "method": null
+      },
+      {
+        "content": {
+          "key": "",
+          "netloc": null,
+          "path": null,
+          "reference_answer": "/2020",
+          "url": "https://www.nfl.com/scores/2020/POST3"
+        },
+        "match_function_name": "url_included_match",
+        "method": null
+      },
+      {
+        "content": {
+          "key": "",
+          "netloc": null,
+          "path": null,
+          "reference_answer": "/POST4",
+          "url": "https://www.nfl.com/scores/2020/POST4"
+        },
+        "match_function_name": "url_included_match",
+        "method": null
+      }
+    ],
+    "time": "2024-12-24T19:47:00Z"
+  }
+]

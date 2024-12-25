@@ -30,7 +30,7 @@ export const extract_staff_members: EvalFunction = async ({
       ),
     }),
     modelName,
-    useTextExtract,
+    useTextExtract: true, // Switch to textExtract for better content filtering
   });
 
   const staff_members = result.staff_members;

@@ -184,7 +184,7 @@ export class StagehandExtractHandler {
   }): Promise<z.infer<T>> {
     this.logger({
       category: "extraction",
-      message: "starting extraction",
+      message: "starting extraction using text approach",
       level: 1,
       auxiliary: {
         instruction: {
@@ -199,27 +199,16 @@ export class StagehandExtractHandler {
     await this.startDomDebug();
 
     // **2:** Store the original DOM before any mutations
-    // we need to store the original DOM here because calling createTextBoundingBoxes()
-    // will mutate the DOM by adding spans around every word
-    const originalDOM = await this.stagehand.page.evaluate(() =>
-      window.storeDOM(),
-    );
-
-    // **3:** Process the DOM to generate a selector map of candidate elements
-    const { selectorMap }: { selectorMap: Record<number, string[]> } =
-      await this.stagehand.page.evaluate(() => window.processAllOfDom());
-
-    this.logger({
-      category: "extraction",
-      message: `received output from processAllOfDom. selectorMap has ${Object.keys(selectorMap).length} entries`,
-      level: 1,
+    const originalDOM = await this.stagehand.page.evaluate(() => {
+      return (window as any).storeDOM();
     });
 
-    // **4:** Create text bounding boxes around every word in the webpage
-    // calling createTextBoundingBoxes() will create a span around every word on the
-    // webpage. The bounding boxes of these spans will be used to determine their
-    // positions in the text rendered webpage
-    await this.stagehand.page.evaluate(() => window.createTextBoundingBoxes());
+    // **3:** Get selector map for candidate elements
+    const { selectorMap } = (await this.stagehand.page.evaluate(() => {
+      return (window as any).processAllOfDom();
+    })) as { selectorMap: Record<number, string[]> };
+
+    // **4:** Get page dimensions for chunking
     const pageWidth = await this.stagehand.page.evaluate(
       () => window.innerWidth,
     );
@@ -227,52 +216,131 @@ export class StagehandExtractHandler {
       () => window.innerHeight,
     );
 
-    // **5:** Collect all text annotations (with positions and dimensions) from the candidate elements
-    // allAnnotations will store all the TextAnnotations BEFORE deduplication
-    const allAnnotations: TextAnnotation[] = [];
+    // **5:** Process page in vertical chunks
+    const CHUNK_HEIGHT = Math.floor(pageHeight / 2); // Process half page at a time
+    const numChunks = Math.ceil(pageHeight / CHUNK_HEIGHT);
+    let finalOutput = content;
+    let completed = false;
 
-    // here we will loop through all the xpaths in the selectorMap,
-    // and get the bounding boxes for each one. These are xpaths to "candidate elements"
-    for (const xpaths of Object.values(selectorMap)) {
-      const xpath = xpaths[0];
+    for (
+      let chunkIndex = 0;
+      chunkIndex < numChunks && !completed;
+      chunkIndex++
+    ) {
+      // Calculate chunk boundaries
+      const chunkTop = chunkIndex * CHUNK_HEIGHT;
+      const chunkBottom = Math.min((chunkIndex + 1) * CHUNK_HEIGHT, pageHeight);
 
-      // boundingBoxes is an array because there may be multiple bounding boxes within a single element
-      // (since each bounding box is around a single word)
-      const boundingBoxes: Array<{
-        text: string;
-        left: number;
-        top: number;
-        width: number;
-        height: number;
-      }> = await this.stagehand.page.evaluate(
-        (xpath) => window.getElementBoundingBoxes(xpath),
-        xpath,
-      );
+      // **6:** Create text bounding boxes for current chunk
+      await this.stagehand.page.evaluate(() => {
+        return (window as any).createTextBoundingBoxes();
+      });
 
-      for (const box of boundingBoxes) {
-        const bottom_left = {
-          x: box.left,
-          y: box.top + box.height,
-        };
-        const bottom_left_normalized = {
-          x: box.left / pageWidth,
-          y: (box.top + box.height) / pageHeight,
-        };
+      // **7:** Collect text annotations for current chunk
+      const allAnnotations: TextAnnotation[] = [];
+      for (const xpaths of Object.values(selectorMap)) {
+        const xpath = xpaths[0];
+        const boundingBoxes = await this.stagehand.page.evaluate(
+          (xpath: string, top: number, bottom: number) => {
+            const boxes = (window as any).getElementBoundingBoxes(
+              xpath,
+            ) as Array<{
+              text: string;
+              left: number;
+              top: number;
+              width: number;
+              height: number;
+            }>;
+            return boxes.filter((box) => box.top >= top && box.top < bottom);
+          },
+          xpath,
+          chunkTop,
+          chunkBottom,
+        );
 
-        const annotation: TextAnnotation = {
-          text: box.text,
-          bottom_left,
-          bottom_left_normalized,
-          width: box.width,
-          height: box.height,
-        };
-        allAnnotations.push(annotation);
+        for (const box of boundingBoxes) {
+          const bottom_left = {
+            x: box.left,
+            y: box.top + box.height,
+          };
+          const bottom_left_normalized = {
+            x: box.left / pageWidth,
+            y: (box.top + box.height) / pageHeight,
+          };
+
+          const annotation: TextAnnotation = {
+            text: box.text,
+            bottom_left,
+            bottom_left_normalized,
+            width: box.width,
+            height: box.height,
+          };
+          allAnnotations.push(annotation);
+        }
       }
+
+      // **8:** Deduplicate annotations
+      const deduplicatedTextAnnotations =
+        this.deduplicateAnnotations(allAnnotations);
+
+      // **9:** Format text for current chunk
+      const formattedText = formatText(deduplicatedTextAnnotations, pageWidth);
+
+      // **10:** Extract data from current chunk
+      const extractionResponse = await extract({
+        instruction,
+        previouslyExtractedContent: finalOutput,
+        domElements: formattedText,
+        schema,
+        chunksSeen: chunkIndex + 1,
+        chunksTotal: numChunks,
+        llmClient,
+        requestId,
+        isUsingTextExtract: true,
+      });
+
+      const {
+        metadata: { completed: chunkCompleted },
+        ...output
+      } = extractionResponse;
+
+      completed = chunkCompleted;
+      finalOutput = output;
+
+      // **11:** Clean up DOM modifications after each chunk
+      await this.stagehand.page.evaluate((dom: string) => {
+        return (window as any).restoreDOM(dom);
+      }, originalDOM);
+
+      this.logger({
+        category: "extraction",
+        message: `processed chunk ${chunkIndex + 1}/${numChunks}`,
+        auxiliary: {
+          chunk_index: {
+            value: chunkIndex.toString(),
+            type: "integer",
+          },
+          total_chunks: {
+            value: numChunks.toString(),
+            type: "integer",
+          },
+          completed: {
+            value: completed.toString(),
+            type: "boolean",
+          },
+        },
+      });
     }
 
-    // **6:** Group annotations by text and deduplicate them based on proximity
-    const annotationsGroupedByText = new Map<string, TextAnnotation[]>();
+    await this.cleanupDomDebug();
+    return finalOutput;
+  }
 
+  private deduplicateAnnotations(
+    allAnnotations: TextAnnotation[],
+  ): TextAnnotation[] {
+    // Group annotations by text
+    const annotationsGroupedByText = new Map<string, TextAnnotation[]>();
     for (const annotation of allAnnotations) {
       if (!annotationsGroupedByText.has(annotation.text)) {
         annotationsGroupedByText.set(annotation.text, []);
@@ -282,24 +350,17 @@ export class StagehandExtractHandler {
 
     const deduplicatedTextAnnotations: TextAnnotation[] = [];
 
-    // here, we deduplicate annotations per text group
+    // Deduplicate annotations per text group
     for (const [text, annotations] of annotationsGroupedByText.entries()) {
       for (const annotation of annotations) {
-        // check if this annotation is close to any existing deduplicated annotation
         const isDuplicate = deduplicatedTextAnnotations.some(
           (existingAnnotation) => {
             if (existingAnnotation.text !== text) return false;
-
             const dx =
               existingAnnotation.bottom_left.x - annotation.bottom_left.x;
             const dy =
               existingAnnotation.bottom_left.y - annotation.bottom_left.y;
             const distance = Math.hypot(dx, dy);
-            // the annotation is a duplicate if it has the same text and its bottom_left
-            // position is within the PROXIMITY_THRESHOLD of an existing annotation.
-            // we calculate the Euclidean distance between the two bottom_left points,
-            // and if the distance is less than PROXIMITY_THRESHOLD,
-            // the annotation is considered a duplicate.
             return distance < PROXIMITY_THRESHOLD;
           },
         );
@@ -310,71 +371,7 @@ export class StagehandExtractHandler {
       }
     }
 
-    // **7:** Restore the original DOM after mutations
-    await this.stagehand.page.evaluate(
-      (dom) => window.restoreDOM(dom),
-      originalDOM,
-    );
-
-    // **8:** Format the deduplicated annotations into a text representation
-    const formattedText = formatText(deduplicatedTextAnnotations, pageWidth);
-
-    // **9:** Pass the formatted text to an LLM for extraction according to the given instruction and schema
-    const extractionResponse = await extract({
-      instruction,
-      previouslyExtractedContent: content,
-      domElements: formattedText,
-      schema,
-      chunksSeen: 1,
-      chunksTotal: 1,
-      llmClient,
-      requestId,
-    });
-
-    const {
-      metadata: { completed },
-      ...output
-    } = extractionResponse;
-    await this.cleanupDomDebug();
-
-    // **10:** Handle the extraction response and log the results
-    this.logger({
-      category: "extraction",
-      message: "received extraction response",
-      auxiliary: {
-        extraction_response: {
-          value: JSON.stringify(extractionResponse),
-          type: "object",
-        },
-      },
-    });
-
-    if (completed) {
-      this.logger({
-        category: "extraction",
-        message: "extraction completed successfully",
-        level: 1,
-        auxiliary: {
-          extraction_response: {
-            value: JSON.stringify(extractionResponse),
-            type: "object",
-          },
-        },
-      });
-    } else {
-      this.logger({
-        category: "extraction",
-        message: "extraction incomplete after processing all data",
-        level: 1,
-        auxiliary: {
-          extraction_response: {
-            value: JSON.stringify(extractionResponse),
-            type: "object",
-          },
-        },
-      });
-    }
-    return output;
+    return deduplicatedTextAnnotations;
   }
 
   private async domExtract<T extends z.AnyZodObject>({
@@ -407,23 +404,14 @@ export class StagehandExtractHandler {
     });
 
     // **1:** Wait for the DOM to settle and start DOM debugging
-    // This ensures the page is stable before extracting any data.
     await this.waitForSettledDom(domSettleTimeoutMs);
     await this.startDomDebug();
 
     // **2:** Call processDom() to handle chunk-based extraction
-    // processDom determines which chunk of the page to process next.
-    // It will:
-    //   - Identify all chunks (vertical segments of the page),
-    //   - Pick the next unprocessed chunk,
-    //   - Scroll to that chunk's region,
-    //   - Extract candidate elements and their text,
-    //   - Return the extracted text (outputString), a selectorMap (for referencing elements),
-    //     the current chunk index, and the full list of chunks.
-    const { outputString, chunk, chunks } = await this.stagehand.page.evaluate(
-      (chunksSeen?: number[]) => window.processDom(chunksSeen ?? []),
+    const { outputString, chunk, chunks } = (await this.stagehand.page.evaluate(
+      (seen: number[]) => (window as any).processDom(seen),
       chunksSeen,
-    );
+    )) as { outputString: string; chunk: number; chunks: number[] };
 
     this.logger({
       category: "extraction",
@@ -445,8 +433,6 @@ export class StagehandExtractHandler {
     });
 
     // **3:** Pass the list of candidate HTML snippets to the LLM
-    // The LLM uses the provided instruction and schema to parse and extract
-    // structured data.
     const extractionResponse = await extract({
       instruction,
       previouslyExtractedContent: content,
@@ -481,8 +467,6 @@ export class StagehandExtractHandler {
     chunksSeen.push(chunk);
 
     // **4:** Check if extraction is complete
-    // If the LLM deems the extraction complete or we've processed all chunks, return the final result.
-    // Otherwise, call domExtract again for the next chunk.
     if (completed || chunksSeen.length === chunks.length) {
       this.logger({
         category: "extraction",
@@ -516,6 +500,7 @@ export class StagehandExtractHandler {
         content: output,
         chunksSeen,
         llmClient,
+        requestId,
         domSettleTimeoutMs,
       });
     }

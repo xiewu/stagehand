@@ -29,7 +29,10 @@ import { StagehandObserveHandler } from "./handlers/observeHandler";
 import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString } from "./utils";
-import { convertToSDKSettings, RuntimeBrowserSettings } from "../types/browserbase";
+import {
+  convertToSDKSettings,
+  RuntimeBrowserSettings,
+} from "../types/browserbase";
 import { AvailableModelSchema } from "../types/model";
 
 dotenv.config({ path: ".env" });
@@ -46,7 +49,10 @@ async function getBrowser(
   env: "LOCAL" | "BROWSERBASE",
   apiKey: string | undefined,
   logger: (message: LogLine) => void,
-  browserbaseSessionCreateParams?: Omit<Browserbase.Sessions.SessionCreateParams, "browserSettings"> & {
+  browserbaseSessionCreateParams?: Omit<
+    Browserbase.Sessions.SessionCreateParams,
+    "browserSettings"
+  > & {
     browserSettings?: RuntimeBrowserSettings;
   },
   browserbaseResumeSessionID?: string,
@@ -280,7 +286,9 @@ async function applyStealthScripts(context: BrowserContext) {
     const originalQuery = window.navigator.permissions.query;
     window.navigator.permissions.query = (parameters: any) =>
       parameters.name === "notifications"
-        ? Promise.resolve({ state: Notification.permission } as PermissionStatus)
+        ? Promise.resolve({
+            state: Notification.permission,
+          } as PermissionStatus)
         : originalQuery(parameters);
   });
 }
@@ -303,7 +311,10 @@ export class Stagehand {
   private logger: (logLine: LogLine) => void;
   private externalLogger?: (logLine: LogLine) => void;
   private domSettleTimeoutMs: number;
-  private browserbaseSessionCreateParams?: Omit<Browserbase.Sessions.SessionCreateParams, "browserSettings"> & {
+  private browserbaseSessionCreateParams?: Omit<
+    Browserbase.Sessions.SessionCreateParams,
+    "browserSettings"
+  > & {
     browserSettings?: RuntimeBrowserSettings;
   };
   private enableCaching: boolean;
@@ -336,7 +347,10 @@ export class Stagehand {
     llmProvider?: LLMProvider;
     headless?: boolean;
     logger?: (logLine: LogLine) => void;
-    browserbaseSessionCreateParams?: Omit<Browserbase.Sessions.SessionCreateParams, "browserSettings"> & {
+    browserbaseSessionCreateParams?: Omit<
+      Browserbase.Sessions.SessionCreateParams,
+      "browserSettings"
+    > & {
       browserSettings?: RuntimeBrowserSettings;
     };
     browserbaseResumeSessionID?: string;
@@ -347,8 +361,9 @@ export class Stagehand {
   } = {}) {
     this.externalLogger = logger;
     this.logger = this.log.bind(this);
-    this.enableCaching = enableCaching ?? (process.env.ENABLE_CACHING === "true");
-    this.llmProvider = llmProvider || new LLMProvider(this.logger, this.enableCaching);
+    this.enableCaching = enableCaching ?? process.env.ENABLE_CACHING === "true";
+    this.llmProvider =
+      llmProvider || new LLMProvider(this.logger, this.enableCaching);
     this.env = env;
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.verbose = verbose ?? 0;
@@ -369,14 +384,15 @@ export class Stagehand {
         "Passing parameters to init() is deprecated and will be removed in the next major version. Use constructor options instead.",
       );
     }
-    const { context, debugUrl, sessionUrl, contextPath, sessionId } = await getBrowser(
-      this.env,
-      this.apiKey,
-      this.logger,
-      this.browserbaseSessionCreateParams,
-      this.browserbaseResumeSessionID,
-      this.headless,
-    );
+    const { context, debugUrl, sessionUrl, contextPath, sessionId } =
+      await getBrowser(
+        this.env,
+        this.apiKey,
+        this.logger,
+        this.browserbaseSessionCreateParams,
+        this.browserbaseResumeSessionID,
+        this.headless,
+      );
 
     if (!context) {
       throw new Error("Failed to initialize browser context.");
@@ -395,10 +411,14 @@ export class Stagehand {
     const originalGoto = this.page.goto.bind(this.page);
     this.page.goto = async (url: string, options: GotoOptions) => {
       const result = await originalGoto(url, options);
+      await this.page.waitForLoadState("domcontentloaded");
+
+      // Inject DOM processing scripts
+      await this.page.addScriptTag({ content: scriptContent });
+
       if (this.debugDom) {
         await this.page.evaluate(() => (window.showChunks = this.debugDom));
       }
-      await this.page.waitForLoadState("domcontentloaded");
       await this._waitForSettledDom();
       return result;
     };
@@ -408,6 +428,10 @@ export class Stagehand {
       await this.page.setViewportSize({ width: 1280, height: 720 });
     }
 
+    // Inject initial DOM processing scripts
+    await this.page.addScriptTag({ content: scriptContent });
+
+    // Add init script for future pages
     await this.context.addInitScript({
       content: scriptContent,
     });

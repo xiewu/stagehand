@@ -67,27 +67,48 @@ export const mind2web: EvalFunction = async ({
       },
     };
 
+    // Initialize Stagehand in LOCAL mode
+    logs.push({
+      category: "eval",
+      message: "Initializing Stagehand in LOCAL mode",
+      level: 1,
+      auxiliary: {
+        browserSettings: {
+          value: JSON.stringify(browserSettings),
+          type: "object",
+        },
+      },
+    });
+
     stagehand = new Stagehand({
-      env: "BROWSERBASE",
+      env: "LOCAL",
       modelName,
       logger: (line: LogLine) => {
         logs.push(line);
         logger.log(line);
       },
-      browserbaseSessionCreateParams: {
-        projectId: process.env.BROWSERBASE_PROJECT_ID || "",
-        timeout: 60,
-        browserSettings,
-      },
+      headless: true, // Run headless for evaluation
     });
 
-    await stagehand.init();
-    debugUrl = stagehand.debugUrl;
-    sessionUrl = stagehand.sessionUrl;
+    try {
+      logs.push({
+        category: "eval",
+        message: "Initializing Stagehand browser session",
+        level: 1,
+      });
 
-    if (!debugUrl || !sessionUrl) {
+      await stagehand.init();
+
+      logs.push({
+        category: "eval",
+        message: "Successfully initialized Stagehand browser session",
+        level: 1,
+      });
+    } catch (initError) {
       throw new Error(
-        "Failed to initialize Stagehand: missing debug or session URL",
+        `Failed to initialize Stagehand: ${
+          initError instanceof Error ? initError.message : String(initError)
+        }`,
       );
     }
 
@@ -259,8 +280,8 @@ export const mind2web: EvalFunction = async ({
     return {
       _success: success,
       logs,
-      debugUrl,
-      sessionUrl,
+      debugUrl: "", // LOCAL mode doesn't use debug/session URLs
+      sessionUrl: "", // LOCAL mode doesn't use debug/session URLs
       _scores: finalScores,
     };
   } catch (error) {
@@ -279,8 +300,8 @@ export const mind2web: EvalFunction = async ({
     return {
       _success: false,
       logs,
-      debugUrl,
-      sessionUrl,
+      debugUrl: "", // LOCAL mode doesn't use debug/session URLs
+      sessionUrl: "", // LOCAL mode doesn't use debug/session URLs
       _scores: {
         act: 0,
         extract: 0,

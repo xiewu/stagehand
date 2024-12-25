@@ -44,16 +44,18 @@ export function validateUrlMatch(actual: string, expected: string): boolean {
   const normalizedExpected = expected.toLowerCase();
 
   // Handle special cases where expected might be a partial path or domain
-  if (normalizedExpected.startsWith('/')) {
+  if (normalizedExpected.startsWith("/")) {
     // If expected starts with '/', it's a path pattern
     return normalizedActual.includes(normalizedExpected);
-  } else if (normalizedExpected.endsWith('.')) {
+  } else if (normalizedExpected.endsWith(".")) {
     // If expected ends with '.', it's a domain pattern (e.g., 'nfl.')
     const domainPattern = normalizedExpected.slice(0, -1);
-    return normalizedActual.includes(`/${domainPattern}.`) ||
-           normalizedActual.includes(`//${domainPattern}.`) ||
-           normalizedActual.includes(`.${domainPattern}.`);
-  } else if (normalizedExpected.endsWith('/')) {
+    return (
+      normalizedActual.includes(`/${domainPattern}.`) ||
+      normalizedActual.includes(`//${domainPattern}.`) ||
+      normalizedActual.includes(`.${domainPattern}.`)
+    );
+  } else if (normalizedExpected.endsWith("/")) {
     // If expected ends with '/', it's a path segment (e.g., 'scores/')
     return normalizedActual.includes(normalizedExpected);
   }
