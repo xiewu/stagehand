@@ -28,7 +28,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const MAX_CONCURRENCY = 20;
-const TRIAL_COUNT = 5;
+const TRIAL_COUNT = 3;
 
 /**
  * generateSummary:
