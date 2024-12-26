@@ -13,7 +13,7 @@
 import fs from "fs";
 import path from "path";
 import { AvailableModel, AvailableModelSchema } from "../types/model";
-import { filterByCategory, filterByEvalName } from "./args";
+import { filterByEvalName } from "./args";
 
 // The configuration file `evals.config.json` contains a list of tasks and their associated categories.
 const configPath = path.join(__dirname, "evals.config.json");
