@@ -611,18 +611,86 @@ const interactiveRoles = [
 ];
 const interactiveAriaRoles = ["menu", "menuitem", "button"];
 
-/*
- * Checks if an element is visible and therefore relevant for LLMs to consider. We check:
- * - Size
- * - Display properties
- * - Opacity
- * If the element is a child of a previously hidden element, it should not be included, so we don't consider downstream effects of a parent element here
+/**
+ * Utility to transform an Element’s boundingClientRect into the “top” window’s coordinate system.
+ */
+function getGlobalRect(element: Element): DOMRect {
+  const rect = element.getBoundingClientRect();
+
+  let doc = element.ownerDocument;
+  let win = doc.defaultView;
+  let offsetX = rect.left;
+  let offsetY = rect.top;
+
+  while (win && win !== window.top) {
+    const frameElem = win.frameElement as HTMLIFrameElement | null;
+    if (!frameElem) {
+      // Not in an iframe or no further frames up
+      break;
+    }
+
+    // Get the iframe’s position in its parent doc:
+    const frameRect = frameElem.getBoundingClientRect();
+    offsetX += frameRect.left;
+    offsetY += frameRect.top;
+
+    doc = frameElem.ownerDocument;
+    win = doc.defaultView;
+  }
+
+  // Build a “global” DOMRect-like object
+  return {
+    x: offsetX,
+    y: offsetY,
+    width: rect.width,
+    height: rect.height,
+    left: offsetX,
+    top: offsetY,
+    right: offsetX + rect.width,
+    bottom: offsetY + rect.height,
+    // The DOMRect interface also has read-only properties, so in a real TS environment
+    // you’d want to define a custom type or cast as needed.
+    toJSON() {
+      return { x: this.x, y: this.y, width: this.width, height: this.height };
+    },
+  } as DOMRect;
+}
+
+/**
+ * Recursively check if each iframe up the chain is topmost in its parent.
+ * If we’ve reached the top-level document, return true.
+ */
+function isIFrameOnTop(element: Element): boolean {
+  const doc = element.ownerDocument;
+  const frameElem = doc.defaultView?.frameElement as HTMLIFrameElement | null;
+  if (!frameElem) {
+    // We’re in the top window already (no <iframe>).
+    return true;
+  }
+
+  // If we are in an iframe, check that that iframe is topmost in its parent doc
+  const parentDoc = frameElem.ownerDocument;
+  const iframeRect = frameElem.getBoundingClientRect();
+
+  // We can reuse isTopElement logic on the parent doc, but note it’ll be in the parent’s coordinate system
+  // This ensures the iframe itself is not obscured in the parent.
+  if (!isTopElement(frameElem, iframeRect, parentDoc)) {
+    return false;
+  }
+
+  // Recurse upwards in case the parent doc is also in an iframe
+  return isIFrameOnTop(frameElem);
+}
+
+/**
+ * Checks if an element is visible and therefore relevant for LLMs to consider
+ * (size, display properties, opacity, if it’s top-element in local doc, and iframe is top-element in parent).
  */
 const isVisible = (element: Element): boolean => {
   const doc = element.ownerDocument;
   if (!doc) return false;
 
-  // boundingClientRect is relative to the element’s own document view
+  // boundingClientRect in the local doc context
   const rect = element.getBoundingClientRect();
 
   // Basic checks for zero-size
@@ -630,25 +698,30 @@ const isVisible = (element: Element): boolean => {
     return false;
   }
 
-  // We need to measure with respect to the iframe's own window if it's in an iframe
-  const win = doc.defaultView;
-  if (!win) return false;
+  // Convert local doc coordinates into main-page coordinates, to check out-of-view conditions more accurately
+  const globalRect = getGlobalRect(element);
+  const winTop = window.top;
+  if (!winTop) return false;
 
-  const viewportHeight = win.innerHeight;
-  const viewportWidth = win.innerWidth;
-
-  // If it's placed well outside the current visible region in the iframe, consider it not visible
+  // If it’s placed well outside the current visible region in the top window, consider it not visible
+  const topWinWidth = winTop.innerWidth;
+  const topWinHeight = winTop.innerHeight;
   if (
-    rect.top > viewportHeight ||
-    rect.bottom < 0 ||
-    rect.left > viewportWidth ||
-    rect.right < 0
+    globalRect.top > topWinHeight ||
+    globalRect.bottom < 0 ||
+    globalRect.left > topWinWidth ||
+    globalRect.right < 0
   ) {
     return false;
   }
 
-  // Make sure it's topmost at some point. This must be done in the element’s own document
+  // Make sure it’s topmost at some point in its own document
   if (!isTopElement(element, rect, doc)) {
+    return false;
+  }
+
+  // Also ensure each parent iframe is topmost in its parent doc
+  if (!isIFrameOnTop(element)) {
     return false;
   }
 
@@ -659,11 +732,14 @@ const isVisible = (element: Element): boolean => {
   });
 };
 
+/**
+ * Checks if a text node is visible in the main page, similarly to isVisible.
+ */
 const isTextVisible = (node: ChildNode): boolean => {
   const doc = node.ownerDocument;
   if (!doc) return false;
 
-  // For text node bounding box, we can create a Range
+  // For text node bounding box, we can create a Range in the local doc
   const range = doc.createRange();
   range.selectNodeContents(node);
 
@@ -672,30 +748,37 @@ const isTextVisible = (node: ChildNode): boolean => {
     return false;
   }
 
-  const win = doc.defaultView;
-  if (!win) return false;
+  // Convert coordinates upward to the top window.
+  const dummyElement = node.parentElement;
+  if (!dummyElement) return false;
 
-  const viewportHeight = win.innerHeight;
-  const viewportWidth = win.innerWidth;
+  const globalRect = getGlobalRect(dummyElement);
+  const winTop = window.top;
+  if (!winTop) return false;
+
+  const topWinWidth = winTop.innerWidth;
+  const topWinHeight = winTop.innerHeight;
   if (
-    rect.top > viewportHeight ||
-    rect.bottom < 0 ||
-    rect.left > viewportWidth ||
-    rect.right < 0
+    globalRect.top > topWinHeight ||
+    globalRect.bottom < 0 ||
+    globalRect.left > topWinWidth ||
+    globalRect.right < 0
   ) {
     return false;
   }
 
-  if (!node.parentElement) {
+  // Must also be topmost at some sample points in the local doc
+  if (!isTopElement(dummyElement, rect, doc)) {
     return false;
   }
 
-  if (!isTopElement(node.parentElement, rect, doc)) {
+  // Check if the parent iframe is topmost if inside an iframe
+  if (!isIFrameOnTop(dummyElement)) {
     return false;
   }
 
-  // Finally, rely on the parent for CSS visibility checks
-  return node.parentElement.checkVisibility({
+  // Finally, rely on the parent’s checkVisibility for CSS-based checks
+  return dummyElement.checkVisibility({
     checkOpacity: true,
     checkVisibilityCSS: true,
   });
