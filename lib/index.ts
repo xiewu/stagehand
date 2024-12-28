@@ -878,6 +878,7 @@ export class Stagehand {
         fullPage: false,
         requestId,
         domSettleTimeoutMs: options?.domSettleTimeoutMs,
+        useAccessibilityTree: options?.useAccessibilityTree ?? false,
       })
       .catch((e) => {
         this.logger({

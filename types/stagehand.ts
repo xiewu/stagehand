@@ -82,6 +82,7 @@ export interface ObserveOptions {
   modelClientOptions?: ClientOptions;
   useVision?: boolean;
   domSettleTimeoutMs?: number;
+  useAccessibilityTree?: boolean;
 }
 
 export interface ObserveResult {

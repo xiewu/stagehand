@@ -6,6 +6,8 @@ import { TextAnnotation } from "../../types/textannotation";
 import { extract } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { formatText } from "../utils";
+import { Page } from '@playwright/test';
+
 
 const PROXIMITY_THRESHOLD = 15;
 
@@ -548,12 +550,13 @@ export class StagehandExtractHandler {
     domSettleTimeoutMs?: number;
   }): Promise<z.infer<T>> {
     // 1. Get accessibility snapshot
-    const snapshot = await this.stagehand.page.accessibility.snapshot();
-    const cleanedSnapshot = cleanObject(snapshot);
-
+    // const snapshot = await this.stagehand.page.accessibility.snapshot();
+    // const cleanedSnapshot = cleanObject(snapshot);
+    const accessibilitySources = await getAccessibilityTree(this.stagehand.page);
     // 2. Format the accessibility tree for LLM
-    const formattedTree = formatAccessibilityTree(cleanedSnapshot);
-
+    // const formattedTree = formatAccessibilityTree(cleanedSnapshot);
+    const formattedTree = cleanAccessibilityTree(accessibilitySources);
+    console.log(formattedTree);
     // 3. Extract using LLM
     const extractionResponse = await extract({
       instruction,
@@ -564,6 +567,7 @@ export class StagehandExtractHandler {
       chunksTotal: 1,
       llmClient,
       requestId,
+      isUsingAccessibilityExtract: true,
     });
 
     const { metadata: { completed }, ...output } = extractionResponse;
@@ -605,4 +609,62 @@ function formatAccessibilityTree(node: any, level = 0): string {
     }
     
     return result;
+}
+
+async function getAccessibilityTree(page: Page) {
+  const cdpClient = await page.context().newCDPSession(page);
+  await cdpClient.send('Accessibility.enable');
+  
+  try {
+    const { nodes } = await cdpClient.send('Accessibility.getFullAXTree');
+    
+    // Extract specific sources
+    const sources = nodes.map(node => ({
+      role: node.role?.value,
+      name: node.name?.value,
+      description: node.description?.value,
+      value: node.value?.value,
+      properties: node.properties,
+      nodeId: node.nodeId,
+      parentId: node.parentId,
+      backendDOMNodeId: node.backendDOMNodeId,
+      childIds: node.childIds,
+    }));
+
+    return sources;
+  } finally {
+    await cdpClient.send('Accessibility.disable');
+  }
+}
+
+interface AccessibilityNode {
+  name?: string;
+  role?: string;
+  properties?: any[];
+  description?: string;
+}
+
+
+function cleanAccessibilityTree(source: any): string {
+    const meaningfulNodes = source
+        .filter((node: AccessibilityNode) => {
+            // const name = node.name?.trim();
+            // return Boolean(
+            //     name && 
+            //     name !== '' && 
+            //     name !== '[]' &&
+            //     node.role?.trim() &&
+            //     !/[\u{0080}-\u{FFFF}]/u.test(name)
+            // );
+            return node.role !== 'none'
+        })
+        .map((node: AccessibilityNode) => ({
+            role: node.role,
+            name: node.name,
+            // ...(node.properties && node.properties.length > 0 && { properties: node.properties }),
+            // ...(node.description && { description: node.description })
+        }))
+    
+
+    return JSON.stringify(meaningfulNodes, null, 2);
 }
