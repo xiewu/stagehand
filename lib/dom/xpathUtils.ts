@@ -1,5 +1,106 @@
-import { isTextNode } from "./process";
-import { isElementNode } from "./process";
+import { isTextNode, isElementNode } from "./process";
+
+/**
+ * Attempts to find the <iframe> Element in the top-level document
+ * whose .contentDocument or .contentWindow?.document
+ * matches the passed-in Document.
+ *
+ * @param doc The Document we're trying to match.
+ */
+function findIframeElementForDocument(doc: Document): HTMLIFrameElement | null {
+  const iframes = document.querySelectorAll("iframe");
+  for (const iframe of Array.from(iframes)) {
+    if (
+      iframe.contentDocument === doc ||
+      iframe.contentWindow?.document === doc
+    ) {
+      return iframe;
+    }
+  }
+  return null;
+}
+
+/**
+ * Build a top-level XPath to the given iframe element
+ * (the iframe as a DOM element in the parent document).
+ * This reuses standard logic for building an XPath to regular elements.
+ */
+function buildXPathForIframeElement(iframeEl: HTMLIFrameElement): string {
+  const parts: string[] = [];
+  let el: HTMLElement | null = iframeEl;
+  while (el && el !== document.body) {
+    const siblings = el.parentElement
+      ? Array.from(el.parentElement.children)
+      : [];
+    let index = 1;
+    for (const sibling of siblings) {
+      if (sibling.tagName === el.tagName) {
+        if (sibling === el) {
+          break;
+        }
+        index++;
+      }
+    }
+    const tagName = el.tagName.toLowerCase();
+    parts.unshift(index > 1 ? `${tagName}[${index}]` : tagName);
+    el = el.parentElement;
+  }
+  return "/" + parts.join("/");
+}
+
+/**
+ * Generate a combined "iframe-aware" path that shows how to locate
+ * an element in the top-level doc by first finding the appropriate iframe,
+ * then, inside that iframe, using a normal XPath to locate the target node.
+ */
+function generateIframeAwareXPathChain(element: ChildNode): string[] | null {
+  if (!element.ownerDocument) return null;
+
+  if (element.ownerDocument === document) {
+    return null;
+  }
+
+  const iframeEl = findIframeElementForDocument(element.ownerDocument);
+  if (!iframeEl) {
+    return null;
+  }
+
+  const iframeXPath = buildXPathForIframeElement(iframeEl);
+  const insideIframeXPath = buildStandardXPathInsideDoc(element);
+
+  return [iframeXPath, insideIframeXPath];
+}
+
+/**
+ * A helper that builds a standard XPath for an element (or text node) inside
+ * its own Document.
+ */
+function buildStandardXPathInsideDoc(node: ChildNode): string {
+  const parts: string[] = [];
+  let current: ChildNode | null = node;
+  while (current && (isElementNode(current) || isTextNode(current))) {
+    const parent = current.parentElement;
+    if (!parent) break;
+    let index = 1;
+    const siblings = Array.from(parent.childNodes).filter(
+      (sibling) =>
+        sibling.nodeType === current.nodeType &&
+        sibling.nodeName === current.nodeName,
+    );
+
+    for (const sibling of siblings) {
+      if (sibling === current) break;
+      index++;
+    }
+
+    if (current.nodeName !== "#text") {
+      const tagName = current.nodeName.toLowerCase();
+      parts.unshift(siblings.length > 1 ? `${tagName}[${index}]` : tagName);
+    }
+    current = parent;
+  }
+  return "/" + parts.join("/");
+}
 
 function getParentElement(node: ChildNode): Element | null {
   return isElementNode(node)
@@ -52,7 +153,6 @@ function isXPathFirstResultElement(xpath: string, target: Element): boolean {
     );
     return result.snapshotItem(0) === target;
   } catch (error) {
-    // If there's an error evaluating the XPath, consider it not unique
     console.warn(`Invalid XPath expression: ${xpath}`, error);
     return false;
   }
@@ -67,7 +167,6 @@ function isXPathFirstResultElement(xpath: string, target: Element): boolean {
 export function escapeXPathString(value: string): string {
   if (value.includes("'")) {
     if (value.includes('"')) {
-      // If the value contains both single and double quotes, split into parts
       return (
         "concat(" +
         value
@@ -85,40 +184,43 @@ export function escapeXPathString(value: string): string {
         ")"
       );
     } else {
-      // Contains single quotes but not double quotes; use double quotes
       return `"${value}"`;
     }
   } else {
-    // Does not contain single quotes; use single quotes
     return `'${value}'`;
   }
 }
 
 /**
- * Generates both a complicated XPath and a standard XPath for a given DOM element.
+ * Generates XPaths for a given DOM element, including iframe-aware paths if needed.
  * @param element - The target DOM element.
- * @param documentOverride - Optional document override.
- * @returns An object containing both XPaths.
+ * @returns An array of XPaths.
  */
 export async function generateXPathsForElement(
   element: ChildNode,
 ): Promise<string[]> {
-  // Generate the standard XPath
   if (!element) return [];
+
+  const iframeChain = generateIframeAwareXPathChain(element);
   const [complexXPath, standardXPath, idBasedXPath] = await Promise.all([
     generateComplexXPath(element),
     generateStandardXPath(element),
     generatedIdBasedXPath(element),
   ]);
 
-  // This should return in order from most accurate on current page to most cachable.
-  // Do not change the order if you are not sure what you are doing.
-  // Contact Navid if you need help understanding it.
+  if (iframeChain) {
+    return [
+      standardXPath,
+      ...(idBasedXPath ? [idBasedXPath] : []),
+      complexXPath,
+      JSON.stringify(iframeChain),
+    ];
+  }
+
   return [standardXPath, ...(idBasedXPath ? [idBasedXPath] : []), complexXPath];
 }
 
 async function generateComplexXPath(element: ChildNode): Promise<string> {
-  // Generate the complicated XPath
   const parts: string[] = [];
   let currentElement: ChildNode | null = element;
 
@@ -130,7 +232,6 @@ async function generateComplexXPath(element: ChildNode): Promise<string> {
       const el = currentElement as Element;
       let selector = el.tagName.toLowerCase();
 
-      // List of attributes to consider for uniqueness
       const attributePriority = [
         "data-qa",
         "data-component",
@@ -145,7 +246,6 @@ async function generateComplexXPath(element: ChildNode): Promise<string> {
         "alt",
       ];
 
-      // Collect attributes present on the element
       const attributes = attributePriority
         .map((attr) => {
           let value = el.getAttribute(attr);
@@ -158,7 +258,6 @@ async function generateComplexXPath(element: ChildNode): Promise<string> {
         })
         .filter((attr) => attr !== null) as { attr: string; value: string }[];
 
-      // Attempt to find a combination of attributes that uniquely identifies the element
       let uniqueSelector = "";
       for (let i = 1; i <= attributes.length; i++) {
         const combinations = getCombinations(attributes, i);
@@ -179,7 +278,6 @@ async function generateComplexXPath(element: ChildNode): Promise<string> {
         parts.unshift(uniqueSelector.replace("//", ""));
         break;
       } else {
-        // Fallback to positional selector
         const parent = getParentElement(el);
         if (parent) {
           const siblings = Array.from(parent.children).filter(
@@ -225,7 +323,6 @@ async function generateStandardXPath(element: ChildNode): Promise<string> {
         }
       }
     }
-    // text "nodes" are selected differently than elements with xPaths
     if (element.nodeName !== "#text") {
       const tagName = element.nodeName.toLowerCase();
       const pathIndex = hasSameTypeSiblings ? `[${index}]` : "";
