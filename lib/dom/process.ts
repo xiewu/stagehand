@@ -102,7 +102,7 @@ export async function processElements(
   chunk: number,
   scrollToChunk: boolean = true,
   indexOffset: number = 0,
-  debug: boolean = true,
+  debug: boolean = false,
 ): Promise<{
   outputString: string;
   selectorMap: Record<number, string[]>;
