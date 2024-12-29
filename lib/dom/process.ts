@@ -880,16 +880,17 @@ function isTopElement(elem: Element, rect: DOMRect, doc: Document): boolean {
   ];
 
   // Use doc.elementFromPoint(...) instead of top-level document
-  for (const point of points) {
+  const results = points.map((point) => {
     const elAtPoint = doc.elementFromPoint(point.x, point.y);
     let current: Element | null = elAtPoint as Element;
     while (current && current !== doc.body) {
       if (current.isSameNode(elem)) return true;
       current = current.parentElement;
     }
-  }
-
   return false;
+  });
+
+  return results.some((result) => result);
 }
 
 const isActive = (element: Element) => {
