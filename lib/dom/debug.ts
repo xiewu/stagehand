@@ -16,13 +16,21 @@ function drawChunk(
   if (!window.showChunks && !forceDraw) return;
   cleanupMarkers();
   Object.values(selectorMap).forEach((selectorArr) => {
-    const element = document.evaluate(
-      selectorArr[0],
-      document,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null,
-    ).singleNodeValue as Element;
+    let element = null;
+    for (const selector of selectorArr) {
+      const result = document.evaluate(
+        selector,
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null,
+      ).singleNodeValue as Element;
+
+      if (result) {
+        element = result;
+        break;
+      }
+    }
 
     if (element) {
       let rect;
