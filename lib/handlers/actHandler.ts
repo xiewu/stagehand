@@ -281,6 +281,8 @@ export class StagehandActHandler {
             delay: Math.random() * 50 + 25,
           });
         }
+        // wait (in case of autocomplete)
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
       } catch (e) {
         this.logger({
           category: "action",
