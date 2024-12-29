@@ -10,11 +10,15 @@ import { isTextNode, isElementNode } from "./process";
 function findIframeElementForDocument(doc: Document): HTMLIFrameElement | null {
   const iframes = document.querySelectorAll("iframe");
   for (const iframe of Array.from(iframes)) {
-    if (
-      iframe.contentDocument === doc ||
-      iframe.contentWindow?.document === doc
-    ) {
-      return iframe;
+    try {
+      if (
+        iframe.contentDocument === doc ||
+        iframe.contentWindow?.document === doc
+      ) {
+        return iframe;
+      }
+    } catch {
+      continue;
     }
   }
   return null;
