@@ -1,13 +1,9 @@
 import { calculateViewportHeight } from "./utils";
 
-export async function debugDom() {
-  window.chunkNumber = 0;
+export async function debugDom(chunkNumber: number = 0) {
+  window.chunkNumber = chunkNumber;
 
-  const { selectorMap: multiSelectorMap } = await window.processElements(
-    window.chunkNumber,
-  );
-
-  const selectorMap = multiSelectorMapToSelectorMap(multiSelectorMap);
+  const { selectorMap } = await window.processElements(window.chunkNumber);
 
   drawChunk(selectorMap);
   setupChunkNav();
@@ -24,12 +20,15 @@ function multiSelectorMapToSelectorMap(
   );
 }
 
-function drawChunk(selectorMap: Record<number, string>) {
-  if (!window.showChunks) return;
+function drawChunk(
+  selectorMap: Record<number, string[]>,
+  forceDraw: boolean = false,
+) {
+  if (!window.showChunks && !forceDraw) return;
   cleanupMarkers();
-  Object.values(selectorMap).forEach((selector) => {
+  Object.values(selectorMap).forEach((selectorArr) => {
     const element = document.evaluate(
-      selector as string,
+      selectorArr[0],
       document,
       null,
       XPathResult.FIRST_ORDERED_NODE_TYPE,
@@ -106,12 +105,7 @@ function setupChunkNav() {
       window.chunkNumber -= 1;
       window.scrollTo(0, window.chunkNumber * viewportHeight);
       await window.waitForDomSettle();
-      const { selectorMap: multiSelectorMap } = await window.processElements(
-        window.chunkNumber,
-      );
-
-      const selectorMap = multiSelectorMapToSelectorMap(multiSelectorMap);
-
+      const { selectorMap } = await window.processElements(window.chunkNumber);
       drawChunk(selectorMap);
       setupChunkNav();
     };
@@ -134,10 +128,7 @@ function setupChunkNav() {
       window.scrollTo(0, window.chunkNumber * viewportHeight);
       await window.waitForDomSettle();
 
-      const { selectorMap: multiSelectorMap } = await window.processElements(
-        window.chunkNumber,
-      );
-      const selectorMap = multiSelectorMapToSelectorMap(multiSelectorMap);
+      const { selectorMap } = await window.processElements(window.chunkNumber);
       drawChunk(selectorMap);
       setupChunkNav();
     };
@@ -148,3 +139,4 @@ function setupChunkNav() {
 
 window.debugDom = debugDom;
 window.cleanupDebug = cleanupDebug;
+window.drawChunk = drawChunk;

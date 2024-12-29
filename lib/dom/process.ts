@@ -321,6 +321,10 @@ export async function processElements(
   });
   console.timeEnd("processElements:processCandidates");
 
+  if (debug) {
+    window.drawChunk(selectorMap, true);
+  }
+
   console.timeEnd("processElements:total");
   return {
     outputString,
