@@ -9,17 +9,6 @@ export async function debugDom(chunkNumber: number = 0) {
   setupChunkNav();
 }
 
-function multiSelectorMapToSelectorMap(
-  multiSelectorMap: Record<number, string[]>,
-) {
-  return Object.fromEntries(
-    Object.entries(multiSelectorMap).map(([key, selectors]) => [
-      Number(key),
-      selectors[0],
-    ]),
-  );
-}
-
 function drawChunk(
   selectorMap: Record<number, string[]>,
   forceDraw: boolean = false,
