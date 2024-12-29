@@ -887,7 +887,7 @@ function isTopElement(elem: Element, rect: DOMRect, doc: Document): boolean {
       if (current.isSameNode(elem)) return true;
       current = current.parentElement;
     }
-  return false;
+    return false;
   });
 
   return results.some((result) => result);
