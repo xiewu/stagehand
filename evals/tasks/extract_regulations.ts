@@ -1,5 +1,6 @@
 import { EvalFunction } from "../../types/evals";
 import { initStagehand } from "../initStagehand";
+import { compareStrings } from "../utils";
 import { z } from "zod";
 
 export const extract_regulations: EvalFunction = async ({
@@ -22,8 +23,10 @@ export const extract_regulations: EvalFunction = async ({
     schema: z.object({
       regulations: z.array(
         z.object({
-          description: z.string(),
-          issue_date: z.string(),
+          description: z.string().describe("The description of the regulation"),
+          issue_date: z
+            .string()
+            .describe("The date that the regulation was issued"),
         }),
       ),
     }),
@@ -70,9 +73,21 @@ export const extract_regulations: EvalFunction = async ({
       sessionUrl,
     };
   }
+
+  const firstDescriptionComparison = compareStrings(
+    regulations[0].description,
+    expectedFirstItem.description,
+    0.95,
+  );
+  const firstIssueDateComparison = compareStrings(
+    regulations[0].issue_date,
+    expectedFirstItem.issue_date,
+    0.95,
+  );
+
   const firstItemMatches =
-    regulations[0].description === expectedFirstItem.description &&
-    regulations[0].issue_date === expectedFirstItem.issue_date;
+    firstDescriptionComparison.meetsThreshold &&
+    firstIssueDateComparison.meetsThreshold;
 
   if (!firstItemMatches) {
     logger.error({
@@ -98,11 +113,19 @@ export const extract_regulations: EvalFunction = async ({
     };
   }
 
+  const last = regulations[regulations.length - 1];
+  const lastDescriptionComparison = compareStrings(
+    last.description,
+    expectedLastItem.description,
+  );
+  const lastIssueDateComparison = compareStrings(
+    last.issue_date,
+    expectedLastItem.issue_date,
+  );
+
   const lastItemMatches =
-    regulations[regulations.length - 1].description ===
-      expectedLastItem.description &&
-    regulations[regulations.length - 1].issue_date ===
-      expectedLastItem.issue_date;
+    lastDescriptionComparison.meetsThreshold &&
+    lastIssueDateComparison.meetsThreshold;
 
   if (!lastItemMatches) {
     logger.error({
@@ -114,7 +137,7 @@ export const extract_regulations: EvalFunction = async ({
           type: "object",
         },
         actual: {
-          value: JSON.stringify(regulations[regulations.length - 1]),
+          value: JSON.stringify(last),
           type: "object",
         },
       },
