@@ -19,7 +19,7 @@ import { env } from "./env";
 import { generateExperimentName } from "./utils";
 import { exactMatch, errorMatch } from "./scoring";
 import { tasksByName, MODELS } from "./taskConfig";
-import { filterByCategory, filterByEvalName, useTextExtract } from "./args";
+import { filterByCategory, filterByEvalName, useTextExtract, useAccessibilityTree } from "./args";
 import { Eval } from "braintrust";
 import { EvalFunction, SummaryResult, Testcase } from "../types/evals";
 import { EvalLogger } from "./logger";
@@ -221,7 +221,7 @@ const generateFilteredTestcases = (): Testcase[] => {
             modelName: input.modelName,
             logger,
             useTextExtract,
-            useAccessibilityTree,
+            useAccessibilityTree
           });
 
           // Log result to console
