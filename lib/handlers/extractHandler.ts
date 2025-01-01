@@ -553,7 +553,7 @@ export class StagehandExtractHandler {
     // 1. Get accessibility snapshot
     // const snapshot = await this.stagehand.page.accessibility.snapshot();
     // const cleanedSnapshot = cleanObject(snapshot);
-    const accessibilityTree = await getAccessibilityTree(this.stagehand.page);
+    const accessibilityTree = await getAccessibilityTree(this.stagehandPage);
     // 2. Format the accessibility tree for LLM
     // const formattedTree = formatAccessibilityTree(cleanedSnapshot);
     const formattedTree = cleanAccessibilityTree(accessibilityTree);
@@ -613,8 +613,8 @@ function formatAccessibilityTree(node: any, level = 0): string {
     return result;
 }
 
-async function getAccessibilityTree(page: Page) {
-  const cdpClient = await page.context().newCDPSession(page);
+async function getAccessibilityTree(page: StagehandPage) {
+  const cdpClient = await page.context.newCDPSession(page.page);
   await cdpClient.send('Accessibility.enable');
   
   try {
@@ -636,6 +636,7 @@ async function getAccessibilityTree(page: Page) {
     // const hierarchicalTree = buildHierarchicalTree(sources);
 
     // return JSON.stringify(hierarchicalTree, null, 1);
+    console.log(sources);
     return sources;
 
   } finally {

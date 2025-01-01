@@ -1,7 +1,6 @@
 import { Stagehand } from "../lib";
 import { z } from "zod";
 import dotenv from "dotenv";
-import AxeBuilder from '@axe-core/playwright';
 import { Page } from '@playwright/test';
 import fs from 'fs';
 
@@ -124,10 +123,10 @@ async function main() {
 
   // Initialize the stagehand instance
   await stagehand.init();
-
+  const page = stagehand.page;
   // // AI grant extract eval
-  // await stagehand.page.goto("https://aigrant.com/");
-  // const companyList = await stagehand.extract({
+  // await page.goto("https://aigrant.com/");
+  // const companyList = await page.extract({
   //   instruction:
   //     "Extract all companies that received the AI grant and group them with their batch numbers as an array of objects. Each object should contain the company name and its corresponding batch number.",
   //   schema: z.object({
@@ -316,26 +315,26 @@ async function main() {
   // console.log(snowshoeing_regions.snowshoeing_regions);
   // console.log(snowshoeing_regions.snowshoeing_regions.length);
   
-  // await stagehand.page.goto("https://panamcs.org/about/staff/");
+  await page.goto("https://panamcs.org/about/staff/");
 
-  // const result = await stagehand.extract({
-  //   instruction:
-  //     "extract a list of staff members on this page, with their name and their job title",
-  //   schema: z.object({
-  //     staff_members: z.array(
-  //       z.object({
-  //         name: z.string(),
-  //         job_title: z.string(),
-  //       }),
-  //     ),
-  //   }),
-  //   useTextExtract:false,
-  //   useAccessibilityTree: true
-  // });
+  const result = await page.extract({
+    instruction:
+      "extract a list of staff members on this page, with their name and their job title",
+    schema: z.object({
+      staff_members: z.array(
+        z.object({
+          name: z.string(),
+          job_title: z.string(),
+        }),
+      ),
+    }),
+    useTextExtract:false,
+    useAccessibilityTree: true
+  });
 
-  // const staff_members = result.staff_members;
-  // console.log(JSON.stringify(staff_members, null, 2));
-  // console.log(staff_members.length);
+  const staff_members = result.staff_members;
+  console.log(JSON.stringify(staff_members, null, 2));
+  console.log(staff_members.length);
 
   // await stagehand.page.goto("https://www.seielect.com/?stockcheck=ASR1JA330R", { waitUntil: "networkidle" });
 
@@ -357,25 +356,25 @@ async function main() {
   // console.log(result.ohmic_value);
   // console.log(result.operating_temperature_range);
 
-  await stagehand.page.goto("https://www.jsc.gov.jo/Links2/en/Regulations");
+  // await stagehand.page.goto("https://www.jsc.gov.jo/Links2/en/Regulations");
 
-  const result = await stagehand.extract({
-    instruction:
-      "Extract the list of regulations with their descriptions and issue dates",
-    schema: z.object({
-      regulations: z.array(
-        z.object({
-          description: z.string(),
-          issue_date: z.string(),
-        }),
-      ),
-    }),
-    useTextExtract: false,
-    useAccessibilityTree: true
-  });
+  // const result = await stagehand.page.extract({
+  //   instruction:
+  //     "Extract the list of regulations with their descriptions and issue dates",
+  //   schema: z.object({
+  //     regulations: z.array(
+  //       z.object({
+  //         description: z.string(),
+  //         issue_date: z.string(),
+  //       }),
+  //     ),
+  //   }),
+  //   useTextExtract: false,
+  //   useAccessibilityTree: true
+  // });
 
-  console.log(result.regulations);
-  console.log(result.regulations.length);
+  // console.log(result.regulations);
+  // console.log(result.regulations.length);
 
   // const accessibilitySources = await getAccessibilityTree(stagehand.page);
   // const meaningfulNodes = accessibilitySources
