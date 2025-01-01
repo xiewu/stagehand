@@ -281,6 +281,7 @@ const refineSystemPrompt = `You are tasked with refining and filtering informati
 2. For text fields, append or update relevant text if the new content is an extension, replacement, or continuation.
 3. For non-text fields (e.g., numbers, booleans), update with new values if they differ.
 4. Add any completely new fields or objects.
+5. Clean any responses to match the correct string format, if there are multiple lines aggregate into a single line.
 
 Return the updated content that includes both the previous content and the new, non-duplicate, or extended information.`;
 

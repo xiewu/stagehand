@@ -552,15 +552,16 @@ export class StagehandExtractHandler {
     // 1. Get accessibility snapshot
     // const snapshot = await this.stagehand.page.accessibility.snapshot();
     // const cleanedSnapshot = cleanObject(snapshot);
-    const accessibilitySources = await getAccessibilityTree(this.stagehand.page);
+    const accessibilityTree = await getAccessibilityTree(this.stagehand.page);
     // 2. Format the accessibility tree for LLM
     // const formattedTree = formatAccessibilityTree(cleanedSnapshot);
-    const formattedTree = cleanAccessibilityTree(accessibilitySources);
-    console.log(formattedTree);
+    const formattedTree = cleanAccessibilityTree(accessibilityTree);
+    // console.log(formattedTree);
     // 3. Extract using LLM
     const extractionResponse = await extract({
       instruction,
       previouslyExtractedContent: content,
+      // domElements: accessibilityTree,
       domElements: formattedTree,
       schema,
       chunksSeen: 1,
@@ -631,7 +632,11 @@ async function getAccessibilityTree(page: Page) {
       childIds: node.childIds,
     }));
 
+    // const hierarchicalTree = buildHierarchicalTree(sources);
+
+    // return JSON.stringify(hierarchicalTree, null, 1);
     return sources;
+
   } finally {
     await cdpClient.send('Accessibility.disable');
   }
@@ -642,6 +647,8 @@ interface AccessibilityNode {
   role?: string;
   properties?: any[];
   description?: string;
+  value?: string;
+  children?: AccessibilityNode[];
 }
 
 
@@ -667,4 +674,48 @@ function cleanAccessibilityTree(source: any): string {
     
 
     return JSON.stringify(meaningfulNodes, null, 2);
+}
+
+function buildHierarchicalTree(nodes: any[]): AccessibilityNode[] {
+  // Create a map of nodes by their IDs for quick lookup
+  const nodeMap = new Map<string, AccessibilityNode>();
+  
+  // First pass: Create basic nodes
+  nodes.forEach(node => {
+    // Skip nodes that have no name and no children, or have role 'none' without children
+    const hasChildren = node.childIds && node.childIds.length > 0;
+    const hasValidName = node.name && node.name.trim() !== '';
+    
+    if ((!hasValidName && !hasChildren) || (node.role === 'none' && !hasChildren)) {
+      return;
+    }
+
+    nodeMap.set(node.nodeId, {
+      role: node.role,
+      ...(hasValidName && { name: node.name }),
+      ...(node.description && { description: node.description }),
+      ...(node.value && { value: node.value })
+    });
+  });
+
+  // Second pass: Build parent-child relationships
+  nodes.forEach(node => {
+    if (node.parentId && nodeMap.has(node.nodeId)) {
+      const parentNode = nodeMap.get(node.parentId);
+      const currentNode = nodeMap.get(node.nodeId);
+      
+      if (parentNode && currentNode) {
+        if (!parentNode.children) {
+          parentNode.children = [];
+        }
+        parentNode.children.push(currentNode);
+      }
+    }
+  });
+
+  // Return only root nodes (nodes without parents)
+  return nodes
+    .filter(node => !node.parentId && nodeMap.has(node.nodeId))
+    .map(node => nodeMap.get(node.nodeId))
+    .filter(Boolean) as AccessibilityNode[];
 }

@@ -28,6 +28,7 @@ const DEFAULT_EVAL_CATEGORIES = process.env.EVAL_CATEGORIES
       "extract",
       "experimental",
       "text_extract",
+      "accessibility_tree",
     ];
 
 let extractMethod = "domExtract";
@@ -40,6 +41,7 @@ if (extractMethodArg) {
 
 process.env.EXTRACT_METHOD = extractMethod;
 const useTextExtract = process.env.EXTRACT_METHOD === "textExtract";
+const useAccessibilityTree = process.env.EXTRACT_METHOD === "accessibilityTree";
 
 let filterByCategory: string | null = null;
 let filterByEvalName: string | null = null;
@@ -311,6 +313,7 @@ const generateFilteredTestcases = (): Testcase[] => {
             modelName: input.modelName,
             logger,
             useTextExtract,
+            useAccessibilityTree,
           });
           if (result && result._success) {
             console.log(`✅ ${input.name}: Passed`);
@@ -342,8 +345,8 @@ const generateFilteredTestcases = (): Testcase[] => {
         }
       },
       scores: [exactMatch, errorMatch],
-      maxConcurrency: 20,
-      trialCount: 5,
+      maxConcurrency: 5,
+      trialCount: 3,
     });
 
     const summaryResults: SummaryResult[] = evalResult.results.map((result) => {
