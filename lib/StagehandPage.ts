@@ -128,10 +128,10 @@ export class StagehandPage {
         },
       });
 
-      await newPage.close();
-      await page.goto(newPage.url());
-      await page.waitForLoadState("domcontentloaded");
-      await this._waitForSettledDom();
+      // these can be done in parallel
+      await Promise.all([page.goto(newPage.url()), newPage.close()]);
+
+      this._waitForSettledDom();
     });
 
     await this._waitForSettledDom();
