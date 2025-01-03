@@ -8,9 +8,7 @@ on:
       - "lib/**"
       - "types/**"
   pull_request:
-    types:
-      - opened
-      - synchronize
+    types: [labeled]
 
 env:
   EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
@@ -21,38 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  determine-evals:
-    runs-on: ubuntu-latest
-    outputs:
-      run-act: ${{ steps.set-outputs.outputs.run-act }}
-      run-extract: ${{ steps.set-outputs.outputs.run-extract }}
-      run-text-extract: ${{ steps.set-outputs.outputs.run-text-extract }}
-      run-observe: ${{ steps.set-outputs.outputs.run-observe }}
-      run-combination: ${{ steps.set-outputs.outputs.run-combination }}
-    steps:
-      - name: Determine Evals to Run
-        id: set-outputs
-        run: |
-          echo "run-act=false" >> $GITHUB_ENV
-          echo "run-extract=false" >> $GITHUB_ENV
-          echo "run-text-extract=false" >> $GITHUB_ENV
-          echo "run-observe=false" >> $GITHUB_ENV
-          echo "run-combination=false" >> $GITHUB_ENV
-
-          for label in "${{ github.event.pull_request.labels.*.name }}"; do
-            if [[ "$label" == "run-act" ]]; then
-              echo "run-act=true" >> $GITHUB_ENV
-            elif [[ "$label" == "run-extract" ]]; then
-              echo "run-extract=true" >> $GITHUB_ENV
-            elif [[ "$label" == "run-text-extract" ]]; then
-              echo "run-text-extract=true" >> $GITHUB_ENV
-            elif [[ "$label" == "run-observe" ]]; then
-              echo "run-observe=true" >> $GITHUB_ENV
-            elif [[ "$label" == "run-combination" ]]; then
-              echo "run-combination=true" >> $GITHUB_ENV
-            fi
-          done
-
   run-lint:
     runs-on: ubuntu-latest
     steps:
@@ -117,7 +83,7 @@ jobs:
         run: npm run e2e
 
   run-act-evals:
-    if: needs.determine-evals.outputs.run-act == 'true'
+    if: contains(github.event.pull_request.labels.*.name, 'act')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [run-text-extract-evals]
@@ -165,7 +131,7 @@ jobs:
           fi
 
   run-extract-evals:
-    if: needs.determine-evals.outputs.run-extract == 'true'
+    if: contains(github.event.pull_request.labels.*.name, 'extract')
     needs: [run-lint, run-build, run-e2e-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -224,7 +190,7 @@ jobs:
           fi
 
   run-text-extract-evals:
-    if: needs.determine-evals.outputs.run-text-extract == 'true'
+    if: contains(github.event.pull_request.labels.*.name, 'text_extract')
     needs: [run-extract-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -283,7 +249,7 @@ jobs:
           fi
 
   run-observe-evals:
-    if: needs.determine-evals.outputs.run-observe == 'true'
+    if: contains(github.event.pull_request.labels.*.name, 'observe')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [run-act-evals]
@@ -331,7 +297,7 @@ jobs:
           fi
 
   run-combination-evals:
-    if: needs.determine-evals.outputs.run-combination == 'true'
+    if: contains(github.event.pull_request.labels.*.name, 'combination')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     needs: [run-observe-evals]
