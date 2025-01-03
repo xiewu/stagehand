@@ -34,13 +34,19 @@ export class StagehandPage {
   ) {
     this.intPage = Object.assign(page, {
       act: () => {
-        throw new Error("act() is not implemented on the base page object");
+        throw new Error(
+          "act() is not implemented on the base page object. Ensure you are calling init() on the Stagehand object before calling methods on the page object.",
+        );
       },
       extract: () => {
-        throw new Error("extract() is not implemented on the base page object");
+        throw new Error(
+          "extract() is not implemented on the base page object. Ensure you are calling init() on the Stagehand object before calling methods on the page object.",
+        );
       },
       observe: () => {
-        throw new Error("observe() is not implemented on the base page object");
+        throw new Error(
+          "observe() is not implemented on the base page object. Ensure you are calling init() on the Stagehand object before calling methods on the page object.",
+        );
       },
     });
     this.stagehand = stagehand;
