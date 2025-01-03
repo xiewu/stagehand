@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - "lib/**"
-      - "types/**"
+      - "evals/**"
   pull_request:
     types:
       - opened
