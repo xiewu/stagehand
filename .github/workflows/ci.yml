@@ -38,7 +38,7 @@ on:
 
 env:
   EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
-  EVAL_CATEGORIES: ${{ join(fromJson('["observe", "act", "combination", "extract", "text_extract"]') | map(if github.event.inputs['run_' + .] then . else null end) | compact, ',') }}
+  EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
 
 concurrency:
   group: ${{ github.ref }}
@@ -109,6 +109,7 @@ jobs:
         run: npm run e2e
 
   run-act-evals:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_act == 'true' || github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [run-text-extract-evals]
@@ -156,6 +157,7 @@ jobs:
           fi
 
   run-extract-evals:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_extract == 'true' || github.event_name != 'workflow_dispatch' }}
     needs: [run-lint, run-build, run-e2e-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -214,6 +216,7 @@ jobs:
           fi
 
   run-text-extract-evals:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_text_extract == 'true' || github.event_name != 'workflow_dispatch' }}
     needs: [run-extract-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -272,6 +275,7 @@ jobs:
           fi
 
   run-observe-evals:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_observe == 'true' || github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [run-act-evals]
@@ -319,6 +323,7 @@ jobs:
           fi
 
   run-combination-evals:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_combination == 'true' || github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     needs: [run-observe-evals]
