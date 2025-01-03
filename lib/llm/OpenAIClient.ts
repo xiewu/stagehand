@@ -50,11 +50,7 @@ export class OpenAIClient extends LLMClient {
     // O1 models do not support most of the options. So we override them.
     // For schema and tools, we add them as user messages.
     let isToolsOverridedForO1 = false;
-    if (
-      this.modelName === "o1-mini" ||
-      this.modelName === "o1-preview" ||
-      this.modelName === "o1"
-    ) {
+    if (this.modelName === "o1-mini" || this.modelName === "o1-preview") {
       /* eslint-disable */
       // Remove unsupported options
       let {
@@ -104,6 +100,14 @@ export class OpenAIClient extends LLMClient {
         });
       }
     }
+
+    if (this.modelName === "o1") {
+      delete options.temperature;
+      delete options.top_p;
+      delete options.frequency_penalty;
+      delete options.presence_penalty;
+    }
+
     if (
       options.temperature &&
       (this.modelName === "o1-mini" ||
