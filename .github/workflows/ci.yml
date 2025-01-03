@@ -28,7 +28,6 @@ jobs:
       run-extract: ${{ steps.check-labels.outputs.run-extract }}
       run-act: ${{ steps.check-labels.outputs.run-act }}
       run-observe: ${{ steps.check-labels.outputs.run-observe }}
-      run-combination: ${{ steps.check-labels.outputs.run-combination }}
       run-text-extract: ${{ steps.check-labels.outputs.run-text-extract }}
     steps:
       - id: check-labels
@@ -48,7 +47,6 @@ jobs:
           echo "run-extract=${{ contains(github.event.pull_request.labels.*.name, 'extract') }}" >> $GITHUB_OUTPUT
           echo "run-act=${{ contains(github.event.pull_request.labels.*.name, 'act') }}" >> $GITHUB_OUTPUT
           echo "run-observe=${{ contains(github.event.pull_request.labels.*.name, 'observe') }}" >> $GITHUB_OUTPUT
-          echo "run-combination=${{ contains(github.event.pull_request.labels.*.name, 'combination') }}" >> $GITHUB_OUTPUT
           echo "run-text-extract=${{ contains(github.event.pull_request.labels.*.name, 'text-extract') }}" >> $GITHUB_OUTPUT
   run-lint:
     runs-on: ubuntu-latest
@@ -112,6 +110,50 @@ jobs:
 
       - name: Run E2E Tests
         run: npm run e2e
+
+  run-combination-evals:
+    needs: [run-e2e-tests, determine-evals]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+      HEADLESS: true
+      EVAL_ENV: browserbase
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npm exec playwright install --with-deps
+
+      - name: Run Combination Evals
+        run: npm run evals category combination
+
+      - name: Log Combination Evals Performance
+        run: |
+          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          echo "View results at https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
+          if [ -f eval-summary.json ]; then
+            combination_score=$(jq '.categories.combination' eval-summary.json)
+            echo "Combination category score: $combination_score%"
+            exit 0
+          else
+            echo "Eval summary not found for combination category. Failing CI."
+            exit 1
+          fi
 
   run-act-evals:
     needs: [run-e2e-tests, determine-evals]
@@ -324,50 +366,5 @@ jobs:
             fi
           else
             echo "Eval summary not found for observe category. Failing CI."
-            exit 1
-          fi
-
-  run-combination-evals:
-    needs: [run-e2e-tests, determine-evals]
-    if: needs.determine-evals.outputs.run-combination == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
-      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
-      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
-      HEADLESS: true
-      EVAL_ENV: browserbase
-
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --no-frozen-lockfile
-
-      - name: Install Playwright browsers
-        run: npm exec playwright install --with-deps
-
-      - name: Run Combination Evals
-        run: npm run evals category combination
-
-      - name: Log Combination Evals Performance
-        run: |
-          experimentName=$(jq -r '.experimentName' eval-summary.json)
-          echo "View results at https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
-          if [ -f eval-summary.json ]; then
-            combination_score=$(jq '.categories.combination' eval-summary.json)
-            echo "Combination category score: $combination_score%"
-            exit 0
-          else
-            echo "Eval summary not found for combination category. Failing CI."
             exit 1
           fi
