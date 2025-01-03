@@ -425,6 +425,22 @@ export class OpenAIClient extends LLMClient {
         );
       }
 
+      this.logger({
+        category: "openai",
+        message: "parsed response",
+        level: 1,
+        auxiliary: {
+          parsedData: {
+            value: JSON.stringify(parsedData),
+            type: "object",
+          },
+          requestId: {
+            value: requestId,
+            type: "string",
+          },
+        },
+      });
+
       return parsedData;
     }
 
@@ -450,6 +466,22 @@ export class OpenAIClient extends LLMClient {
       });
       this.cache.set(cacheOptions, response, options.requestId);
     }
+
+    this.logger({
+      category: "openai",
+      message: "final response",
+      level: 1,
+      auxiliary: {
+        response: {
+          value: JSON.stringify(response),
+          type: "object",
+        },
+        requestId: {
+          value: requestId,
+          type: "string",
+        },
+      },
+    });
 
     // if the function was called with a response model, it would have returned earlier
     // so we can safely cast here to T, which defaults to ChatCompletion
