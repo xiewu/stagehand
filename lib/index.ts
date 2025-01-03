@@ -1,5 +1,5 @@
 import { Browserbase } from "@browserbasehq/sdk";
-import { type BrowserContext, chromium } from "@playwright/test";
+import { chromium } from "@playwright/test";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -9,7 +9,7 @@ import { z } from "zod";
 import { BrowserResult } from "../types/browser";
 import { LogLine } from "../types/log";
 import { GotoOptions } from "../types/playwright";
-import { Page } from "../types/page";
+import { Page, BrowserContext } from "../types/page";
 import {
   ActOptions,
   ActResult,
@@ -24,8 +24,6 @@ import {
   ObserveResult,
 } from "../types/stagehand";
 import { scriptContent } from "./dom/build/scriptContent";
-import { StagehandExtractHandler } from "./handlers/extractHandler";
-import { StagehandObserveHandler } from "./handlers/observeHandler";
 import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString } from "./utils";
@@ -303,6 +301,10 @@ async function applyStealthScripts(context: BrowserContext) {
   });
 }
 
+const defaultLogger = async (logLine: LogLine) => {
+  console.log(logLineToString(logLine));
+};
+
 export class Stagehand {
   private stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
@@ -316,17 +318,14 @@ export class Stagehand {
   public llmProvider: LLMProvider;
   public enableCaching: boolean;
 
-  private internalLogger: (logLine: LogLine) => void;
   private apiKey: string | undefined;
   private projectId: string | undefined;
-  private externalLogger?: (logLine: LogLine) => void;
+  // We want external logger to accept async functions
+  private externalLogger?: (logLine: LogLine) => void | Promise<void>;
   private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   public variables: { [key: string]: unknown };
   private contextPath?: string;
   private llmClient: LLMClient;
-
-  private extractHandler?: StagehandExtractHandler;
-  private observeHandler?: StagehandObserveHandler;
 
   constructor(
     {
@@ -336,6 +335,7 @@ export class Stagehand {
       verbose,
       debugDom,
       llmProvider,
+      llmClient,
       headless,
       logger,
       browserbaseSessionCreateParams,
@@ -348,8 +348,7 @@ export class Stagehand {
       env: "BROWSERBASE",
     },
   ) {
-    this.externalLogger = logger;
-    this.internalLogger = this.log.bind(this);
+    this.externalLogger = logger || defaultLogger;
     this.enableCaching =
       enableCaching ??
       (process.env.ENABLE_CACHING && process.env.ENABLE_CACHING === "true");
@@ -360,10 +359,12 @@ export class Stagehand {
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
     this.verbose = verbose ?? 0;
     this.debugDom = debugDom ?? false;
-    this.llmClient = this.llmProvider.getClient(
-      modelName ?? DEFAULT_MODEL_NAME,
-      modelClientOptions,
-    );
+    this.llmClient =
+      llmClient ||
+      this.llmProvider.getClient(
+        modelName ?? DEFAULT_MODEL_NAME,
+        modelClientOptions,
+      );
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
@@ -372,10 +373,7 @@ export class Stagehand {
 
   public get logger(): (logLine: LogLine) => void {
     return (logLine: LogLine) => {
-      this.internalLogger(logLine);
-      if (this.externalLogger) {
-        this.externalLogger(logLine);
-      }
+      this.log(logLine);
     };
   }
 
@@ -398,6 +396,11 @@ export class Stagehand {
   }
 
   public get context(): BrowserContext {
+    if (!this.stagehandContext) {
+      throw new Error(
+        "Stagehand not initialized. Make sure to await stagehand.init() first.",
+      );
+    }
     return this.stagehandContext.context;
   }
 
@@ -499,14 +502,11 @@ export class Stagehand {
   private is_processing_browserbase_logs: boolean = false;
 
   log(logObj: LogLine): void {
-    logObj.level = logObj.level || 1;
+    logObj.level = logObj.level ?? 1;
 
     // Normal Logging
     if (this.externalLogger) {
       this.externalLogger(logObj);
-    } else {
-      const logMessage = logLineToString(logObj);
-      console.log(logMessage);
     }
 
     // Add the logs to the browserbase session
@@ -530,7 +530,7 @@ export class Stagehand {
   }
 
   private async _log_to_browserbase(logObj: LogLine) {
-    logObj.level = logObj.level || 1;
+    logObj.level = logObj.level ?? 1;
 
     if (!this.stagehandPage) {
       return;
@@ -613,3 +613,4 @@ export * from "../types/log";
 export * from "../types/model";
 export * from "../types/playwright";
 export * from "../types/stagehand";
+export * from "../types/page";
