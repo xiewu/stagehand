@@ -398,18 +398,6 @@ export class StagehandActHandler {
           },
         });
 
-        this.logger({
-          category: "action",
-          message: "clicked element",
-          level: 1,
-          auxiliary: {
-            newOpenedTab: {
-              value: newOpenedTab ? "opened a new tab" : "no new tabs opened",
-              type: "string",
-            },
-          },
-        });
-
         await Promise.race([
           this.stagehandPage.page.waitForLoadState("networkidle"),
           new Promise((resolve) => setTimeout(resolve, 5_000)),
