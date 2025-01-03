@@ -114,7 +114,7 @@ jobs:
         run: npm run e2e
 
   run-act-evals:
-    needs: [run-lint, run-build, run-e2e-tests, determine-evals]
+    needs: [run-e2e-tests, determine-evals]
     if: needs.determine-evals.outputs.run-act == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
