@@ -8,10 +8,37 @@ on:
     types:
       - opened
       - synchronize
+  workflow_dispatch:
+    inputs:
+      run_observe:
+        description: "Run observe category"
+        required: false
+        default: false
+        type: boolean
+      run_act:
+        description: "Run act category"
+        required: false
+        default: false
+        type: boolean
+      run_combination:
+        description: "Run combination category"
+        required: false
+        default: false
+        type: boolean
+      run_extract:
+        description: "Run extract category"
+        required: false
+        default: false
+        type: boolean
+      run_text_extract:
+        description: "Run text_extract category"
+        required: false
+        default: false
+        type: boolean
 
 env:
   EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
-  EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
+  EVAL_CATEGORIES: ${{ join(fromJson('["observe", "act", "combination", "extract", "text_extract"]') | map(if github.event.inputs['run_' + .] then . else null end) | compact, ',') }}
 
 concurrency:
   group: ${{ github.ref }}
