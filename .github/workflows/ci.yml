@@ -162,7 +162,7 @@ jobs:
           fi
 
   run-extract-evals:
-    needs: [run-act-evals, determine-evals]
+    needs: [run-e2e-tests, determine-evals]
     if: needs.determine-evals.outputs.run-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -221,7 +221,7 @@ jobs:
           fi
 
   run-text-extract-evals:
-    needs: [run-extract-evals, determine-evals]
+    needs: [run-e2e-tests, determine-evals]
     if: needs.determine-evals.outputs.run-text-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -280,7 +280,7 @@ jobs:
           fi
 
   run-observe-evals:
-    needs: [run-act-evals, determine-evals]
+    needs: [run-e2e-tests, determine-evals]
     if: needs.determine-evals.outputs.run-observe == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -328,7 +328,7 @@ jobs:
           fi
 
   run-combination-evals:
-    needs: [run-observe-evals, determine-evals]
+    needs: [run-e2e-tests, determine-evals]
     if: needs.determine-evals.outputs.run-combination == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 40
