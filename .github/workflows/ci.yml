@@ -8,7 +8,10 @@ on:
       - "lib/**"
       - "types/**"
   pull_request:
-    types: [labeled]
+    types:
+      - opened
+      - synchronize
+      - labeled
 
 env:
   EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
