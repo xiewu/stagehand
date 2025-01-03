@@ -243,7 +243,7 @@ export class StagehandExtractHandler {
           width: box.width,
           height: box.height,
         };
-        if(annotation.text.length > 0){
+        if (annotation.text.length > 0) {
           allAnnotations.push(annotation);
         }
       }

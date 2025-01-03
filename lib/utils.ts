@@ -167,7 +167,8 @@ export function formatText(
 
       // **23: Calculate the starting x-position in the canvas by converting normalized x to char space.**
       const startXInChars = Math.round(
-        annotation.bottom_left_normalized.x * (pageWidth / HEURISTIC_CHAR_WIDTH),
+        annotation.bottom_left_normalized.x *
+          (pageWidth / HEURISTIC_CHAR_WIDTH),
       );
 
       // **24: Place each character of the annotation in the canvas.**
