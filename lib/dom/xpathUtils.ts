@@ -171,6 +171,7 @@ function isXPathFirstResultElement(xpath: string, target: Element): boolean {
 export function escapeXPathString(value: string): string {
   if (value.includes("'")) {
     if (value.includes('"')) {
+      // If the value contains both single and double quotes, split into parts
       return (
         "concat(" +
         value
@@ -188,9 +189,11 @@ export function escapeXPathString(value: string): string {
         ")"
       );
     } else {
+      // Contains single quotes but not double quotes; use double quotes
       return `"${value}"`;
     }
   } else {
+    // Does not contain single quotes; use single quotes
     return `'${value}'`;
   }
 }
@@ -205,6 +208,9 @@ export async function generateXPathsForElement(
 ): Promise<string[]> {
   if (!element) return [];
 
+  // This should return in order from most accurate on current page to most cachable.
+  // Do not change the order if you are not sure what you are doing.
+  // Contact Ani / Navid if you need help understanding it.
   const iframeChain = generateIframeAwareXPathChain(element);
   const [complexXPath, standardXPath, idBasedXPath] = await Promise.all([
     generateComplexXPath(element),
@@ -236,6 +242,7 @@ async function generateComplexXPath(element: ChildNode): Promise<string> {
       const el = currentElement as Element;
       let selector = el.tagName.toLowerCase();
 
+      // List of attributes to consider for uniqueness
       const attributePriority = [
         "data-qa",
         "data-component",
@@ -262,6 +269,7 @@ async function generateComplexXPath(element: ChildNode): Promise<string> {
         })
         .filter((attr) => attr !== null) as { attr: string; value: string }[];
 
+      // Attempt to find a combination of attributes that uniquely identifies the element
       let uniqueSelector = "";
       for (let i = 1; i <= attributes.length; i++) {
         const combinations = getCombinations(attributes, i);
@@ -282,6 +290,7 @@ async function generateComplexXPath(element: ChildNode): Promise<string> {
         parts.unshift(uniqueSelector.replace("//", ""));
         break;
       } else {
+        // Fallback to positional selector
         const parent = getParentElement(el);
         if (parent) {
           const siblings = Array.from(parent.children).filter(
@@ -327,6 +336,7 @@ async function generateStandardXPath(element: ChildNode): Promise<string> {
         }
       }
     }
+    // text "nodes" are selected differently than elements with xPaths
     if (element.nodeName !== "#text") {
       const tagName = element.nodeName.toLowerCase();
       const pathIndex = hasSameTypeSiblings ? `[${index}]` : "";
