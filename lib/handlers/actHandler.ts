@@ -398,16 +398,6 @@ export class StagehandActHandler {
           },
         });
 
-        // NAVIDNOTE: Should this happen before we wait for locator[method]?
-        const newOpenedTab = await Promise.race([
-          new Promise<Page | null>((resolve) => {
-            // TODO: This is a hack to get the new page
-            // We should find a better way to do this
-            this.stagehandPage.context.once("page", (page) => resolve(page));
-            setTimeout(() => resolve(null), 1_500);
-          }),
-        ]);
-
         this.logger({
           category: "action",
           message: "clicked element",
@@ -419,24 +409,6 @@ export class StagehandActHandler {
             },
           },
         });
-
-        if (newOpenedTab) {
-          this.logger({
-            category: "action",
-            message: "new page detected (new tab) with URL",
-            level: 1,
-            auxiliary: {
-              url: {
-                value: newOpenedTab.url(),
-                type: "string",
-              },
-            },
-          });
-          await newOpenedTab.close();
-          await this.stagehandPage.page.goto(newOpenedTab.url());
-          await this.stagehandPage.page.waitForLoadState("domcontentloaded");
-          await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-        }
 
         await Promise.race([
           this.stagehandPage.page.waitForLoadState("networkidle"),

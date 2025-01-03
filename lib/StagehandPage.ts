@@ -114,6 +114,26 @@ export class StagehandPage {
         return target[prop as keyof PlaywrightPage];
       },
     });
+
+    this.intContext.context.on("page", async (newPage) => {
+      this.stagehand.logger({
+        category: "action",
+        message: "new page detected (new tab) with URL",
+        level: 1,
+        auxiliary: {
+          url: {
+            value: newPage.url(),
+            type: "string",
+          },
+        },
+      });
+
+      await newPage.close();
+      await page.goto(newPage.url());
+      await page.waitForLoadState("domcontentloaded");
+      await this._waitForSettledDom();
+    });
+
     await this._waitForSettledDom();
     return this;
   }
