@@ -17,4 +17,4 @@ evals/playground.ts
 tmp/
 eval-summary.json
 pnpm-lock.yaml
-lib/dom/bundle.js
+lib/dom/index.global.js
