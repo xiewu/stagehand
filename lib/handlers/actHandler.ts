@@ -73,6 +73,10 @@ export class StagehandActHandler {
     llmClient: LLMClient;
     domSettleTimeoutMs?: number;
   }): Promise<boolean> {
+    if (!completed) {
+      return false;
+    }
+
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
 
     // o1 is overkill for this task + this task uses a lot of tokens. So we switch it 4o
@@ -1218,12 +1222,50 @@ export class StagehandActHandler {
 
       try {
         const initialUrl = this.stagehandPage.page.url();
-        const locator = this.stagehandPage.page
-          .locator(`xpath=${xpaths[0]}`)
-          .first();
+
+        // Modified: Attempt to locate the first valid XPath before proceeding
+        let foundXpath: string | null = null;
+        let locator: Locator | null = null;
+
+        for (const xp of xpaths) {
+          const candidate = this.stagehandPage.page
+            .locator(`xpath=${xp}`)
+            .first();
+          try {
+            // Try a short wait to see if it's attached to the DOM
+            await candidate.waitFor({ state: "attached", timeout: 2000 });
+            foundXpath = xp;
+            locator = candidate;
+            break;
+          } catch (e) {
+            this.logger({
+              category: "action",
+              message: "XPath not yet located; moving on",
+              level: 1,
+              auxiliary: {
+                xpath: {
+                  value: xp,
+                  type: "string",
+                },
+                error: {
+                  value: e.message,
+                  type: "string",
+                },
+              },
+            });
+            // Continue to next XPath
+          }
+        }
+
+        // If no XPath was valid, we cannot proceed
+        if (!foundXpath || !locator) {
+          throw new Error("None of the provided XPaths could be located.");
+        }
+
         const originalUrl = this.stagehandPage.page.url();
         const componentString = await this._getComponentString(locator);
         const responseArgs = [...args];
+
         if (variables) {
           responseArgs.forEach((arg, index) => {
             if (typeof arg === "string") {
@@ -1231,10 +1273,11 @@ export class StagehandActHandler {
             }
           });
         }
+
         await this._performPlaywrightMethod(
           method,
           args,
-          xpaths[0],
+          foundXpath,
           domSettleTimeoutMs,
         );
 
@@ -1259,7 +1302,7 @@ export class StagehandActHandler {
               },
               componentString,
               requestId,
-              xpaths: xpaths,
+              xpaths,
               newStepString,
               completed: response.completed,
             })
@@ -1295,6 +1338,7 @@ export class StagehandActHandler {
           llmClient,
           domSettleTimeoutMs,
         }).catch((error) => {
+          console.log("error verifying action completion", error);
           this.logger({
             category: "action",
             message:
@@ -1327,7 +1371,7 @@ export class StagehandActHandler {
             verifierUseVision,
             requestId,
             variables,
-            previousSelectors: [...previousSelectors, xpaths[0]],
+            previousSelectors: [...previousSelectors, foundXpath],
             skipActionCacheForThisStep: false,
             domSettleTimeoutMs,
           });
