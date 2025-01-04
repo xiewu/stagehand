@@ -47,6 +47,7 @@ jobs:
           echo "run-act=${{ contains(github.event.pull_request.labels.*.name, 'act') }}" >> $GITHUB_OUTPUT
           echo "run-observe=${{ contains(github.event.pull_request.labels.*.name, 'observe') }}" >> $GITHUB_OUTPUT
           echo "run-text-extract=${{ contains(github.event.pull_request.labels.*.name, 'text-extract') }}" >> $GITHUB_OUTPUT
+
   run-lint:
     runs-on: ubuntu-latest
     steps:
@@ -111,7 +112,7 @@ jobs:
         run: npm run e2e
 
   run-combination-evals:
-    needs: [run-e2e-tests, determine-evals]
+    needs: [determine-evals, run-e2e-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -155,7 +156,7 @@ jobs:
           fi
 
   run-act-evals:
-    needs: [run-e2e-tests, determine-evals, run-combination-evals]
+    needs: [determine-evals, run-e2e-tests]
     if: needs.determine-evals.outputs.run-act == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -203,7 +204,7 @@ jobs:
           fi
 
   run-extract-evals:
-    needs: [run-e2e-tests, determine-evals, run-combination-evals]
+    needs: [determine-evals, run-e2e-tests]
     if: needs.determine-evals.outputs.run-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -262,7 +263,7 @@ jobs:
           fi
 
   run-text-extract-evals:
-    needs: [run-e2e-tests, determine-evals, run-combination-evals]
+    needs: [determine-evals, run-e2e-tests]
     if: needs.determine-evals.outputs.run-text-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -321,7 +322,7 @@ jobs:
           fi
 
   run-observe-evals:
-    needs: [run-e2e-tests, determine-evals, run-combination-evals]
+    needs: [determine-evals, run-e2e-tests]
     if: needs.determine-evals.outputs.run-observe == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
