@@ -5,7 +5,7 @@
  * npx create-browser-app@latest my-browser-app
  */
 
-import { Stagehand } from "../lib";
+import { ObserveResult, Stagehand } from "../lib";
 import StagehandConfig from "./stagehand.config";
 
 async function example() {
@@ -14,20 +14,29 @@ async function example() {
 
   const page = await stagehand.page;
 
+  let observePromise: Promise<ObserveResult[]>;
+
   page.on("popup", async (newPage) => {
-    // This will close the popup and navigate to it on the existing page
-    // await Promise.all([page.goto(newPage.url()), newPage.close()]);
-    // or
-    newPage.act({
-      action: "type 'test@gmail.com' in the email field",
+    observePromise = newPage.observe({
+      instruction: "return all the next possible actions from the page",
     });
   });
 
-  await page.goto("https://nextdoor.com/login/");
+  await page.goto(
+    "https://docs.browserbase.com/integrations/crew-ai/introduction",
+  );
 
-  await page.act({
-    action: "click on the log in with google button",
-  });
+  await page.click(
+    "#content-area > div.relative.mt-8.prose.prose-gray.dark\\:prose-invert > p:nth-child(2) > a",
+  );
+
+  await page.waitForTimeout(5000);
+
+  if (observePromise) {
+    const observeResult = await observePromise;
+
+    console.log("Observed", observeResult.length, "actions");
+  }
 
   await stagehand.close();
 }
