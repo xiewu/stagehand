@@ -69,7 +69,7 @@ function drawChunk(
 
       let totalOffsetX = window.scrollX;
       let totalOffsetY = window.scrollY;
-      let currentWindow = element.ownerDocument.defaultView;
+      let currentWindow: Window = element.ownerDocument.defaultView;
 
       while (currentWindow !== window.top) {
         const frameElement = currentWindow.frameElement;
