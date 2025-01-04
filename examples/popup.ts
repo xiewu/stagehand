@@ -15,6 +15,7 @@ async function example() {
   const page = await stagehand.page;
 
   page.on("popup", async (newPage) => {
+    // This will close the popup and navigate to it on the existing page
     // await Promise.all([page.goto(newPage.url()), newPage.close()]);
     // or
     newPage.act({
