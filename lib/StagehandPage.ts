@@ -48,6 +48,11 @@ export class StagehandPage {
           "observe() is not implemented on the base page object. Ensure you are calling init() on the Stagehand object before calling methods on the page object.",
         );
       },
+      on: () => {
+        throw new Error(
+          "on() is not implemented on the base page object. Stagehand overrides Playwright's on() method to update it's behavior, so ensure you call init() on the Stagehand object before you call on() on the page object.",
+        );
+      },
     });
     this.stagehand = stagehand;
     this.intContext = context;
