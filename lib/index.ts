@@ -48,6 +48,7 @@ async function getBrowser(
   logger: (message: LogLine) => void,
   browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams,
   browserbaseSessionID?: string,
+  shouldUseUnsafeMode: boolean = false,
 ): Promise<BrowserResult> {
   if (env === "BROWSERBASE") {
     if (!apiKey) {
@@ -147,6 +148,11 @@ async function getBrowser(
       const session = await browserbase.sessions.create({
         projectId,
         ...browserbaseSessionCreateParams,
+        ...(shouldUseUnsafeMode
+          ? {
+              unsafeMode: true,
+            }
+          : {}),
       });
 
       sessionId = session.id;
@@ -247,7 +253,15 @@ async function getBrowser(
           "--use-gl=swiftshader",
           "--enable-accelerated-2d-canvas",
           "--disable-blink-features=AutomationControlled",
-          "--disable-web-security",
+          ...(shouldUseUnsafeMode
+            ? [
+                "--disable-web-security",
+                "--disable-site-isolation-trials",
+                "--disable-features=IsolateOrigins,site-per-process",
+                "--allow-running-insecure-content",
+                "--disable-cross-origin-isolation",
+              ]
+            : []),
         ],
         bypassCSP: true,
       },
@@ -306,7 +320,7 @@ const defaultLogger = async (logLine: LogLine) => {
 };
 
 export class Stagehand {
-  private stagehandPage!: StagehandPage;
+  public stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
   private intEnv: "LOCAL" | "BROWSERBASE";
 
@@ -326,6 +340,7 @@ export class Stagehand {
   public variables: { [key: string]: unknown };
   private contextPath?: string;
   private llmClient: LLMClient;
+  private unsafeMode: boolean;
 
   constructor(
     {
@@ -344,6 +359,7 @@ export class Stagehand {
       browserbaseSessionID,
       modelName,
       modelClientOptions,
+      unsafeMode,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
@@ -369,6 +385,7 @@ export class Stagehand {
     this.headless = headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
     this.browserbaseSessionID = browserbaseSessionID;
+    this.unsafeMode = unsafeMode ?? false;
   }
 
   public get logger(): (logLine: LogLine) => void {
@@ -422,6 +439,7 @@ export class Stagehand {
         this.logger,
         this.browserbaseSessionCreateParams,
         this.browserbaseSessionID,
+        this.unsafeMode,
       ).catch((e) => {
         console.error("Error in init:", e);
         const br: BrowserResult = {
