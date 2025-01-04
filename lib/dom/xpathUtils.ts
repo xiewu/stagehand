@@ -49,7 +49,7 @@ function buildXPathForIframeElement(iframeEl: HTMLIFrameElement): string {
     parts.unshift(index > 1 ? `${tagName}[${index}]` : tagName);
     el = el.parentElement;
   }
-  return "/" + parts.join("/");
+  return "//" + parts.join("/");
 }
 
 /**
@@ -103,7 +103,7 @@ function buildStandardXPathInsideDoc(node: ChildNode): string {
     }
     current = parent;
   }
-  return "/" + parts.join("/");
+  return "//" + parts.join("/");
 }
 
 function getParentElement(node: ChildNode): Element | null {
@@ -205,7 +205,7 @@ export function escapeXPathString(value: string): string {
  */
 export async function generateXPathsForElement(
   element: ChildNode,
-): Promise<string[]> {
+): Promise<(string | string[])[]> {
   if (!element) return [];
 
   // This should return in order from most accurate on current page to most cachable.
@@ -220,10 +220,10 @@ export async function generateXPathsForElement(
 
   if (iframeChain) {
     return [
+      iframeChain,
       standardXPath,
       ...(idBasedXPath ? [idBasedXPath] : []),
       complexXPath,
-      JSON.stringify(iframeChain),
     ];
   }
 

@@ -8,7 +8,7 @@ import { ActionCache } from "../cache/ActionCache";
 import { act, fillInVariables, verifyActCompletion } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { LLMProvider } from "../llm/LLMProvider";
-import { generateId } from "../utils";
+import { generateId, safeLocatorWithIframeSupport } from "../utils";
 import { ScreenshotService } from "../vision";
 import { StagehandPage } from "../StagehandPage";
 import { StagehandContext } from "../StagehandContext";
@@ -192,10 +192,13 @@ export class StagehandActHandler {
   private async _performPlaywrightMethod(
     method: string,
     args: unknown[],
-    xpath: string,
+    xpath: string | string[],
     domSettleTimeoutMs?: number,
   ) {
-    const locator = this.stagehandPage.page.locator(`xpath=${xpath}`).first();
+    const locator = safeLocatorWithIframeSupport(
+      this.stagehandPage.page,
+      xpath,
+    );
     const initialUrl = this.stagehandPage.page.url();
 
     this.logger({
@@ -204,7 +207,7 @@ export class StagehandActHandler {
       level: 2,
       auxiliary: {
         xpath: {
-          value: xpath,
+          value: JSON.stringify(xpath),
           type: "string",
         },
         method: {
@@ -221,7 +224,7 @@ export class StagehandActHandler {
         level: 2,
         auxiliary: {
           xpath: {
-            value: xpath,
+            value: JSON.stringify(xpath),
             type: "string",
           },
         },
@@ -246,7 +249,7 @@ export class StagehandActHandler {
                   type: "string",
                 },
                 xpath: {
-                  value: xpath,
+                  value: JSON.stringify(xpath),
                   type: "string",
                 },
               },
@@ -267,7 +270,7 @@ export class StagehandActHandler {
               type: "string",
             },
             xpath: {
-              value: xpath,
+              value: JSON.stringify(xpath),
               type: "string",
             },
           },
@@ -302,7 +305,7 @@ export class StagehandActHandler {
               type: "string",
             },
             xpath: {
-              value: xpath,
+              value: JSON.stringify(xpath),
               type: "string",
             },
           },
@@ -373,7 +376,7 @@ export class StagehandActHandler {
               type: "string",
             },
             xpath: {
-              value: xpath,
+              value: JSON.stringify(xpath),
               type: "string",
             },
             method: {
@@ -398,7 +401,7 @@ export class StagehandActHandler {
           level: 1,
           auxiliary: {
             xpath: {
-              value: xpath,
+              value: JSON.stringify(xpath),
               type: "string",
             },
           },
@@ -577,11 +580,14 @@ export class StagehandActHandler {
   }
 
   private async getElement(
-    xpath: string,
+    xpath: string | string[],
     timeout: number = 5_000,
   ): Promise<Locator | null> {
     try {
-      const element = this.stagehandPage.page.locator(`xpath=${xpath}`).first();
+      const element = safeLocatorWithIframeSupport(
+        this.stagehandPage.page,
+        xpath,
+      );
       await element.waitFor({ state: "attached", timeout });
       return element;
     } catch {
@@ -591,7 +597,7 @@ export class StagehandActHandler {
         level: 1,
         auxiliary: {
           xpath: {
-            value: xpath,
+            value: JSON.stringify(xpath),
             type: "string",
           },
           timeout_ms: {
@@ -605,7 +611,7 @@ export class StagehandActHandler {
   }
 
   private async _checkIfCachedStepIsValid_oneXpath(cachedStep: {
-    xpath: string;
+    xpath: string | string[];
     savedComponentString: string;
   }) {
     this.logger({
@@ -614,7 +620,7 @@ export class StagehandActHandler {
       level: 1,
       auxiliary: {
         xpath: {
-          value: cachedStep.xpath,
+          value: JSON.stringify(cachedStep.xpath),
           type: "string",
         },
         savedComponentString: {
@@ -632,7 +638,7 @@ export class StagehandActHandler {
           level: 1,
           auxiliary: {
             xpath: {
-              value: cachedStep.xpath,
+              value: JSON.stringify(cachedStep.xpath),
               type: "string",
             },
           },
@@ -725,7 +731,7 @@ export class StagehandActHandler {
   }
 
   private async _getValidCachedStepXpath(cachedStep: {
-    xpaths: string[];
+    xpaths: (string | string[])[];
     savedComponentString: string;
   }) {
     const reversedXpaths = [...cachedStep.xpaths].reverse(); // We reverse the xpaths to try the most cachable ones first
@@ -756,7 +762,7 @@ export class StagehandActHandler {
     domSettleTimeoutMs,
   }: {
     action: string;
-    previousSelectors: string[];
+    previousSelectors: (string | string[])[];
     requestId: string;
     steps: string;
     chunksSeen: number[];
@@ -831,7 +837,7 @@ export class StagehandActHandler {
         level: 1,
         auxiliary: {
           validXpath: {
-            value: validXpath,
+            value: JSON.stringify(validXpath),
             type: "string",
           },
         },
@@ -979,7 +985,7 @@ export class StagehandActHandler {
     retries?: number;
     requestId?: string;
     variables: Record<string, string>;
-    previousSelectors: string[];
+    previousSelectors: (string | string[])[];
     skipActionCacheForThisStep: boolean;
     domSettleTimeoutMs?: number;
   }): Promise<{ success: boolean; message: string; action: string }> {
@@ -1266,13 +1272,15 @@ export class StagehandActHandler {
         const initialUrl = this.stagehandPage.page.url();
 
         // Modified: Attempt to locate the first valid XPath before proceeding
-        let foundXpath: string | null = null;
+        let foundXpath: string | string[] | null = null;
         let locator: Locator | null = null;
 
         for (const xp of xpaths) {
-          const candidate = this.stagehandPage.page
-            .locator(`xpath=${xp}`)
-            .first();
+          const candidate = safeLocatorWithIframeSupport(
+            this.stagehandPage.page,
+            xp,
+          );
+
           try {
             // Try a short wait to see if it's attached to the DOM
             await candidate.waitFor({ state: "attached", timeout: 2000 });
@@ -1286,7 +1294,7 @@ export class StagehandActHandler {
               level: 1,
               auxiliary: {
                 xpath: {
-                  value: xp,
+                  value: JSON.stringify(xp),
                   type: "string",
                 },
                 error: {

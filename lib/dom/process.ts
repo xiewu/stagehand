@@ -85,7 +85,7 @@ export async function scrollToHeight(height: number) {
   });
 }
 
-const xpathCache: Map<Node, string[]> = new Map();
+const xpathCache: Map<Node, (string | string[])[]> = new Map();
 
 function getIFrameDocument(iframe: HTMLIFrameElement): Document | null {
   try {
@@ -113,7 +113,7 @@ export async function processElements(
   debug = false,
 ): Promise<{
   outputString: string;
-  selectorMap: Record<number, string[]>;
+  selectorMap: Record<number, (string | string[])[]>;
 }> {
   console.time("processElements:total");
   const viewportHeight = calculateViewportHeight();
@@ -273,7 +273,7 @@ export async function processElements(
     `Stagehand (Browser Process): Processing candidate elements: ${candidateElements.length}`,
   );
 
-  const selectorMap: Record<number, string[]> = {};
+  const selectorMap: Record<number, (string | string[])[]> = {};
   let outputString = "";
 
   console.time("processElements:processCandidates");
@@ -476,20 +476,14 @@ export function createTextBoundingBoxes(): void {
   });
 }
 
-export function getElementBoundingBoxes(xpath: string): Array<{
+export function getElementBoundingBoxes(xpath: string | string[]): Array<{
   text: string;
   top: number;
   left: number;
   width: number;
   height: number;
 }> {
-  const element = document.evaluate(
-    xpath,
-    document,
-    null,
-    XPathResult.FIRST_ORDERED_NODE_TYPE,
-    null,
-  ).singleNodeValue as HTMLElement;
+  const element = window.findElementWithIframeSupport(xpath);
 
   if (!element) return [];
 
