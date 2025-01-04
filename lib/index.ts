@@ -320,7 +320,7 @@ const defaultLogger = async (logLine: LogLine) => {
 };
 
 export class Stagehand {
-  public stagehandPage!: StagehandPage;
+  privatew stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
   private intEnv: "LOCAL" | "BROWSERBASE";
 
