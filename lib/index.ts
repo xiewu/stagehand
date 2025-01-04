@@ -359,12 +359,16 @@ export class Stagehand {
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
     this.verbose = verbose ?? 0;
     this.debugDom = debugDom ?? false;
-    this.llmClient =
-      llmClient ||
-      this.llmProvider.getClient(
+    if (llmClient) {
+      // If the user explicitly passed an LLM client, use it
+      this.llmClient = llmClient;
+    } else if (modelClientOptions?.apiKey) {
+      // Otherwise, if we have an API key, build a real LLM client
+      this.llmClient = this.llmProvider.getClient(
         modelName ?? DEFAULT_MODEL_NAME,
         modelClientOptions,
       );
+    }
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
