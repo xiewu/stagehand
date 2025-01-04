@@ -137,7 +137,10 @@ export class StagehandPage {
               });
             }
 
-            return target[prop as keyof PlaywrightPage];
+            return this.context.on(
+              event as keyof PlaywrightPage["on"],
+              listener,
+            );
           };
         }
 
