@@ -1,4 +1,4 @@
-import { Locator, Page } from "@playwright/test";
+import { Locator } from "@playwright/test";
 import { LogLine } from "../../types/log";
 import {
   PlaywrightCommandException,
@@ -8,10 +8,10 @@ import { ActionCache } from "../cache/ActionCache";
 import { act, fillInVariables, verifyActCompletion } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { LLMProvider } from "../llm/LLMProvider";
+import { StagehandContext } from "../StagehandContext";
+import { StagehandPage } from "../StagehandPage";
 import { generateId } from "../utils";
 import { ScreenshotService } from "../vision";
-import { StagehandPage } from "../StagehandPage";
-import { StagehandContext } from "../StagehandContext";
 
 export class StagehandActHandler {
   private readonly stagehandPage: StagehandPage;
