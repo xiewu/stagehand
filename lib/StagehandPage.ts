@@ -111,27 +111,33 @@ export class StagehandPage {
           };
         }
 
+        if (prop === "on") {
+          return (event: string, listener: (param: unknown) => void) => {
+            if (event === "popup") {
+              return this.context.on("page", async (page) => {
+                const newContext = await StagehandContext.init(
+                  page.context(),
+                  stagehand,
+                );
+                const newStagehandPage = new StagehandPage(
+                  page,
+                  stagehand,
+                  newContext,
+                  this.llmClient,
+                );
+
+                await newStagehandPage.init();
+
+                listener(newStagehandPage.page);
+              });
+            }
+
+            return target[prop as keyof PlaywrightPage];
+          };
+        }
+
         return target[prop as keyof PlaywrightPage];
       },
-    });
-
-    this.intContext.context.on("page", async (newPage) => {
-      this.stagehand.logger({
-        category: "action",
-        message: "new page detected (new tab) with URL",
-        level: 1,
-        auxiliary: {
-          url: {
-            value: newPage.url(),
-            type: "string",
-          },
-        },
-      });
-
-      // these can be done in parallel
-      await Promise.all([page.goto(newPage.url()), newPage.close()]);
-
-      this._waitForSettledDom();
     });
 
     await this._waitForSettledDom();

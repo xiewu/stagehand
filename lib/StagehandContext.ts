@@ -1,5 +1,10 @@
-import type { BrowserContext as PlaywrightContext } from "@playwright/test";
+import type {
+  BrowserContext as PlaywrightContext,
+  Page as PlaywrightPage,
+} from "@playwright/test";
 import { Stagehand } from "./index";
+import { StagehandPage } from "./StagehandPage";
+import { LLMClient } from "./llm/LLMClient";
 
 export class StagehandContext {
   private readonly stagehand: Stagehand;
