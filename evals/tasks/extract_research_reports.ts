@@ -6,7 +6,7 @@ export const extract_research_reports: EvalFunction = async ({
   modelName,
   logger,
   useTextExtract,
-  useAccessibilityTree
+  useAccessibilityTree,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
@@ -37,7 +37,7 @@ export const extract_research_reports: EvalFunction = async ({
     }),
     modelName,
     useTextExtract,
-    useAccessibilityTree
+    useAccessibilityTree,
   });
 
   await stagehand.close();

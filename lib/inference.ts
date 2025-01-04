@@ -180,7 +180,11 @@ export async function extract({
 
   const extractionResponse = await llmClient.createChatCompletion({
     messages: [
-      buildExtractSystemPrompt(isUsingAnthropic, isUsingTextExtract, isUsingAccessibilityExtract),
+      buildExtractSystemPrompt(
+        isUsingAnthropic,
+        isUsingTextExtract,
+        isUsingAccessibilityExtract,
+      ),
       buildExtractUserPrompt(instruction, domElements, isUsingAnthropic),
     ],
     response_model: {
@@ -262,14 +266,12 @@ export async function observe({
   llmClient,
   image,
   requestId,
-  useAccessibilityTree,
 }: {
   instruction: string;
   domElements: string;
   llmClient: LLMClient;
   image?: Buffer;
   requestId: string;
-  useAccessibilityTree?: boolean;
 }) {
   const observeSchema = z.object({
     elements: z

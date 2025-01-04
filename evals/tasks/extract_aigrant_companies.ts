@@ -6,7 +6,7 @@ export const extract_aigrant_companies: EvalFunction = async ({
   modelName,
   logger,
   useTextExtract,
-  useAccessibilityTree
+  useAccessibilityTree,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,

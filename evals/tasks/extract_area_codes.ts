@@ -6,7 +6,7 @@ export const extract_area_codes: EvalFunction = async ({
   modelName,
   logger,
   useTextExtract,
-  useAccessibilityTree
+  useAccessibilityTree,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
@@ -47,7 +47,7 @@ export const extract_area_codes: EvalFunction = async ({
     }),
     modelName,
     useTextExtract,
-    useAccessibilityTree
+    useAccessibilityTree,
   });
 
   await stagehand.close();

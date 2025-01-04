@@ -7,7 +7,7 @@ export const extract_public_notices: EvalFunction = async ({
   modelName,
   logger,
   useTextExtract,
-  useAccessibilityTree
+  useAccessibilityTree,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
@@ -46,7 +46,7 @@ export const extract_public_notices: EvalFunction = async ({
     }),
     modelName,
     useTextExtract,
-    useAccessibilityTree
+    useAccessibilityTree,
   });
 
   await stagehand.close();

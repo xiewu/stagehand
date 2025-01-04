@@ -51,7 +51,6 @@ export class StagehandObserveHandler {
     llmClient,
     requestId,
     domSettleTimeoutMs,
-    useAccessibilityTree = false,
   }: {
     instruction: string;
     useVision: boolean;
@@ -59,7 +58,6 @@ export class StagehandObserveHandler {
     llmClient: LLMClient;
     requestId?: string;
     domSettleTimeoutMs?: number;
-    useAccessibilityTree?: boolean;
   }): Promise<{ selector: string; description: string }[]> {
     if (!instruction) {
       instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
@@ -122,19 +120,20 @@ export class StagehandObserveHandler {
       llmClient,
       image: annotatedScreenshot,
       requestId,
-      useAccessibilityTree,
     });
-    console.log(`\n\nobservationResponse: ${JSON.stringify(observationResponse)}`);
+    console.log(
+      `\n\nobservationResponse: ${JSON.stringify(observationResponse)}`,
+    );
     const elementsWithSelectors = observationResponse.elements.map(
       (element) => {
         const { elementId, ...rest } = element;
 
-        if (useAccessibilityTree) {
-          return {
-            ...rest,
-            selector: selectorMap[elementId][0],
-          };
-        }
+        // if (useAccessibilityTree) {
+        //   return {
+        //     ...rest,
+        //     selector: selectorMap[elementId][0],
+        //   };
+        // }
 
         return {
           ...rest,
@@ -162,80 +161,79 @@ export class StagehandObserveHandler {
   }
 }
 
-function createAccessibilitySelectorMap(
-    node: any, 
-    map: { [key: string]: string[] } = {}, 
-    counter: { value: 0 } = { value: 0 }  // Use object to maintain count across recursion
-): { [key: string]: string[] } {
-    if (!node) return map;
+// function createAccessibilitySelectorMap(
+//   node: any,
+//   map: { [key: string]: string[] } = {},
+//   counter: { value: 0 } = { value: 0 }, // Use object to maintain count across recursion
+// ): { [key: string]: string[] } {
+//   if (!node) return map;
 
-    const selector = createAccessibilitySelector(node);
-    if (selector) {
-        const id = counter.value.toString();
-        map[id] = [selector];
-        counter.value++;
-    }
+//   const selector = createAccessibilitySelector(node);
+//   if (selector) {
+//     const id = counter.value.toString();
+//     map[id] = [selector];
+//     counter.value++;
+//   }
 
-    if (Array.isArray(node.children)) {
-        node.children.forEach((child: any) => {
-            createAccessibilitySelectorMap(child, map, counter);
-        });
-    }
+//   if (Array.isArray(node.children)) {
+//     node.children.forEach((child: any) => {
+//       createAccessibilitySelectorMap(child, map, counter);
+//     });
+//   }
 
-    return map;
-}
+//   return map;
+// }
 
-function createAccessibilitySelector(node: any): string | null {
-    if (!node.role) return null;
+// function createAccessibilitySelector(node: any): string | null {
+//   if (!node.role) return null;
 
-    let selector = `role=${node.role}`;
-    if (node.name) {
-        selector += `[name='${node.name.replace(/'/g, "\\'")}']`;
-    }
-    // console.log(selector);
-    return selector;
-}
+//   let selector = `role=${node.role}`;
+//   if (node.name) {
+//     selector += `[name='${node.name.replace(/'/g, "\\'")}']`;
+//   }
+//   // console.log(selector);
+//   return selector;
+// }
 
-function cleanObject(obj: any): any {
-  if (Array.isArray(obj)) {
-    return obj.map(cleanObject);
-  }
-  if (typeof obj === 'object' && obj !== null) {
-    const cleaned = Object.fromEntries(
-      Object.entries(obj)
-        .filter(([_, value]) => value !== undefined)
-        .map(([key, value]) => [key, cleanObject(value)])
-    );
-    // Preserve children as array if it exists
-    if (obj.children) {
-      cleaned.children = cleanObject(obj.children);
-    }
-    return cleaned;
-  }
-  return obj;
-}
+// function cleanObject(obj: any): any {
+//   if (Array.isArray(obj)) {
+//     return obj.map(cleanObject);
+//   }
+//   if (typeof obj === "object" && obj !== null) {
+//     const cleaned = Object.fromEntries(
+//       Object.entries(obj)
+//         .filter(([_, value]) => value !== undefined)
+//         .map(([key, value]) => [key, cleanObject(value)]),
+//     );
+//     // Preserve children as array if it exists
+//     if (obj.children) {
+//       cleaned.children = cleanObject(obj.children);
+//     }
+//     return cleaned;
+//   }
+//   return obj;
+// }
 
+// function formatAccessibilityTree(
+//   node: any,
+//   level = 0,
+//   counter: { value: 0 } = { value: 0 },
+// ): string {
+//   if (!node) return "";
 
-function formatAccessibilityTree(
-    node: any, 
-    level = 0, 
-    counter: { value: 0 } = { value: 0 }
-): string {
-    if (!node) return '';
-    
-    const indent = '  '.repeat(level);
-    const id = counter.value;
-    let result = `${indent}[${id}] ${node.role || 'unknown'}: ${node.name || ''}\n`;
-    
-    if (node.role) {
-        counter.value++; // Only increment for valid nodes with roles
-    }
-    
-    if (Array.isArray(node.children)) {
-        for (const child of node.children) {
-            result += formatAccessibilityTree(child, level + 1, counter);
-        }
-    }
-    
-    return result;
-}
+//   const indent = "  ".repeat(level);
+//   const id = counter.value;
+//   let result = `${indent}[${id}] ${node.role || "unknown"}: ${node.name || ""}\n`;
+
+//   if (node.role) {
+//     counter.value++; // Only increment for valid nodes with roles
+//   }
+
+//   if (Array.isArray(node.children)) {
+//     for (const child of node.children) {
+//       result += formatAccessibilityTree(child, level + 1, counter);
+//     }
+//   }
+
+//   return result;
+// }

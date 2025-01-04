@@ -204,7 +204,7 @@ export const actTools: Array<OpenAI.ChatCompletionTool> = [
 export function buildExtractSystemPrompt(
   isUsingPrintExtractedDataTool: boolean = false,
   useTextExtract: boolean = false,
-  useAccessibilityExtract: boolean = true
+  useAccessibilityExtract: boolean = true,
 ): ChatMessage {
   const baseContent = `You are extracting content on behalf of a user.
   If a user asks you to extract a 'list' of information, or 'all' information, 
@@ -222,7 +222,11 @@ export function buildExtractSystemPrompt(
 
   const instructions = `
 Print the exact text from the ${
-    useTextExtract ? "text-rendered webpage" : useAccessibilityExtract ? "accessibility tree" : "DOM elements"
+    useTextExtract
+      ? "text-rendered webpage"
+      : useAccessibilityExtract
+        ? "accessibility tree"
+        : "DOM elements"
   } with all symbols, characters, and endlines as is.
 Print null or an empty string if no new information is found.
   `.trim();

@@ -5,7 +5,7 @@ import { extract } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { formatText } from "../utils";
 import { StagehandPage } from "../StagehandPage";
-import { Page, Stagehand } from "../index";
+import { Stagehand } from "../index";
 
 const PROXIMITY_THRESHOLD = 15;
 
@@ -541,7 +541,6 @@ export class StagehandExtractHandler {
     content = {},
     llmClient,
     requestId,
-    domSettleTimeoutMs,
   }: {
     instruction: string;
     schema: T;
@@ -572,56 +571,71 @@ export class StagehandExtractHandler {
       isUsingAccessibilityExtract: true,
     });
 
-    const { metadata: { completed }, ...output } = extractionResponse;
+    const {
+      // metadata: { completed },
+      ...output
+    } = extractionResponse;
 
     return output;
   }
 }
 
-function cleanObject(obj: any): any {
-  if (Array.isArray(obj)) {
-    return obj.map(cleanObject);
-  }
-  if (typeof obj === 'object' && obj !== null) {
-    const cleaned = Object.fromEntries(
-      Object.entries(obj)
-        .filter(([_, value]) => value !== undefined)
-        .map(([key, value]) => [key, cleanObject(value)])
-    );
-    // Preserve children as array if it exists
-    if (obj.children) {
-      cleaned.children = cleanObject(obj.children);
-    }
-    return cleaned;
-  }
-  return obj;
-}
+// function cleanObject(obj: any): any {
+//   if (Array.isArray(obj)) {
+//     return obj.map(cleanObject);
+//   }
+//   if (typeof obj === "object" && obj !== null) {
+//     const cleaned = Object.fromEntries(
+//       Object.entries(obj)
+//         .filter(([_, value]) => value !== undefined)
+//         .map(([key, value]) => [key, cleanObject(value)]),
+//     );
+//     // Preserve children as array if it exists
+//     if (obj.children) {
+//       cleaned.children = cleanObject(obj.children);
+//     }
+//     return cleaned;
+//   }
+//   return obj;
+// }
 
+// function formatAccessibilityTree(node: any, level = 0): string {
+//   if (!node) return "";
 
-function formatAccessibilityTree(node: any, level = 0): string {
-    if (!node) return '';
-    
-    const indent = '  '.repeat(level);
-    let result = `${indent}${node.role || 'unknown'}: ${node.name || ''}\n`;
-    
-    if (Array.isArray(node.children)) {
-        for (const child of node.children) {
-            result += formatAccessibilityTree(child, level + 1);
-        }
-    }
-    
-    return result;
+//   const indent = "  ".repeat(level);
+//   let result = `${indent}${node.role || "unknown"}: ${node.name || ""}\n`;
+
+//   if (Array.isArray(node.children)) {
+//     for (const child of node.children) {
+//       result += formatAccessibilityTree(child, level + 1);
+//     }
+//   }
+
+//   return result;
+// }
+
+interface AccessibilityNode {
+  name?: string;
+  role?: string;
+  properties?: unknown[];
+  description?: string;
+  value?: string;
+  nodeId: string;
+  parentId?: string;
+  backendDOMNodeId: number;
+  childIds: string[];
+  children?: AccessibilityNode[];
 }
 
 async function getAccessibilityTree(page: StagehandPage) {
   const cdpClient = await page.context.newCDPSession(page.page);
-  await cdpClient.send('Accessibility.enable');
-  
+  await cdpClient.send("Accessibility.enable");
+
   try {
-    const { nodes } = await cdpClient.send('Accessibility.getFullAXTree');
-    
+    const { nodes } = await cdpClient.send("Accessibility.getFullAXTree");
+
     // Extract specific sources
-    const sources = nodes.map((node: any) => ({
+    const sources = nodes.map((node) => ({
       role: node.role?.value,
       name: node.name?.value,
       description: node.description?.value,
@@ -636,88 +650,79 @@ async function getAccessibilityTree(page: StagehandPage) {
     // const hierarchicalTree = buildHierarchicalTree(sources);
 
     // return JSON.stringify(hierarchicalTree, null, 1);
-    console.log(sources);
+    // console.log(sources);
     return sources;
-
   } finally {
-    await cdpClient.send('Accessibility.disable');
+    await cdpClient.send("Accessibility.disable");
   }
 }
 
-interface AccessibilityNode {
-  name?: string;
-  role?: string;
-  properties?: any[];
-  description?: string;
-  value?: string;
-  children?: AccessibilityNode[];
-}
-
-
-function cleanAccessibilityTree(source: any): string {
-    const meaningfulNodes = source
-        .filter((node: AccessibilityNode) => {
-            // const name = node.name?.trim();
-            // return Boolean(
-            //     name && 
-            //     name !== '' && 
-            //     name !== '[]' &&
-            //     node.role?.trim() &&
-            //     !/[\u{0080}-\u{FFFF}]/u.test(name)
-            // );
-            return node.role !== 'none'
-        })
-        .map((node: AccessibilityNode) => ({
-            role: node.role,
-            name: node.name,
-            // ...(node.properties && node.properties.length > 0 && { properties: node.properties }),
-            // ...(node.description && { description: node.description })
-        }))
-    
-
-    return JSON.stringify(meaningfulNodes, null, 2);
-}
-
-function buildHierarchicalTree(nodes: any[]): AccessibilityNode[] {
-  // Create a map of nodes by their IDs for quick lookup
-  const nodeMap = new Map<string, AccessibilityNode>();
-  
-  // First pass: Create basic nodes
-  nodes.forEach(node => {
-    // Skip nodes that have no name and no children, or have role 'none' without children
-    const hasChildren = node.childIds && node.childIds.length > 0;
-    const hasValidName = node.name && node.name.trim() !== '';
-    
-    if ((!hasValidName && !hasChildren) || (node.role === 'none' && !hasChildren)) {
-      return;
-    }
-
-    nodeMap.set(node.nodeId, {
+function cleanAccessibilityTree(source: AccessibilityNode[]): string {
+  const meaningfulNodes = source
+    .filter((node: AccessibilityNode) => {
+      // const name = node.name?.trim();
+      // return Boolean(
+      //     name &&
+      //     name !== '' &&
+      //     name !== '[]' &&
+      //     node.role?.trim() &&
+      //     !/[\u{0080}-\u{FFFF}]/u.test(name)
+      // );
+      return node.role !== "none";
+    })
+    .map((node: AccessibilityNode) => ({
       role: node.role,
-      ...(hasValidName && { name: node.name }),
-      ...(node.description && { description: node.description }),
-      ...(node.value && { value: node.value })
-    });
-  });
+      name: node.name,
+      // ...(node.properties && node.properties.length > 0 && { properties: node.properties }),
+      // ...(node.description && { description: node.description })
+    }));
 
-  // Second pass: Build parent-child relationships
-  nodes.forEach(node => {
-    if (node.parentId && nodeMap.has(node.nodeId)) {
-      const parentNode = nodeMap.get(node.parentId);
-      const currentNode = nodeMap.get(node.nodeId);
-      
-      if (parentNode && currentNode) {
-        if (!parentNode.children) {
-          parentNode.children = [];
-        }
-        parentNode.children.push(currentNode);
-      }
-    }
-  });
-
-  // Return only root nodes (nodes without parents)
-  return nodes
-    .filter(node => !node.parentId && nodeMap.has(node.nodeId))
-    .map(node => nodeMap.get(node.nodeId))
-    .filter(Boolean) as AccessibilityNode[];
+  return JSON.stringify(meaningfulNodes, null, 2);
 }
+
+// function buildHierarchicalTree(nodes: any[]): AccessibilityNode[] {
+//   // Create a map of nodes by their IDs for quick lookup
+//   const nodeMap = new Map<string, AccessibilityNode>();
+
+//   // First pass: Create basic nodes
+//   nodes.forEach((node) => {
+//     // Skip nodes that have no name and no children, or have role 'none' without children
+//     const hasChildren = node.childIds && node.childIds.length > 0;
+//     const hasValidName = node.name && node.name.trim() !== "";
+
+//     if (
+//       (!hasValidName && !hasChildren) ||
+//       (node.role === "none" && !hasChildren)
+//     ) {
+//       return;
+//     }
+
+//     nodeMap.set(node.nodeId, {
+//       role: node.role,
+//       ...(hasValidName && { name: node.name }),
+//       ...(node.description && { description: node.description }),
+//       ...(node.value && { value: node.value }),
+//     });
+//   });
+
+//   // Second pass: Build parent-child relationships
+//   nodes.forEach((node) => {
+//     if (node.parentId && nodeMap.has(node.nodeId)) {
+//       const parentNode = nodeMap.get(node.parentId);
+//       const currentNode = nodeMap.get(node.nodeId);
+
+//       if (parentNode && currentNode) {
+//         if (!parentNode.children) {
+//           parentNode.children = [];
+//         }
+//         parentNode.children.push(currentNode);
+//       }
+//     }
+//   });
+
+//   // Return only root nodes (nodes without parents)
+//   return nodes
+//     .filter((node) => !node.parentId && nodeMap.has(node.nodeId))
+//     .map((node) => nodeMap.get(node.nodeId))
+//     .filter(Boolean) as AccessibilityNode[];
+// }

@@ -42,7 +42,7 @@ export const extract_press_releases: EvalFunction = async ({
       schema,
       modelName,
       useTextExtract,
-      useAccessibilityTree
+      useAccessibilityTree,
     });
 
     const parsed = schema.parse(rawResult);
