@@ -208,11 +208,7 @@ export class OpenAIClient extends LLMClient {
     let responseFormat = undefined;
     if (options.response_model) {
       // For O1 models, we need to add the schema as a user message.
-      if (
-        this.modelName === "o1-mini" ||
-        this.modelName === "o1-preview" ||
-        this.modelName === "o1"
-      ) {
+      if (this.modelName === "o1-mini" || this.modelName === "o1-preview") {
         try {
           const parsedSchema = JSON.stringify(
             zodToJsonSchema(options.response_model.schema),
