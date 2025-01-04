@@ -46,7 +46,7 @@ export class StagehandPage {
     this.stagehand = stagehand;
     this.intContext = context;
     this.llmClient = llmClient;
-    if (this.llmClient?.clientOptions?.apiKey) {
+    if (this.llmClient) {
       this.actHandler = new StagehandActHandler({
         verbose: this.stagehand.verbose,
         llmProvider: this.stagehand.llmProvider,
@@ -89,7 +89,7 @@ export class StagehandPage {
             return result;
           };
 
-        if (this.llmClient?.clientOptions?.apiKey) {
+        if (this.llmClient) {
           if (prop === "act") {
             return async (options: ActOptions) => {
               return this.act(options);
@@ -109,7 +109,7 @@ export class StagehandPage {
           if (prop === "act" || prop === "extract" || prop === "observe") {
             return () => {
               throw new Error(
-                "No model API key configured. Please provide a model API key to use act, extract, or observe.",
+                "No LLM Client configured. LLM Client is required to use act, extract, or observe.",
               );
             };
           }

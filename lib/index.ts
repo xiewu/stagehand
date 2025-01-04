@@ -360,14 +360,17 @@ export class Stagehand {
     this.verbose = verbose ?? 0;
     this.debugDom = debugDom ?? false;
     if (llmClient) {
-      // If the user explicitly passed an LLM client, use it
       this.llmClient = llmClient;
-    } else if (modelClientOptions?.apiKey) {
-      // Otherwise, if we have an API key, build a real LLM client
-      this.llmClient = this.llmProvider.getClient(
-        modelName ?? DEFAULT_MODEL_NAME,
-        modelClientOptions,
-      );
+    } else {
+      try {
+        // try to set a default LLM client
+        this.llmClient = this.llmProvider.getClient(
+          modelName ?? DEFAULT_MODEL_NAME,
+          modelClientOptions,
+        );
+      } catch {
+        this.llmClient = undefined;
+      }
     }
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = headless ?? false;
