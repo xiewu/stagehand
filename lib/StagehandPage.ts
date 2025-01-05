@@ -35,22 +35,22 @@ export class StagehandPage {
     this.intPage = Object.assign(page, {
       act: () => {
         throw new Error(
-          "act() is not implemented on the base page object. Ensure you are calling init() on the Stagehand object before calling methods on the page object.",
+          "You seem to be calling `act` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
         );
       },
       extract: () => {
         throw new Error(
-          "extract() is not implemented on the base page object. Ensure you are calling init() on the Stagehand object before calling methods on the page object.",
+          "You seem to be calling `extract` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
         );
       },
       observe: () => {
         throw new Error(
-          "observe() is not implemented on the base page object. Ensure you are calling init() on the Stagehand object before calling methods on the page object.",
+          "You seem to be calling `observe` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
         );
       },
       on: () => {
         throw new Error(
-          "on() is not implemented on the base page object. Stagehand overrides Playwright's on() method to update it's behavior, so ensure you call init() on the Stagehand object before you call on() on the page object.",
+          "You seem to be referencing a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
         );
       },
     });
