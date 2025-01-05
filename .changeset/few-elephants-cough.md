@@ -2,4 +2,4 @@
 "@browserbasehq/stagehand": minor
 ---
 
-Automatically switch to new tabs when created outside of Stagehand methods
+Pass in a Stagehand Page object into the `on("popup")` listener to allow for multi-page handling.
