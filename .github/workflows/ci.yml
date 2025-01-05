@@ -1,10 +1,6 @@
 name: Evals
 
 on:
-  push:
-    paths:
-      - "lib/**"
-      - "evals/**"
   pull_request:
     types:
       - opened
