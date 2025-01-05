@@ -42,6 +42,7 @@
     "@types/node": "^20.11.30",
     "@types/ws": "^8.5.13",
     "adm-zip": "^0.5.16",
+    "ai": "^4.0.26",
     "autoevals": "^0.0.64",
     "braintrust": "^0.0.171",
     "cheerio": "^1.0.0",
