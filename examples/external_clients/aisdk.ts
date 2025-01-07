@@ -11,30 +11,24 @@ import {
   TextPart,
 } from "ai";
 import { ChatCompletion } from "openai/resources/chat/completions";
-import { ChatCompletionOptions, LLMClient } from "../../lib/llm/LLMClient";
-import type { LogLine } from "../../types/log";
+import {
+  CreateChatCompletionOptions,
+  LLMClient,
+} from "../../lib/llm/LLMClient";
 import { AvailableModel } from "../../types/model";
 
 export class AISdkClient extends LLMClient {
   public type = "aisdk" as const;
-  public logger: (message: LogLine) => void;
   private model: LanguageModel;
 
-  constructor({
-    logger,
-    model,
-  }: {
-    logger?: (message: LogLine) => void;
-    model: LanguageModel;
-  }) {
+  constructor({ model }: { model: LanguageModel }) {
     super(model.modelId as AvailableModel);
-    this.logger = logger;
     this.model = model;
   }
 
-  async createChatCompletion<T = ChatCompletion>(
-    options: ChatCompletionOptions,
-  ): Promise<T> {
+  async createChatCompletion<T = ChatCompletion>({
+    options,
+  }: CreateChatCompletionOptions): Promise<T> {
     const formattedMessages: CoreMessage[] = options.messages.map((message) => {
       if (Array.isArray(message.content)) {
         if (message.role === "system") {
