@@ -17,7 +17,13 @@ export class AISdkClient extends LLMClient {
   public logger: (message: LogLine) => void;
   private model: LanguageModel;
 
-  constructor(logger: (message: LogLine) => void, model: LanguageModel) {
+  constructor({
+    logger,
+    model,
+  }: {
+    logger?: (message: LogLine) => void;
+    model: LanguageModel;
+  }) {
     super(model.modelId as AvailableModel);
     this.logger = logger;
     this.model = model;
