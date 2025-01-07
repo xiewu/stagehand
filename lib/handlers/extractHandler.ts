@@ -306,6 +306,7 @@ export class StagehandExtractHandler {
       chunksTotal: 1,
       llmClient,
       requestId,
+      logger: this.logger,
     });
 
     const {
