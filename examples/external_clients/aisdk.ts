@@ -1,6 +1,9 @@
 import {
+  CoreAssistantMessage,
   CoreMessage,
+  CoreSystemMessage,
   CoreTool,
+  CoreUserMessage,
   generateObject,
   generateText,
   ImagePart,
@@ -32,7 +35,6 @@ export class AISdkClient extends LLMClient {
   async createChatCompletion<T = ChatCompletion>(
     options: ChatCompletionOptions,
   ): Promise<T> {
-    // @ts-expect-error - TODO: fix this
     const formattedMessages: CoreMessage[] = options.messages.map((message) => {
       if (Array.isArray(message.content)) {
         const contentParts = message.content.map((content) => {
@@ -41,23 +43,35 @@ export class AISdkClient extends LLMClient {
               type: "image",
               image: content.image_url.url,
             };
-
             return imageContent;
           } else {
             const textContent: TextPart = {
               type: "text",
               text: content.text,
             };
-
             return textContent;
           }
         });
 
-        return {
-          role: message.role,
-          content: contentParts,
-        };
+        if (message.role === "user") {
+          const userMessage: CoreUserMessage = {
+            role: "user",
+            content: contentParts,
+          };
+          return userMessage;
+        } else {
+          const textOnlyParts = contentParts.map((part) => ({
+            type: "text" as const,
+            text: part.type === "image" ? "[Image]" : part.text,
+          }));
+          const assistantMessage: CoreAssistantMessage = {
+            role: "assistant",
+            content: textOnlyParts,
+          };
+          return assistantMessage;
+        }
       }
+
       return {
         role: message.role,
         content: message.content,
