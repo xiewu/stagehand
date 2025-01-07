@@ -1,7 +1,6 @@
 import OpenAI, { ClientOptions } from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import {
-  ChatCompletion,
   ChatCompletionAssistantMessageParam,
   ChatCompletionContentPartImage,
   ChatCompletionContentPartText,
@@ -15,7 +14,12 @@ import { LogLine } from "../../types/log";
 import { AvailableModel } from "../../types/model";
 import { LLMCache } from "../cache/LLMCache";
 import { validateZodSchema } from "../utils";
-import { ChatCompletionOptions, ChatMessage, LLMClient } from "./LLMClient";
+import {
+  ChatCompletionOptions,
+  ChatMessage,
+  LLMClient,
+  LLMResponse,
+} from "./LLMClient";
 
 export class OpenAIClient extends LLMClient {
   public type = "openai" as const;
@@ -41,7 +45,7 @@ export class OpenAIClient extends LLMClient {
     this.modelName = modelName;
   }
 
-  async createChatCompletion<T = ChatCompletion>(
+  async createChatCompletion<T = LLMResponse>(
     optionsInitial: ChatCompletionOptions,
     retries: number = 3,
   ): Promise<T> {
