@@ -120,7 +120,7 @@ export class StagehandPage {
           if (prop === "act" || prop === "extract" || prop === "observe") {
             return () => {
               throw new Error(
-                "No LLM Client configured. LLM Client is required to use act, extract, or observe.",
+                "No LLM API key or LLM Client configured. An LLM API key or a custom LLM Client is required to use act, extract, or observe.",
               );
             };
           }
