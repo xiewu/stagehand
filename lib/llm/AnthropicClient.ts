@@ -185,17 +185,15 @@ export class AnthropicClient extends LLMClient {
     }
 
     let anthropicTools: Tool[] = options.tools?.map((tool) => {
-      if (tool.type === "function") {
-        return {
-          name: tool.function.name,
-          description: tool.function.description,
-          input_schema: {
-            type: "object",
-            properties: tool.function.parameters.properties,
-            required: tool.function.parameters.required,
-          },
-        };
-      }
+      return {
+        name: tool.name,
+        description: tool.description,
+        input_schema: {
+          type: "object",
+          properties: tool.parameters.properties,
+          required: tool.parameters.required,
+        },
+      };
     });
 
     let toolDefinition: Tool | undefined;

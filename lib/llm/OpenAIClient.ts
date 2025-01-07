@@ -319,7 +319,14 @@ export class OpenAIClient extends LLMClient {
       messages: formattedMessages,
       response_format: responseFormat,
       stream: false,
-      tools: options.tools?.filter((tool) => "function" in tool), // ensure only OpenAI tools are used
+      tools: options.tools?.map((tool) => ({
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+        },
+        type: "function",
+      })),
     };
 
     const response = await this.client.chat.completions.create(body);

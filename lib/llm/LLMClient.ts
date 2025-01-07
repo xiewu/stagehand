@@ -7,8 +7,8 @@ import {
   AnthropicTransformedResponse,
   AvailableModel,
   ClientOptions,
-  ToolCall,
 } from "../../types/model";
+import { LLMTools } from "../../types/llm";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -56,7 +56,7 @@ export interface ChatCompletionOptions {
     name: string;
     schema: ZodType;
   };
-  tools?: ToolCall[];
+  tools?: LLMTools;
   tool_choice?: "auto" | ChatCompletionToolChoiceOption;
   maxTokens?: number;
   requestId: string;
