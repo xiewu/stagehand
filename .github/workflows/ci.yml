@@ -108,6 +108,23 @@ jobs:
       - name: Run E2E Tests
         run: npm run e2e
 
+      # Add new step to log E2E results
+      - name: Log E2E Test Results
+        run: |
+          # Create comment body
+          echo "### 🧪 E2E Test Results" > comment.md
+
+          if [ $? -eq 0 ]; then
+            echo "✅ All E2E tests passed successfully" >> comment.md
+          else
+            echo "❌ Some E2E tests failed" >> comment.md
+          fi
+
+          # Post comment
+          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   run-combination-evals:
     needs: [run-e2e-tests, determine-evals]
     runs-on: ubuntu-latest
