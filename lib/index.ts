@@ -372,6 +372,9 @@ export class Stagehand {
         this.llmClient = undefined;
       }
     }
+    if (this.llmClient && !this.llmClient.logger) {
+      this.llmClient.logger = this.logger;
+    }
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
