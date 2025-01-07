@@ -37,6 +37,16 @@ export class AISdkClient extends LLMClient {
   ): Promise<T> {
     const formattedMessages: CoreMessage[] = options.messages.map((message) => {
       if (Array.isArray(message.content)) {
+        if (message.role === "system") {
+          const systemMessage: CoreSystemMessage = {
+            role: "system",
+            content: message.content
+              .map((c) => ("text" in c ? c.text : ""))
+              .join("\n"),
+          };
+          return systemMessage;
+        }
+
         const contentParts = message.content.map((content) => {
           if ("image_url" in content) {
             const imageContent: ImagePart = {
