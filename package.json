@@ -6,6 +6,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
+    "popup": "npm run build-dom-scripts && tsx examples/popup.ts",
     "2048": "npm run build-dom-scripts && tsx examples/2048.ts",
     "example": "npm run build-dom-scripts && tsx examples/example.ts",
     "debug-url": "npm run build-dom-scripts && tsx examples/debugUrl.ts",
@@ -16,7 +17,8 @@
     "eslint": "eslint .",
     "cache:clear": "rm -rf .cache",
     "evals": "npm run build-dom-scripts && tsx evals/index.eval.ts",
-    "e2e": "npm run build-dom-scripts && cd evals/deterministic && npx playwright test",
+    "e2e": "npm run build-dom-scripts && cd evals/deterministic && npx playwright test --config=e2e.playwright.config.ts",
+    "e2e:bb": "npm run build-dom-scripts && cd evals/deterministic && npx playwright test --config=bb.playwright.config.ts",
     "build-dom-scripts": "tsx lib/dom/genDomScripts.ts",
     "build-types": "tsc --emitDeclarationOnly --outDir dist",
     "build-js": "tsup lib/index.ts --dts",
