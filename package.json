@@ -6,11 +6,11 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "popup": "npm run build-dom-scripts && tsx examples/popup.ts",
     "2048": "npm run build-dom-scripts && tsx examples/2048.ts",
+    "popup": "npm run build-dom-scripts && tsx examples/popup.ts",
     "example": "npm run build-dom-scripts && tsx examples/example.ts",
     "debug-url": "npm run build-dom-scripts && tsx examples/debugUrl.ts",
-    "external-client": "npm run build-dom-scripts && tsx examples/external_client.ts",
+    "external-client": "npm run build-dom-scripts && tsx examples/ai_sdk_example.ts",
     "format": "prettier --write .",
     "prettier": "prettier --check .",
     "prettier:fix": "prettier --write .",
@@ -34,6 +34,7 @@
   "author": "Browserbase",
   "license": "MIT",
   "devDependencies": {
+    "@ai-sdk/openai": "^1.0.13",
     "@changesets/changelog-github": "^0.5.0",
     "@changesets/cli": "^2.27.9",
     "@eslint/js": "^9.16.0",
