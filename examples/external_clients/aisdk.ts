@@ -16,7 +16,7 @@ import type { LogLine } from "../../types/log";
 import { AvailableModel } from "../../types/model";
 
 export class AISdkClient extends LLMClient {
-  public type = "string" as const;
+  public type = "aisdk" as const;
   public logger: (message: LogLine) => void;
   private model: LanguageModel;
 
