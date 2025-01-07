@@ -8,10 +8,10 @@ import { ActionCache } from "../cache/ActionCache";
 import { act, fillInVariables, verifyActCompletion } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { LLMProvider } from "../llm/LLMProvider";
+import { StagehandContext } from "../StagehandContext";
+import { StagehandPage } from "../StagehandPage";
 import { generateId } from "../utils";
 import { ScreenshotService } from "../vision";
-import { StagehandPage } from "../StagehandPage";
-import { StagehandContext } from "../StagehandContext";
 
 export class StagehandActHandler {
   private readonly stagehandPage: StagehandPage;
@@ -1378,7 +1378,6 @@ export class StagehandActHandler {
           llmClient,
           domSettleTimeoutMs,
         }).catch((error) => {
-          console.log("error verifying action completion", error);
           this.logger({
             category: "action",
             message:
@@ -1387,6 +1386,10 @@ export class StagehandActHandler {
             auxiliary: {
               error: {
                 value: error.message,
+                type: "string",
+              },
+              trace: {
+                value: error.stack,
                 type: "string",
               },
             },
