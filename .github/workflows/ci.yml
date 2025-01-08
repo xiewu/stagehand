@@ -159,19 +159,16 @@ jobs:
       - name: Log Combination Evals Performance
         run: |
           experimentName=$(jq -r '.experimentName' eval-summary.json)
-          echo "View results at https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
           if [ -f eval-summary.json ]; then
             combination_score=$(jq '.categories.combination' eval-summary.json)
             echo "Combination category score: $combination_score%"
             
-            # Create comment body
-            echo "### 🔄 Combination Eval Results" > comment.md
-            echo "Score: ${combination_score}%" >> comment.md
-            echo "[View detailed results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName})" >> comment.md
-            
-            # Post comment
-            gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
-            exit 0
+            # Create initial results summary
+            echo "### 🧪 Eval Results Summary" > results.md
+            echo "#### 🔄 Combination" >> results.md
+            echo "Score: ${combination_score}%" >> results.md
+            echo "[View detailed results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName})" >> results.md
+            echo "" >> results.md
           else
             echo "Eval summary not found for combination category. Failing CI."
             exit 1
@@ -218,13 +215,11 @@ jobs:
             act_score=$(jq '.categories.act' eval-summary.json)
             echo "Act category score: $act_score%"
             
-            # Create comment body
-            echo "### 🎯 Act Eval Results" > comment.md
-            echo "Score: ${act_score}%" >> comment.md
-            echo "[View detailed results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName})" >> comment.md
-            
-            # Post comment
-            gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+            # Append act results
+            echo "#### 🎯 Act" >> results.md
+            echo "Score: ${act_score}%" >> results.md
+            echo "[View detailed results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName})" >> results.md
+            echo "" >> results.md
             
             if (( $(echo "$act_score < 80" | bc -l) )); then
               echo "Act category score is below 80%. Failing CI."
@@ -282,21 +277,17 @@ jobs:
         run: |
           experimentNameDom=$(jq -r '.experimentName' eval-summary-extract-dom.json)
           dom_score=$(jq '.categories.extract' eval-summary-extract-dom.json)
-          echo "DomExtract Extract category score: $dom_score%"
 
           experimentNameText=$(jq -r '.experimentName' eval-summary-extract-text.json)
           text_score=$(jq '.categories.extract' eval-summary-extract-text.json)
-          echo "TextExtract Extract category score: $text_score%"
 
-          # Create comment body
-          echo "### 🔍 Extract Eval Results" > comment.md
-          echo "**DomExtract Score:** ${dom_score}%" >> comment.md
-          echo "[View domExtract results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom})" >> comment.md
-          echo "**TextExtract Score:** ${text_score}%" >> comment.md
-          echo "[View textExtract results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText})" >> comment.md
-
-          # Post comment
-          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+          # Append extract results
+          echo "#### 🔍 Extract" >> results.md
+          echo "**DomExtract Score:** ${dom_score}%" >> results.md
+          echo "[View domExtract results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom})" >> results.md
+          echo "**TextExtract Score:** ${text_score}%" >> results.md
+          echo "[View textExtract results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText})" >> results.md
+          echo "" >> results.md
 
           if (( $(echo "$dom_score < 80" | bc -l) )); then
             echo "DomExtract extract category score is below 80%. Failing CI."
@@ -354,15 +345,13 @@ jobs:
           experimentNameDom=$(jq -r '.experimentName' eval-summary-text_extract-dom.json)
           dom_score=$(jq '.categories.text_extract' eval-summary-text_extract-dom.json)
 
-          # Create comment body
-          echo "### 📝 Text Extract Eval Results" > comment.md
-          echo "**TextExtract Score:** ${text_score}%" >> comment.md
-          echo "[View textExtract results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText})" >> comment.md
-          echo "**DomExtract Score:** ${dom_score}%" >> comment.md
-          echo "[View domExtract results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom})" >> comment.md
-
-          # Post comment
-          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+          # Append text extract results
+          echo "#### 📝 Text Extract" >> results.md
+          echo "**TextExtract Score:** ${text_score}%" >> results.md
+          echo "[View textExtract results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText})" >> results.md
+          echo "**DomExtract Score:** ${dom_score}%" >> results.md
+          echo "[View domExtract results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom})" >> results.md
+          echo "" >> results.md
 
           if (( $(echo "$text_score < 80" | bc -l) )); then
             echo "textExtract text_extract category score is below 80%. Failing CI."
@@ -410,13 +399,13 @@ jobs:
             observe_score=$(jq '.categories.observe' eval-summary.json)
             echo "Observe category score: $observe_score%"
             
-            # Create comment body
-            echo "### 👀 Observe Eval Results" > comment.md
-            echo "Score: ${observe_score}%" >> comment.md
-            echo "[View detailed results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName})" >> comment.md
+            # Append observe results and post final comment
+            echo "#### 👀 Observe" >> results.md
+            echo "Score: ${observe_score}%" >> results.md
+            echo "[View detailed results](https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName})" >> results.md
             
-            # Post comment
-            gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+            # Post the consolidated results comment
+            gh pr comment ${{ github.event.pull_request.number }} --body-file results.md
             
             if (( $(echo "$observe_score < 80" | bc -l) )); then
               echo "Observe category score is below 80%. Failing CI."
