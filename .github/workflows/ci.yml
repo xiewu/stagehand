@@ -20,6 +20,42 @@ permissions:
   contents: read
 
 jobs:
+  cleanup-comments:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete previous CI comments
+        run: |
+          # Get all comments from the PR
+          comments=$(gh api graphql -f query='
+            query($owner:String!, $repo:String!, $pr:Int!) {
+              repository(owner:$owner, name:$repo) {
+                pullRequest(number:$pr) {
+                  comments(first:100) {
+                    nodes {
+                      id
+                      author {
+                        login
+                      }
+                      body
+                    }
+                  }
+                }
+              }
+            }' -f owner=$GITHUB_REPOSITORY_OWNER -f repo=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2) -f pr=${{ github.event.pull_request.number }})
+
+          # Delete comments that contain "Eval Results" and are from the github-actions bot
+          echo "$comments" | jq -r '.data.repository.pullRequest.comments.nodes[] | select(.author.login == "github-actions[bot]" and (.body | contains("Eval Results"))) | .id' | \
+          while read -r comment_id; do
+            gh api graphql -f query='
+              mutation($id:ID!) {
+                deleteIssueComment(input:{id:$id}) {
+                  clientMutationId
+                }
+              }' -f id="$comment_id"
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   determine-evals:
     runs-on: ubuntu-latest
     outputs:
@@ -111,6 +147,34 @@ jobs:
       # Add new step to log E2E results
       - name: Log E2E Test Results
         run: |
+          # Delete previous E2E test comments
+          comments=$(gh api graphql -f query='
+            query($owner:String!, $repo:String!, $pr:Int!) {
+              repository(owner:$owner, name:$repo) {
+                pullRequest(number:$pr) {
+                  comments(first:100) {
+                    nodes {
+                      id
+                      author {
+                        login
+                      }
+                      body
+                    }
+                  }
+                }
+              }
+            }' -f owner=$GITHUB_REPOSITORY_OWNER -f repo=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2) -f pr=${{ github.event.pull_request.number }})
+
+          echo "$comments" | jq -r '.data.repository.pullRequest.comments.nodes[] | select(.author.login == "github-actions[bot]" and (.body | contains("E2E Test Results"))) | .id' | \
+          while read -r comment_id; do
+            gh api graphql -f query='
+              mutation($id:ID!) {
+                deleteIssueComment(input:{id:$id}) {
+                  clientMutationId
+                }
+              }' -f id="$comment_id"
+          done
+
           # Create comment body
           echo "### 🧪 E2E Test Results" > comment.md
 
@@ -126,7 +190,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   run-combination-evals:
-    needs: [run-e2e-tests, determine-evals]
+    needs: [run-e2e-tests, determine-evals, cleanup-comments]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
