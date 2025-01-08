@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { Stagehand } from "../lib";
 import { AISdkClient } from "./external_clients/aisdk";
@@ -8,7 +8,7 @@ async function example() {
   const stagehand = new Stagehand({
     ...StagehandConfig,
     llmClient: new AISdkClient({
-      model: openai("gpt-4-turbo"),
+      model: google("gemini-1.5-flash-latest"),
     }),
   });
 
