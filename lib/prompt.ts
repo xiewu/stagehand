@@ -342,16 +342,17 @@ chunksTotal: ${chunksTotal}`,
 }
 
 // observe
-const observeSystemPrompt = `
-You are helping the user automate the browser by finding elements based on what the user wants to observe in the page.
+export function buildObserveSystemPrompt(isUsingAccessibilityTree = false): ChatMessage {
+  const basePrompt = `You are helping the user automate the browser by finding elements based on what the user wants to observe in the page.
 You will be given:
 1. a instruction of elements to observe
-2. a numbered list of possible elements or an annotated image of the page
+2. ${isUsingAccessibilityTree 
+    ? 'a hierarchical accessibility tree showing the semantic structure of the page' 
+    : 'a numbered list of possible elements or an annotated image of the page'}
 
-Return an array of elements that match the instruction.
-`;
-export function buildObserveSystemPrompt(): ChatMessage {
-  const content = observeSystemPrompt.replace(/\s+/g, " ");
+Return an array of elements that match the instruction.`;
+
+  const content = basePrompt.replace(/\s+/g, " ");
 
   return {
     role: "system",
@@ -362,11 +363,12 @@ export function buildObserveSystemPrompt(): ChatMessage {
 export function buildObserveUserMessage(
   instruction: string,
   domElements: string,
+  isUsingAccessibilityTree = false,
 ): ChatMessage {
   return {
     role: "user",
     content: `instruction: ${instruction}
-DOM: ${domElements}`,
+${isUsingAccessibilityTree ? 'Accessibility Tree' : 'DOM'}: ${domElements}`,
   };
 }
 

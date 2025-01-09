@@ -6,6 +6,8 @@ import { generateId } from "../utils";
 import { ScreenshotService } from "../vision";
 import { StagehandPage } from "../StagehandPage";
 
+
+
 export class StagehandObserveHandler {
   private readonly stagehand: Stagehand;
   private readonly logger: (logLine: LogLine) => void;
@@ -44,6 +46,72 @@ export class StagehandObserveHandler {
     return id;
   }
 
+  private async processAccessibilityTree(tree: AccessibilityNode[]) {
+    const selectorMap: Record<string, string[]> = {};
+    
+    // Get CDP client to convert backendDOMNodeId to page element
+    const cdpClient = await this.stagehandPage.context.newCDPSession(this.stagehandPage.page);
+    
+    for (const node of tree) {
+      if (node.nodeId) {
+        try {
+          // Get the remote object for this node
+          const { object } = await cdpClient.send('DOM.resolveNode', {
+            backendNodeId: Number(node.nodeId)
+          });
+          console.log(object);
+          // Get element's XPath
+          if (object.objectId) {
+            const { result } = await cdpClient.send('Runtime.callFunctionOn', {
+              functionDeclaration: `
+                function() {
+                  function generateXPathsForElement(element) {
+                    if (!(element instanceof Element)) return [];
+                    
+                    const paths = [];
+                    
+                    // Try ID
+                    if (element.id) {
+                      paths.push(\`//*[@id="\${element.id}"]\`);
+                    }
+                    
+                    // Try basic XPath
+                    let path = '';
+                    for (let elem = element; elem && elem.nodeType === 1; elem = elem.parentNode) {
+                      let idx = 1;
+                      for (let sibling = elem.previousSibling; sibling; sibling = sibling.previousSibling) {
+                        if (sibling.nodeType === 1 && sibling.tagName === elem.tagName) idx++;
+                      }
+                      const tagName = elem.tagName.toLowerCase();
+                      path = \`/\${tagName}[\${idx}]\${path}\`;
+                    }
+                    if (path) paths.push(path);
+                    
+                    return paths;
+                  }
+                  return generateXPathsForElement(this);
+                }
+              `,
+              objectId: object.objectId
+            });
+            
+            if (result.value) {
+              selectorMap[node.nodeId] = result.value;
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to process node ${node.nodeId}:`, error);
+          continue;
+        }
+      }
+    }
+
+    return {
+      selectorMap,
+      outputString: buildHierarchicalTree(tree).simplified
+    };
+  }
+
   public async observe({
     instruction,
     useVision,
@@ -51,14 +119,16 @@ export class StagehandObserveHandler {
     llmClient,
     requestId,
     domSettleTimeoutMs,
+    useAccessibilityTree = false,
   }: {
     instruction: string;
     useVision: boolean;
     fullPage: boolean;
     llmClient: LLMClient;
-    requestId?: string;
+    requestId: string;
     domSettleTimeoutMs?: number;
-  }): Promise<{ selector: string; description: string }[]> {
+    useAccessibilityTree?: boolean;
+  }) {
     if (!instruction) {
       instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
     }
@@ -74,17 +144,48 @@ export class StagehandObserveHandler {
       },
     });
 
-    await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-    await this.stagehandPage.startDomDebug();
-    const evalResult = await this.stagehand.page.evaluate(
-      (fullPage: boolean) =>
-        fullPage ? window.processAllOfDom() : window.processDom([]),
-      fullPage,
-    );
+    // await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
+    // await this.stagehandPage.startDomDebug();
+    // const evalResult = await this.stagehand.page.evaluate(
+    //   (fullPage: boolean) =>
+    //     fullPage ? window.processAllOfDom() : window.processDom([]),
+    //   fullPage,
+    // );
 
-    const { selectorMap } = evalResult;
-    // has to be like this atm because of the re-assignment
-    let { outputString } = evalResult;
+    let outputString: string;
+    let selectorMap: Record<string, string[]> = {};
+    let accessibilityData = "";
+    if (useAccessibilityTree) {
+      console.log("Getting accessibility tree...");
+      const tree = await getAccessibilityTree(this.stagehandPage);
+      console.log("Simplified tree:", JSON.stringify(tree.tree, null, 2));
+      
+      // const { outputString: accOutput, selectorMap: accSelectors } = 
+      //   await this.processAccessibilityTree(tree.tree);
+      // console.log("Processed tree output:", accOutput);
+      
+      // outputString = accOutput;
+      // selectorMap = accSelectors;
+
+      this.logger({
+        category: "observation",
+        message: "Getting accessibility tree data",
+        level: 1,
+      });
+      // const tree = await getAccessibilityTree(this.stagehandPage);
+      accessibilityData = "\n\nAccessibility Tree:\n" + tree.simplified;
+
+    } else {
+      await this.stagehandPage.startDomDebug();
+      const evalResult = await this.stagehand.page.evaluate(
+        (fullPage: boolean) =>
+          fullPage ? window.processAllOfDom() : window.processDom([]),
+        fullPage,
+      );
+      ({ outputString, selectorMap } = evalResult);
+    }
+
+    outputString += accessibilityData;
 
     let annotatedScreenshot: Buffer | undefined;
     if (useVision === true) {
@@ -120,6 +221,7 @@ export class StagehandObserveHandler {
       llmClient,
       image: annotatedScreenshot,
       requestId,
+      isUsingAccessibilityTree: useAccessibilityTree,
     });
     console.log(
       `\n\nobservationResponse: ${JSON.stringify(observationResponse)}`,
@@ -128,12 +230,12 @@ export class StagehandObserveHandler {
       (element) => {
         const { elementId, ...rest } = element;
 
-        // if (useAccessibilityTree) {
-        //   return {
-        //     ...rest,
-        //     selector: selectorMap[elementId][0],
-        //   };
-        // }
+        if (useAccessibilityTree) {
+          return {
+            ...rest,
+            selector: selectorMap[elementId][0],
+          };
+        }
 
         return {
           ...rest,
@@ -161,79 +263,155 @@ export class StagehandObserveHandler {
   }
 }
 
-// function createAccessibilitySelectorMap(
-//   node: any,
-//   map: { [key: string]: string[] } = {},
-//   counter: { value: 0 } = { value: 0 }, // Use object to maintain count across recursion
-// ): { [key: string]: string[] } {
-//   if (!node) return map;
+type AccessibilityNode = {
+  role: string;
+  name?: string;
+  description?: string;
+  value?: string;
+  children?: AccessibilityNode[];
+  nodeId?: string;
+};
 
-//   const selector = createAccessibilitySelector(node);
-//   if (selector) {
-//     const id = counter.value.toString();
-//     map[id] = [selector];
-//     counter.value++;
-//   }
+interface TreeResult {
+  tree: AccessibilityNode[];
+  simplified: string;
+}
 
-//   if (Array.isArray(node.children)) {
-//     node.children.forEach((child: any) => {
-//       createAccessibilitySelectorMap(child, map, counter);
-//     });
-//   }
+function formatSimplifiedTree(node: AccessibilityNode, level = 0): string {
+  const indent = '  '.repeat(level);
+  let result = `${indent}${node.role}${node.name ? `: ${node.name}` : ''}\n`;
+  
+  if (node.children?.length) {
+    result += node.children.map(child => formatSimplifiedTree(child, level + 1)).join('');
+  }
+  return result;
+}
 
-//   return map;
-// }
+function buildHierarchicalTree(nodes: any[]): TreeResult {
+  const nodeMap = new Map<string, AccessibilityNode>();
 
-// function createAccessibilitySelector(node: any): string | null {
-//   if (!node.role) return null;
+  // First pass: Create all valid nodes
+  nodes.forEach((node) => {
+    const hasChildren = node.childIds && node.childIds.length > 0;
+    const hasValidName = node.name && node.name.trim() !== "";
 
-//   let selector = `role=${node.role}`;
-//   if (node.name) {
-//     selector += `[name='${node.name.replace(/'/g, "\\'")}']`;
-//   }
-//   // console.log(selector);
-//   return selector;
-// }
+    // Skip nodes that have no name and no children
+    if (!hasValidName && !hasChildren) {
+      return;
+    }
 
-// function cleanObject(obj: any): any {
-//   if (Array.isArray(obj)) {
-//     return obj.map(cleanObject);
-//   }
-//   if (typeof obj === "object" && obj !== null) {
-//     const cleaned = Object.fromEntries(
-//       Object.entries(obj)
-//         .filter(([_, value]) => value !== undefined)
-//         .map(([key, value]) => [key, cleanObject(value)]),
-//     );
-//     // Preserve children as array if it exists
-//     if (obj.children) {
-//       cleaned.children = cleanObject(obj.children);
-//     }
-//     return cleaned;
-//   }
-//   return obj;
-// }
+    nodeMap.set(node.nodeId, {
+      role: node.role,
+      nodeId: node.nodeId,
+      ...(hasValidName && { name: node.name }),
+      ...(node.description && { description: node.description }),
+      ...(node.value && { value: node.value }),
+    });
+  });
 
-// function formatAccessibilityTree(
-//   node: any,
-//   level = 0,
-//   counter: { value: 0 } = { value: 0 },
-// ): string {
-//   if (!node) return "";
+  // Second pass: Build parent-child relationships
+  nodes.forEach((node) => {
+    if (node.parentId && nodeMap.has(node.nodeId)) {
+      const parentNode = nodeMap.get(node.parentId);
+      const currentNode = nodeMap.get(node.nodeId);
 
-//   const indent = "  ".repeat(level);
-//   const id = counter.value;
-//   let result = `${indent}[${id}] ${node.role || "unknown"}: ${node.name || ""}\n`;
+      if (parentNode && currentNode) {
+        if (!parentNode.children) {
+          parentNode.children = [];
+        }
+        parentNode.children.push(currentNode);
+      }
+    }
+  });
+  console.log(nodeMap);
 
-//   if (node.role) {
-//     counter.value++; // Only increment for valid nodes with roles
-//   }
+  // fs.writeFileSync(
+  //   "../full_tree.json",
+  //   JSON.stringify(nodes, null, 2),
+  //   "utf-8",
+  // );
+  const initialTree = nodes
+    .filter(node => !node.parentId && nodeMap.has(node.nodeId))
+    .map(node => nodeMap.get(node.nodeId))
+    .filter(Boolean) as AccessibilityNode[];
 
-//   if (Array.isArray(node.children)) {
-//     for (const child of node.children) {
-//       result += formatAccessibilityTree(child, level + 1, counter);
-//     }
-//   }
+  // Third pass: Clean up generic and none nodes by lifting their children
+  function cleanStructuralNodes(
+    node: AccessibilityNode,
+  ): AccessibilityNode | null {
+    if (!node.children) {
+      return node.role === "generic" || node.role === "none" ? null : node;
+    }
 
-//   return result;
-// }
+    const cleanedChildren = node.children
+      .map((child) => cleanStructuralNodes(child))
+      .filter(Boolean) as AccessibilityNode[];
+
+    if (node.role === "generic" || node.role === "none") {
+      return cleanedChildren.length === 1
+        ? cleanedChildren[0]
+        : cleanedChildren.length > 1
+          ? { ...node, children: cleanedChildren }
+          : null;
+    }
+
+    return cleanedChildren.length > 0
+      ? { ...node, children: cleanedChildren }
+      : node;
+  }
+
+  // // Return only root nodes, cleaned of structural nodes
+  // return nodes
+  //   .filter((node) => !node.parentId && nodeMap.has(node.nodeId))
+  //   .map((node) => nodeMap.get(node.nodeId))
+  //   .filter(Boolean)
+  //   .map((node) => cleanStructuralNodes(node))
+  //   .filter(Boolean) as AccessibilityNode[];
+
+  const finalTree = nodes
+  .filter(node => !node.parentId && nodeMap.has(node.nodeId))
+  .map(node => nodeMap.get(node.nodeId))
+  .filter(Boolean)
+  .map(node => cleanStructuralNodes(node))
+  .filter(Boolean) as AccessibilityNode[];
+
+  const simplifiedFormat = finalTree.map(node => formatSimplifiedTree(node)).join('\n');
+  console.log(simplifiedFormat);
+
+  return {
+    tree: finalTree,
+    simplified: simplifiedFormat
+  };
+}
+
+async function getAccessibilityTree(page: StagehandPage) {
+  console.log("Starting getAccessibilityTree");
+  const cdpClient = await page.context.newCDPSession(page.page);
+  await cdpClient.send("Accessibility.enable");
+
+  try {
+    const { nodes } = await cdpClient.send("Accessibility.getFullAXTree");
+    console.log("Got raw nodes:", nodes.length);
+
+    const sources = nodes.map((node) => ({
+      role: node.role?.value,
+      name: node.name?.value,
+      description: node.description?.value,
+      value: node.value?.value,
+      nodeId: node.nodeId,
+      parentId: node.parentId,
+      childIds: node.childIds,
+    }));
+    console.log("Processed sources:", sources.length);
+
+    const hierarchicalTree = buildHierarchicalTree(sources);
+    console.log("Built hierarchical tree");
+
+    return hierarchicalTree;
+  } catch (error) {
+    console.error("Error in getAccessibilityTree:", error);
+    throw error;
+  } finally {
+    await cdpClient.send("Accessibility.disable");
+  }
+}

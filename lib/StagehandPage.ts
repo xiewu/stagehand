@@ -408,19 +408,22 @@ export class StagehandPage {
           value: llmClient.modelName,
           type: "string",
         },
+        useAccessibilityTree: {
+          value: options?.useAccessibilityTree ? "true" : "false",
+          type: "boolean",
+        }
       },
     });
 
     return this.observeHandler
       .observe({
-        instruction:
-          options?.instruction ??
-          "Find actions that can be performed on this page.",
+        instruction: options?.instruction ?? "Find actions that can be performed on this page.",
         llmClient,
         useVision: options?.useVision ?? false,
         fullPage: false,
         requestId,
         domSettleTimeoutMs: options?.domSettleTimeoutMs,
+        useAccessibilityTree: options?.useAccessibilityTree ?? false,
       })
       .catch((e) => {
         this.stagehand.log({
