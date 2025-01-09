@@ -123,10 +123,6 @@
       "categories": ["experimental"]
     },
     {
-      "name": "ibm",
-      "categories": ["experimental"]
-    },
-    {
       "name": "rakuten_jp",
       "categories": ["experimental"]
     },
