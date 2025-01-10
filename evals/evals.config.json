@@ -157,7 +157,7 @@
     },
     {
       "name": "extract_csa",
-      "categories": ["extract"]
+      "categories": ["text_extract"]
     },
     {
       "name": "extract_resistor_info",
