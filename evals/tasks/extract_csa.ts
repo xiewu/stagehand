@@ -14,11 +14,12 @@ export const extract_csa: EvalFunction = async ({
 
   const { debugUrl, sessionUrl } = initResponse;
 
-  await stagehand.page.goto(
+  const { page } = stagehand
+  await page.goto(
     "https://clerk.assembly.ca.gov/weekly-histories?from_date=&to_date=2025-01-09",
   );
 
-  const result = await stagehand.page.extract({
+  const result = await page.extract({
     instruction:
       "Extract all the publications on the page including the publication date, session type, publication type, and annotation",
     schema: z.object({
