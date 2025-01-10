@@ -14,7 +14,7 @@ export const extract_csa: EvalFunction = async ({
 
   const { debugUrl, sessionUrl } = initResponse;
 
-  const { page } = stagehand
+  const { page } = stagehand;
   await page.goto(
     "https://clerk.assembly.ca.gov/weekly-histories?from_date=&to_date=2025-01-09",
   );
