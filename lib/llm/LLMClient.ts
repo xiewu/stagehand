@@ -1,14 +1,7 @@
-import {
-  ChatCompletion,
-  ChatCompletionToolChoiceOption,
-} from "openai/resources";
 import { ZodType } from "zod";
-import {
-  AnthropicTransformedResponse,
-  AvailableModel,
-  ClientOptions,
-  ToolCall,
-} from "../../types/model";
+import { LLMTool } from "../../types/llm";
+import { AvailableModel, ClientOptions } from "../../types/model";
+import { LogLine } from "../../types/log";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -56,27 +49,60 @@ export interface ChatCompletionOptions {
     name: string;
     schema: ZodType;
   };
-  tools?: ToolCall[];
-  tool_choice?: "auto" | ChatCompletionToolChoiceOption;
+  tools?: LLMTool[];
+  tool_choice?: "auto" | "none" | "required";
   maxTokens?: number;
   requestId: string;
 }
 
-export type LLMResponse = AnthropicTransformedResponse | ChatCompletion;
+export type LLMResponse = {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: {
+    index: number;
+    message: {
+      role: string;
+      content: string | null;
+      tool_calls: {
+        id: string;
+        type: string;
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }[];
+    };
+    finish_reason: string;
+  }[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
+
+export interface CreateChatCompletionOptions {
+  options: ChatCompletionOptions;
+  logger: (message: LogLine) => void;
+  retries?: number;
+}
 
 export abstract class LLMClient {
-  public type: "openai" | "anthropic";
+  public type: "openai" | "anthropic" | string;
   public modelName: AvailableModel;
   public hasVision: boolean;
   public clientOptions: ClientOptions;
+  public userProvidedInstructions?: string;
 
-  constructor(modelName: AvailableModel) {
+  constructor(modelName: AvailableModel, userProvidedInstructions?: string) {
     this.modelName = modelName;
     this.hasVision = modelsWithVision.includes(modelName);
+    this.userProvidedInstructions = userProvidedInstructions;
   }
 
   abstract createChatCompletion<T = LLMResponse>(
-    options: ChatCompletionOptions,
+    options: CreateChatCompletionOptions,
   ): Promise<T>;
-  abstract logger: (message: { category?: string; message: string }) => void;
 }

@@ -83,11 +83,13 @@ export class StagehandExtractHandler {
   private readonly stagehand: Stagehand;
   private readonly stagehandPage: StagehandPage;
   private readonly logger: (logLine: LogLine) => void;
+  private readonly userProvidedInstructions?: string;
 
   constructor({
     stagehand,
     logger,
     stagehandPage,
+    userProvidedInstructions,
   }: {
     stagehand: Stagehand;
     logger: (message: {
@@ -97,10 +99,12 @@ export class StagehandExtractHandler {
       auxiliary?: { [key: string]: { value: string; type: string } };
     }) => void;
     stagehandPage: StagehandPage;
+    userProvidedInstructions?: string;
   }) {
     this.stagehand = stagehand;
     this.logger = logger;
     this.stagehandPage = stagehandPage;
+    this.userProvidedInstructions = userProvidedInstructions;
   }
 
   public async extract<T extends z.AnyZodObject>({
@@ -308,6 +312,8 @@ export class StagehandExtractHandler {
       chunksTotal: 1,
       llmClient,
       requestId,
+      userProvidedInstructions: this.userProvidedInstructions,
+      logger: this.logger,
     });
 
     const {
@@ -436,6 +442,8 @@ export class StagehandExtractHandler {
       chunksTotal: chunks.length,
       requestId,
       isUsingTextExtract: false,
+      userProvidedInstructions: this.userProvidedInstructions,
+      logger: this.logger,
     });
 
     const {
