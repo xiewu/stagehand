@@ -46,71 +46,71 @@ export class StagehandObserveHandler {
     return id;
   }
 
-  private async processAccessibilityTree(tree: AccessibilityNode[]) {
-    const selectorMap: Record<string, string[]> = {};
+  // private async processAccessibilityTree(tree: AccessibilityNode[]) {
+  //   const selectorMap: Record<string, string[]> = {};
     
-    // Get CDP client to convert backendDOMNodeId to page element
-    const cdpClient = await this.stagehandPage.context.newCDPSession(this.stagehandPage.page);
+  //   // Get CDP client to convert backendDOMNodeId to page element
+  //   const cdpClient = await this.stagehandPage.context.newCDPSession(this.stagehandPage.page);
     
-    for (const node of tree) {
-      if (node.nodeId) {
-        try {
-          // Get the remote object for this node
-          const { object } = await cdpClient.send('DOM.resolveNode', {
-            backendNodeId: Number(node.nodeId)
-          });
-          console.log(object);
-          // Get element's XPath
-          if (object.objectId) {
-            const { result } = await cdpClient.send('Runtime.callFunctionOn', {
-              functionDeclaration: `
-                function() {
-                  function generateXPathsForElement(element) {
-                    if (!(element instanceof Element)) return [];
+  //   for (const node of tree) {
+  //     if (node.nodeId) {
+  //       try {
+  //         // Get the remote object for this node
+  //         const { object } = await cdpClient.send('DOM.resolveNode', {
+  //           backendNodeId: Number(node.nodeId)
+  //         });
+  //         console.log(object);
+  //         // Get element's XPath
+  //         if (object.objectId) {
+  //           const { result } = await cdpClient.send('Runtime.callFunctionOn', {
+  //             functionDeclaration: `
+  //               function() {
+  //                 function generateXPathsForElement(element) {
+  //                   if (!(element instanceof Element)) return [];
                     
-                    const paths = [];
+  //                   const paths = [];
                     
-                    // Try ID
-                    if (element.id) {
-                      paths.push(\`//*[@id="\${element.id}"]\`);
-                    }
+  //                   // Try ID
+  //                   if (element.id) {
+  //                     paths.push(\`//*[@id="\${element.id}"]\`);
+  //                   }
                     
-                    // Try basic XPath
-                    let path = '';
-                    for (let elem = element; elem && elem.nodeType === 1; elem = elem.parentNode) {
-                      let idx = 1;
-                      for (let sibling = elem.previousSibling; sibling; sibling = sibling.previousSibling) {
-                        if (sibling.nodeType === 1 && sibling.tagName === elem.tagName) idx++;
-                      }
-                      const tagName = elem.tagName.toLowerCase();
-                      path = \`/\${tagName}[\${idx}]\${path}\`;
-                    }
-                    if (path) paths.push(path);
+  //                   // Try basic XPath
+  //                   let path = '';
+  //                   for (let elem = element; elem && elem.nodeType === 1; elem = elem.parentNode) {
+  //                     let idx = 1;
+  //                     for (let sibling = elem.previousSibling; sibling; sibling = sibling.previousSibling) {
+  //                       if (sibling.nodeType === 1 && sibling.tagName === elem.tagName) idx++;
+  //                     }
+  //                     const tagName = elem.tagName.toLowerCase();
+  //                     path = \`/\${tagName}[\${idx}]\${path}\`;
+  //                   }
+  //                   if (path) paths.push(path);
                     
-                    return paths;
-                  }
-                  return generateXPathsForElement(this);
-                }
-              `,
-              objectId: object.objectId
-            });
+  //                   return paths;
+  //                 }
+  //                 return generateXPathsForElement(this);
+  //               }
+  //             `,
+  //             objectId: object.objectId
+  //           });
             
-            if (result.value) {
-              selectorMap[node.nodeId] = result.value;
-            }
-          }
-        } catch (error) {
-          console.warn(`Failed to process node ${node.nodeId}:`, error);
-          continue;
-        }
-      }
-    }
+  //           if (result.value) {
+  //             selectorMap[node.nodeId] = result.value;
+  //           }
+  //         }
+  //       } catch (error) {
+  //         console.warn(`Failed to process node ${node.nodeId}:`, error);
+  //         continue;
+  //       }
+  //     }
+  //   }
 
-    return {
-      selectorMap,
-      outputString: buildHierarchicalTree(tree).simplified
-    };
-  }
+  //   return {
+  //     selectorMap,
+  //     outputString: buildHierarchicalTree(tree).simplified
+  //   };
+  // }
 
   public async observe({
     instruction,
@@ -158,7 +158,6 @@ export class StagehandObserveHandler {
     if (useAccessibilityTree) {
       console.log("Getting accessibility tree...");
       const tree = await getAccessibilityTree(this.stagehandPage);
-      console.log("Simplified tree:", JSON.stringify(tree.tree, null, 2));
       
       // const { outputString: accOutput, selectorMap: accSelectors } = 
       //   await this.processAccessibilityTree(tree.tree);
@@ -233,7 +232,7 @@ export class StagehandObserveHandler {
         if (useAccessibilityTree) {
           return {
             ...rest,
-            selector: selectorMap[elementId][0],
+            selector: String(elementId),
           };
         }
 
@@ -277,20 +276,21 @@ interface TreeResult {
   simplified: string;
 }
 
+// Parser function for str output
 function formatSimplifiedTree(node: AccessibilityNode, level = 0): string {
   const indent = '  '.repeat(level);
-  let result = `${indent}${node.role}${node.name ? `: ${node.name}` : ''}\n`;
+  let result = `${indent}[${node.nodeId}] ${node.role}${node.name ? `: ${node.name}` : ''}\n`;
   
   if (node.children?.length) {
     result += node.children.map(child => formatSimplifiedTree(child, level + 1)).join('');
   }
   return result;
 }
-
+// Constructs the hierarchichal representation of the a11y tree
 function buildHierarchicalTree(nodes: any[]): TreeResult {
   const nodeMap = new Map<string, AccessibilityNode>();
 
-  // First pass: Create all valid nodes
+  // First pass: Create all important nodes
   nodes.forEach((node) => {
     const hasChildren = node.childIds && node.childIds.length > 0;
     const hasValidName = node.name && node.name.trim() !== "";
@@ -323,13 +323,8 @@ function buildHierarchicalTree(nodes: any[]): TreeResult {
       }
     }
   });
-  console.log(nodeMap);
+  // console.log(nodeMap);
 
-  // fs.writeFileSync(
-  //   "../full_tree.json",
-  //   JSON.stringify(nodes, null, 2),
-  //   "utf-8",
-  // );
   const initialTree = nodes
     .filter(node => !node.parentId && nodeMap.has(node.nodeId))
     .map(node => nodeMap.get(node.nodeId))
@@ -360,14 +355,6 @@ function buildHierarchicalTree(nodes: any[]): TreeResult {
       : node;
   }
 
-  // // Return only root nodes, cleaned of structural nodes
-  // return nodes
-  //   .filter((node) => !node.parentId && nodeMap.has(node.nodeId))
-  //   .map((node) => nodeMap.get(node.nodeId))
-  //   .filter(Boolean)
-  //   .map((node) => cleanStructuralNodes(node))
-  //   .filter(Boolean) as AccessibilityNode[];
-
   const finalTree = nodes
   .filter(node => !node.parentId && nodeMap.has(node.nodeId))
   .map(node => nodeMap.get(node.nodeId))
@@ -376,7 +363,6 @@ function buildHierarchicalTree(nodes: any[]): TreeResult {
   .filter(Boolean) as AccessibilityNode[];
 
   const simplifiedFormat = finalTree.map(node => formatSimplifiedTree(node)).join('\n');
-  console.log(simplifiedFormat);
 
   return {
     tree: finalTree,
@@ -391,8 +377,8 @@ async function getAccessibilityTree(page: StagehandPage) {
 
   try {
     const { nodes } = await cdpClient.send("Accessibility.getFullAXTree");
-    console.log("Got raw nodes:", nodes.length);
 
+    // Extract specific sources
     const sources = nodes.map((node) => ({
       role: node.role?.value,
       name: node.name?.value,
@@ -402,16 +388,49 @@ async function getAccessibilityTree(page: StagehandPage) {
       parentId: node.parentId,
       childIds: node.childIds,
     }));
-    console.log("Processed sources:", sources.length);
-
+    // Transform into hierarchical structure
     const hierarchicalTree = buildHierarchicalTree(sources);
-    console.log("Built hierarchical tree");
 
     return hierarchicalTree;
+
   } catch (error) {
+
     console.error("Error in getAccessibilityTree:", error);
     throw error;
+    
   } finally {
     await cdpClient.send("Accessibility.disable");
   }
 }
+
+// async function getAccessibilityTree(page: StagehandPage) {
+//   console.log("Starting getAccessibilityTree");
+//   const cdpClient = await page.context.newCDPSession(page.page);
+//   await cdpClient.send("Accessibility.enable");
+
+//   try {
+//     const { nodes } = await cdpClient.send("Accessibility.getFullAXTree");
+//     console.log("Got raw nodes:", nodes.length);
+
+//     const sources = nodes.map((node) => ({
+//       role: node.role?.value,
+//       name: node.name?.value,
+//       description: node.description?.value,
+//       value: node.value?.value,
+//       nodeId: node.nodeId,
+//       parentId: node.parentId,
+//       childIds: node.childIds,
+//     }));
+//     console.log("Processed sources:", sources.length);
+
+//     const hierarchicalTree = buildHierarchicalTree(sources);
+//     console.log("Built hierarchical tree");
+
+//     return hierarchicalTree;
+//   } catch (error) {
+//     console.error("Error in getAccessibilityTree:", error);
+//     throw error;
+//   } finally {
+//     await cdpClient.send("Accessibility.disable");
+//   }
+// }
