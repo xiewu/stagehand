@@ -19,7 +19,10 @@ declare global {
     }>;
     debugDom: () => Promise<void>;
     cleanupDebug: () => void;
-    scrollToHeight: (height: number) => Promise<void>;
+    scrollToHeight: (
+      containerOrWindow: HTMLElement | Window,
+      height: number,
+    ) => Promise<void>;
     waitForDomSettle: () => Promise<void>;
     __playwright?: unknown;
     __pw_manual?: unknown;
