@@ -9,6 +9,85 @@ export function isTextNode(node: Node): node is Text {
   return node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim());
 }
 
+function getMainScrollableElement(): HTMLElement {
+  // Default to <html> (document.documentElement)
+  let mainScrollable: HTMLElement = document.documentElement;
+  let maxScrollableArea = 0;
+
+  // Find the largest candidate
+  const allElements = document.querySelectorAll<HTMLElement>("*");
+  for (const elem of allElements) {
+    const style = window.getComputedStyle(elem);
+    const overflowY = style.overflowY;
+
+    const isPotentiallyScrollable =
+      overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
+
+    if (isPotentiallyScrollable && elem.scrollHeight > elem.clientHeight) {
+      const rect = elem.getBoundingClientRect();
+      const area = rect.width * rect.height;
+      if (area > maxScrollableArea) {
+        maxScrollableArea = area;
+        mainScrollable = elem;
+      }
+    }
+  }
+
+  // Verify we can actually scroll that candidate
+  if (mainScrollable !== document.documentElement) {
+    if (!canElementScroll(mainScrollable)) {
+      console.log(
+        "Stagehand (Browser Process): Unable to scroll candidate. Fallback to <html>.",
+      );
+      mainScrollable = document.documentElement;
+    }
+  }
+
+  return mainScrollable;
+}
+
+/**
+ * Tests if the element actually responds to .scrollTo(...)
+ * and that scrollTop changes as expected.
+ */
+function canElementScroll(elem: HTMLElement): boolean {
+  // Quick check if scrollTo is a function
+  if (typeof elem.scrollTo !== "function") {
+    console.warn("canElementScroll: .scrollTo is not a function.");
+    return false;
+  }
+
+  try {
+    // Save original scroll position
+    const originalTop = elem.scrollTop;
+
+    // Attempt to scroll 100px down
+    elem.scrollTo({
+      top: originalTop + 100,
+      left: 0,
+      behavior: "instant",
+    });
+
+    // If scrollTop never changed, consider it unscrollable
+    if (elem.scrollTop === originalTop) {
+      throw new Error("scrollTop did not change");
+    }
+
+    // Scroll back to original
+    elem.scrollTo({
+      top: originalTop,
+      left: 0,
+      behavior: "instant",
+    });
+
+    // If we got here, it means the element scrolled successfully
+    return true;
+  } catch (error) {
+    console.warn("canElementScroll error:", (error as Error).message || error);
+    return false;
+  }
+}
+
 export async function processDom(chunksSeen: Array<number>) {
   const { chunk, chunksArray } = await pickChunk(chunksSeen);
   const { outputString, selectorMap } = await processElements(chunk);
@@ -28,19 +107,40 @@ export async function processDom(chunksSeen: Array<number>) {
 export async function processAllOfDom() {
   console.log("Stagehand (Browser Process): Processing all of DOM");
 
-  const viewportHeight = calculateViewportHeight();
-  const documentHeight = document.documentElement.scrollHeight;
+  const mainScrollable = getMainScrollableElement();
+
+  let container: HTMLElement | Window;
+  let viewportHeight: number;
+  let documentHeight: number;
+
+  if (mainScrollable !== document.documentElement) {
+    console.log(
+      "Stagehand (Browser Process): Found a main scrollable element. Using container-based chunking.",
+    );
+    container = mainScrollable;
+    viewportHeight = container.clientHeight;
+    documentHeight = container.scrollHeight;
+  } else {
+    console.log(
+      "Stagehand (Browser Process): No separate scrollable element found. Using Window for chunking.",
+    );
+    container = window;
+    viewportHeight = calculateViewportHeight();
+    documentHeight = document.documentElement.scrollHeight;
+  }
+
   const totalChunks = Math.ceil(documentHeight / viewportHeight);
 
   let index = 0;
   const results = [];
   for (let chunk = 0; chunk < totalChunks; chunk++) {
-    const result = await processElements(chunk, true, index);
+    // Pass the container to processElements
+    const result = await processElements(chunk, true, index, container);
     results.push(result);
     index += Object.keys(result.selectorMap).length;
   }
 
-  await scrollToHeight(0);
+  await scrollToHeight(container, 0);
 
   const allOutputString = results.map((result) => result.outputString).join("");
   const allSelectorMap = results.reduce(
@@ -58,22 +158,46 @@ export async function processAllOfDom() {
   };
 }
 
-export async function scrollToHeight(height: number) {
-  window.scrollTo({ top: height, left: 0, behavior: "smooth" });
+export async function scrollToHeight(
+  containerOrWindow: HTMLElement | Window,
+  height: number,
+): Promise<void> {
+  if (containerOrWindow instanceof Window) {
+    // Global window scrolling
+    containerOrWindow.scrollTo({ top: height, left: 0, behavior: "smooth" });
+  } else if (containerOrWindow === document.documentElement) {
+    // This is effectively the same as the global window
+    window.scrollTo({ top: height, left: 0, behavior: "smooth" });
+  } else {
+    // Scrollable element
+    containerOrWindow.scrollTo({ top: height, left: 0, behavior: "smooth" });
+  }
 
-  // Wait for scrolling to finish using the scrollend event
   await new Promise<void>((resolve) => {
     let scrollEndTimer: number;
-    const handleScrollEnd = () => {
+    const handleScroll = () => {
       clearTimeout(scrollEndTimer);
       scrollEndTimer = window.setTimeout(() => {
-        window.removeEventListener("scroll", handleScrollEnd);
+        if (containerOrWindow instanceof Window) {
+          window.removeEventListener("scroll", handleScroll);
+        } else {
+          containerOrWindow.removeEventListener("scroll", handleScroll);
+        }
         resolve();
       }, 100);
     };
 
-    window.addEventListener("scroll", handleScrollEnd, { passive: true });
-    handleScrollEnd();
+    if (containerOrWindow instanceof Window) {
+      containerOrWindow.addEventListener("scroll", handleScroll, {
+        passive: true,
+      });
+    } else {
+      containerOrWindow.addEventListener("scroll", handleScroll, {
+        passive: true,
+      });
+    }
+
+    handleScroll();
   });
 }
 
@@ -83,31 +207,44 @@ export async function processElements(
   chunk: number,
   scrollToChunk: boolean = true,
   indexOffset: number = 0,
+  scrollableContainer?: HTMLElement | Window,
 ): Promise<{
   outputString: string;
   selectorMap: Record<number, string[]>;
 }> {
   console.time("processElements:total");
-  const viewportHeight = calculateViewportHeight();
+
+  const container = scrollableContainer ?? document.documentElement;
+  let viewportHeight: number;
+  let totalScrollHeight: number;
+
+  if (container instanceof Window) {
+    // If explicitly the global window
+    viewportHeight = calculateViewportHeight();
+    totalScrollHeight = document.documentElement.scrollHeight;
+  } else if (container === document.documentElement) {
+    viewportHeight = calculateViewportHeight();
+    totalScrollHeight = container.scrollHeight;
+  } else {
+    viewportHeight = container.clientHeight;
+    totalScrollHeight = container.scrollHeight;
+  }
+
   const chunkHeight = viewportHeight * chunk;
-
-  // Calculate the maximum scrollable offset
-  const maxScrollTop = document.documentElement.scrollHeight - viewportHeight;
-
-  // Adjust the offsetTop to not exceed the maximum scrollable offset
+  const maxScrollTop = totalScrollHeight - viewportHeight;
   const offsetTop = Math.min(chunkHeight, maxScrollTop);
 
   if (scrollToChunk) {
     console.time("processElements:scroll");
-    await scrollToHeight(offsetTop);
+    await scrollToHeight(container, offsetTop);
     console.timeEnd("processElements:scroll");
   }
-
-  const candidateElements: Array<ChildNode> = [];
-  const DOMQueue: Array<ChildNode> = [...document.body.childNodes];
-
   console.log("Stagehand (Browser Process): Generating candidate elements");
   console.time("processElements:findCandidates");
+
+  // NOTE: we still gather candidate elems from the entire body
+  const DOMQueue: ChildNode[] = [...document.body.childNodes];
+  const candidateElements: ChildNode[] = [];
 
   while (DOMQueue.length > 0) {
     const element = DOMQueue.pop();
