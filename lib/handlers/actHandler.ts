@@ -1199,7 +1199,7 @@ export class StagehandActHandler {
             },
           });
           await this.stagehandPage.page.evaluate(() =>
-            window.scrollToHeight(0),
+            window.scrollToHeight(document.documentElement, 0),
           );
           return await this.act({
             action,
