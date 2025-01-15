@@ -5,6 +5,7 @@ import { LLMClient } from "../llm/LLMClient";
 import { generateId } from "../utils";
 import { ScreenshotService } from "../vision";
 import { StagehandPage } from "../StagehandPage";
+import { ElementHandle } from "@playwright/test";
 
 
 
@@ -403,34 +404,54 @@ async function getAccessibilityTree(page: StagehandPage) {
   }
 }
 
-// async function getAccessibilityTree(page: StagehandPage) {
-//   console.log("Starting getAccessibilityTree");
-//   const cdpClient = await page.context.newCDPSession(page.page);
-//   await cdpClient.send("Accessibility.enable");
+/*
+  Generate XPath for a locator elementHandle
+*/
+async function getXPath(elementHandle: ElementHandle<HTMLElement | SVGElement>) {
+  // Evaluate the element in the page context to get its XPath
+  return elementHandle.evaluate((element) => {
+      const paths = [];
+      let currentElement: Element | null = element;
+      
+      while (currentElement && currentElement.nodeType === Node.ELEMENT_NODE) {
+          let index = 1;
+          let sibling = currentElement.previousElementSibling;
 
-//   try {
-//     const { nodes } = await cdpClient.send("Accessibility.getFullAXTree");
-//     console.log("Got raw nodes:", nodes.length);
+          // Count siblings with same tag name
+          while (sibling) {
+              if (sibling.nodeName === currentElement.nodeName) {
+                  index++;
+              }
+              sibling = sibling.previousElementSibling;
+          }
 
-//     const sources = nodes.map((node) => ({
-//       role: node.role?.value,
-//       name: node.name?.value,
-//       description: node.description?.value,
-//       value: node.value?.value,
-//       nodeId: node.nodeId,
-//       parentId: node.parentId,
-//       childIds: node.childIds,
-//     }));
-//     console.log("Processed sources:", sources.length);
+          // Try to create a more specific XPath using id or class if available
+          let pathSegment = currentElement.nodeName.toLowerCase();
+          const id = currentElement.getAttribute('id');
+          const className = currentElement.getAttribute('class');
+          
+          if (id) {
+              // If element has an ID, use that for a more specific path
+              pathSegment += `[@id='${id}']`;
+          } else if (className) {
+              // If element has classes, use them for a more specific path
+              pathSegment += `[@class='${className}']`;
+          } else {
+              // Otherwise use the position index
+              pathSegment += `[${index}]`;
+          }
+          
+          paths.unshift(pathSegment);
+          currentElement = currentElement.parentElement;
+      }
 
-//     const hierarchicalTree = buildHierarchicalTree(sources);
-//     console.log("Built hierarchical tree");
+      return '/' + paths.join('/');
+  });
+} 
 
-//     return hierarchicalTree;
-//   } catch (error) {
-//     console.error("Error in getAccessibilityTree:", error);
-//     throw error;
-//   } finally {
-//     await cdpClient.send("Accessibility.disable");
-//   }
-// }
+/*
+  Sample usage for getXPath
+*/
+// const locator = page.getByRole('link', { name: 'Perplexity' }).nth(1);
+// const elementHandle = await locator.elementHandle();
+// console.log(await getXPath(elementHandle));

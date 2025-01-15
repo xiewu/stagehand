@@ -181,7 +181,15 @@
       "categories": ["observe"]
     },
     {
+      "name": "panamcs2",
+      "categories": ["observe"]
+    },
+    {
       "name": "shopify_homepage",
+      "categories": ["observe"]
+    },
+    {
+      "name": "observe_shopify",
       "categories": ["observe"]
     },
     {
