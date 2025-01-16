@@ -1,5 +1,7 @@
 import { generateXPathsForElement as generateXPaths } from "./xpathUtils";
-import { calculateViewportHeight } from "./utils";
+import { calculateViewportHeight, canElementScroll } from "./utils";
+import { createStagehandContainer } from "./containerFactory";
+import { StagehandContainer } from "./StagehandContainer";
 
 export function isElementNode(node: Node): node is Element {
   return node.nodeType === Node.ELEMENT_NODE;
@@ -46,51 +48,16 @@ function getMainScrollableElement(): HTMLElement {
   return mainScrollable;
 }
 
-/**
- * Tests if the element actually responds to .scrollTo(...)
- * and that scrollTop changes as expected.
- */
-function canElementScroll(elem: HTMLElement): boolean {
-  // Quick check if scrollTo is a function
-  if (typeof elem.scrollTo !== "function") {
-    console.warn("canElementScroll: .scrollTo is not a function.");
-    return false;
-  }
-
-  try {
-    // Save original scroll position
-    const originalTop = elem.scrollTop;
-
-    // Attempt to scroll 100px down
-    elem.scrollTo({
-      top: originalTop + 100,
-      left: 0,
-      behavior: "instant",
-    });
-
-    // If scrollTop never changed, consider it unscrollable
-    if (elem.scrollTop === originalTop) {
-      throw new Error("scrollTop did not change");
-    }
-
-    // Scroll back to original
-    elem.scrollTo({
-      top: originalTop,
-      left: 0,
-      behavior: "instant",
-    });
-
-    // If we got here, it means the element scrolled successfully
-    return true;
-  } catch (error) {
-    console.warn("canElementScroll error:", (error as Error).message || error);
-    return false;
-  }
-}
-
 export async function processDom(chunksSeen: Array<number>) {
   const { chunk, chunksArray } = await pickChunk(chunksSeen);
-  const { outputString, selectorMap } = await processElements(chunk);
+  const container = createStagehandContainer(window);
+
+  const { outputString, selectorMap } = await processElements(
+    chunk,
+    true,
+    0,
+    container,
+  );
 
   console.log(
     `Stagehand (Browser Process): Extracted dom elements:\n${outputString}`,
@@ -109,26 +76,10 @@ export async function processAllOfDom() {
 
   const mainScrollable = getMainScrollableElement();
 
-  let container: HTMLElement | Window;
-  let viewportHeight: number;
-  let documentHeight: number;
+  const container = createStagehandContainer(mainScrollable);
 
-  if (mainScrollable !== document.documentElement) {
-    console.log(
-      "Stagehand (Browser Process): Found a main scrollable element. Using container-based chunking.",
-    );
-    container = mainScrollable;
-    viewportHeight = container.clientHeight;
-    documentHeight = container.scrollHeight;
-  } else {
-    console.log(
-      "Stagehand (Browser Process): No separate scrollable element found. Using Window for chunking.",
-    );
-    container = window;
-    viewportHeight = calculateViewportHeight();
-    documentHeight = document.documentElement.scrollHeight;
-  }
-
+  const viewportHeight = container.getViewportHeight();
+  const documentHeight = container.getScrollHeight();
   const totalChunks = Math.ceil(documentHeight / viewportHeight);
 
   let index = 0;
@@ -140,7 +91,7 @@ export async function processAllOfDom() {
     index += Object.keys(result.selectorMap).length;
   }
 
-  await scrollToHeight(container, 0);
+  await container.scrollTo(0);
 
   const allOutputString = results.map((result) => result.outputString).join("");
   const allSelectorMap = results.reduce(
@@ -158,77 +109,24 @@ export async function processAllOfDom() {
   };
 }
 
-export async function scrollToHeight(
-  containerOrWindow: HTMLElement | Window,
-  height: number,
-): Promise<void> {
-  if (containerOrWindow instanceof Window) {
-    // Global window scrolling
-    containerOrWindow.scrollTo({ top: height, left: 0, behavior: "smooth" });
-  } else if (containerOrWindow === document.documentElement) {
-    // This is effectively the same as the global window
-    window.scrollTo({ top: height, left: 0, behavior: "smooth" });
-  } else {
-    // Scrollable element
-    containerOrWindow.scrollTo({ top: height, left: 0, behavior: "smooth" });
-  }
-
-  await new Promise<void>((resolve) => {
-    let scrollEndTimer: number;
-    const handleScroll = () => {
-      clearTimeout(scrollEndTimer);
-      scrollEndTimer = window.setTimeout(() => {
-        if (containerOrWindow instanceof Window) {
-          window.removeEventListener("scroll", handleScroll);
-        } else {
-          containerOrWindow.removeEventListener("scroll", handleScroll);
-        }
-        resolve();
-      }, 100);
-    };
-
-    if (containerOrWindow instanceof Window) {
-      containerOrWindow.addEventListener("scroll", handleScroll, {
-        passive: true,
-      });
-    } else {
-      containerOrWindow.addEventListener("scroll", handleScroll, {
-        passive: true,
-      });
-    }
-
-    handleScroll();
-  });
-}
-
 const xpathCache: Map<Node, string[]> = new Map();
 
 export async function processElements(
   chunk: number,
   scrollToChunk: boolean = true,
   indexOffset: number = 0,
-  scrollableContainer?: HTMLElement | Window,
+  container?: StagehandContainer,
 ): Promise<{
   outputString: string;
   selectorMap: Record<number, string[]>;
 }> {
   console.time("processElements:total");
 
-  const container = scrollableContainer ?? document.documentElement;
-  let viewportHeight: number;
-  let totalScrollHeight: number;
+  // If no container given, default to the entire page
+  const stagehandContainer = container ?? createStagehandContainer(window);
 
-  if (container instanceof Window) {
-    // If explicitly the global window
-    viewportHeight = calculateViewportHeight();
-    totalScrollHeight = document.documentElement.scrollHeight;
-  } else if (container === document.documentElement) {
-    viewportHeight = calculateViewportHeight();
-    totalScrollHeight = container.scrollHeight;
-  } else {
-    viewportHeight = container.clientHeight;
-    totalScrollHeight = container.scrollHeight;
-  }
+  const viewportHeight = stagehandContainer.getViewportHeight();
+  const totalScrollHeight = stagehandContainer.getScrollHeight();
 
   const chunkHeight = viewportHeight * chunk;
   const maxScrollTop = totalScrollHeight - viewportHeight;
@@ -236,7 +134,7 @@ export async function processElements(
 
   if (scrollToChunk) {
     console.time("processElements:scroll");
-    await scrollToHeight(container, offsetTop);
+    await stagehandContainer.scrollTo(offsetTop);
     console.timeEnd("processElements:scroll");
   }
   console.log("Stagehand (Browser Process): Generating candidate elements");
@@ -573,11 +471,11 @@ export function getElementBoundingBoxes(xpath: string): Array<{
 window.processDom = processDom;
 window.processAllOfDom = processAllOfDom;
 window.processElements = processElements;
-window.scrollToHeight = scrollToHeight;
 window.storeDOM = storeDOM;
 window.restoreDOM = restoreDOM;
 window.createTextBoundingBoxes = createTextBoundingBoxes;
 window.getElementBoundingBoxes = getElementBoundingBoxes;
+window.createStagehandContainer = createStagehandContainer;
 
 const leafElementDenyList = ["SVG", "IFRAME", "SCRIPT", "STYLE", "LINK"];
 

@@ -1198,9 +1198,11 @@ export class StagehandActHandler {
               },
             },
           });
-          await this.stagehandPage.page.evaluate(() =>
-            window.scrollToHeight(document.documentElement, 0),
-          );
+          const container = await this.stagehandPage.page.evaluate(() => {
+            return window.createStagehandContainer(document.documentElement);
+          });
+          await container.scrollTo(0);
+
           return await this.act({
             action,
             steps,
