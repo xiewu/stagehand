@@ -136,6 +136,12 @@ export class StagehandExtractHandler {
         domSettleTimeoutMs,
       });
     } else {
+      this.logger({
+        category: "extraction",
+        message:
+          "WARNING: using old extraction approach. This is deprecated and will be removed in the future.",
+        level: 1,
+      });
       return this.domExtract({
         instruction,
         schema,
