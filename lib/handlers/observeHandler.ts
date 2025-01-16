@@ -5,9 +5,6 @@ import { LLMClient } from "../llm/LLMClient";
 import { generateId } from "../utils";
 import { ScreenshotService } from "../vision";
 import { StagehandPage } from "../StagehandPage";
-import { ElementHandle } from "@playwright/test";
-
-
 
 export class StagehandObserveHandler {
   private readonly stagehand: Stagehand;
@@ -47,72 +44,6 @@ export class StagehandObserveHandler {
     return id;
   }
 
-  // private async processAccessibilityTree(tree: AccessibilityNode[]) {
-  //   const selectorMap: Record<string, string[]> = {};
-    
-  //   // Get CDP client to convert backendDOMNodeId to page element
-  //   const cdpClient = await this.stagehandPage.context.newCDPSession(this.stagehandPage.page);
-    
-  //   for (const node of tree) {
-  //     if (node.nodeId) {
-  //       try {
-  //         // Get the remote object for this node
-  //         const { object } = await cdpClient.send('DOM.resolveNode', {
-  //           backendNodeId: Number(node.nodeId)
-  //         });
-  //         console.log(object);
-  //         // Get element's XPath
-  //         if (object.objectId) {
-  //           const { result } = await cdpClient.send('Runtime.callFunctionOn', {
-  //             functionDeclaration: `
-  //               function() {
-  //                 function generateXPathsForElement(element) {
-  //                   if (!(element instanceof Element)) return [];
-                    
-  //                   const paths = [];
-                    
-  //                   // Try ID
-  //                   if (element.id) {
-  //                     paths.push(\`//*[@id="\${element.id}"]\`);
-  //                   }
-                    
-  //                   // Try basic XPath
-  //                   let path = '';
-  //                   for (let elem = element; elem && elem.nodeType === 1; elem = elem.parentNode) {
-  //                     let idx = 1;
-  //                     for (let sibling = elem.previousSibling; sibling; sibling = sibling.previousSibling) {
-  //                       if (sibling.nodeType === 1 && sibling.tagName === elem.tagName) idx++;
-  //                     }
-  //                     const tagName = elem.tagName.toLowerCase();
-  //                     path = \`/\${tagName}[\${idx}]\${path}\`;
-  //                   }
-  //                   if (path) paths.push(path);
-                    
-  //                   return paths;
-  //                 }
-  //                 return generateXPathsForElement(this);
-  //               }
-  //             `,
-  //             objectId: object.objectId
-  //           });
-            
-  //           if (result.value) {
-  //             selectorMap[node.nodeId] = result.value;
-  //           }
-  //         }
-  //       } catch (error) {
-  //         console.warn(`Failed to process node ${node.nodeId}:`, error);
-  //         continue;
-  //       }
-  //     }
-  //   }
-
-  //   return {
-  //     selectorMap,
-  //     outputString: buildHierarchicalTree(tree).simplified
-  //   };
-  // }
-
   public async observe({
     instruction,
     useVision,
@@ -145,47 +76,66 @@ export class StagehandObserveHandler {
       },
     });
 
-    // await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-    // await this.stagehandPage.startDomDebug();
-    // const evalResult = await this.stagehand.page.evaluate(
-    //   (fullPage: boolean) =>
-    //     fullPage ? window.processAllOfDom() : window.processDom([]),
-    //   fullPage,
-    // );
-
     let outputString: string;
     let selectorMap: Record<string, string[]> = {};
+    let backendNodeIdMap: Record<string, number> = {};
     let accessibilityData = "";
+
+    await this.stagehandPage.startDomDebug();
+    const cdpClient = await this.stagehandPage.context.newCDPSession(this.stagehandPage.page);
+    await cdpClient.send("DOM.enable");
+
+    const evalResult = await this.stagehand.page.evaluate(
+      async (fullPage: boolean) => {
+        const result = await window.processAllOfDom();
+        return result;
+      },
+      fullPage,
+    );
+
+    // For each element in the selector map, get its backendNodeId
+    for (const [index, xpaths] of Object.entries(evalResult.selectorMap)) {
+      try {
+        // Use the first xpath to find the element
+        const xpath = xpaths[0];
+        const { result } = await cdpClient.send('Runtime.evaluate', {
+          expression: `document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
+          returnByValue: false
+        });
+
+        if (result.objectId) {
+          // Get the node details using CDP
+          const { node } = await cdpClient.send('DOM.describeNode', {
+            objectId: result.objectId,
+            depth: -1,
+            pierce: true
+          });
+
+          if (node.backendNodeId) {
+            backendNodeIdMap[index] = node.backendNodeId;
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to get backendNodeId for element ${index}:`, error);
+        continue;
+      }
+    }
+
+    await cdpClient.send("DOM.disable");
+    ({ outputString, selectorMap } = evalResult);
+
     if (useAccessibilityTree) {
       console.log("Getting accessibility tree...");
       const tree = await getAccessibilityTree(this.stagehandPage);
-      
-      // const { outputString: accOutput, selectorMap: accSelectors } = 
-      //   await this.processAccessibilityTree(tree.tree);
-      // console.log("Processed tree output:", accOutput);
-      
-      // outputString = accOutput;
-      // selectorMap = accSelectors;
 
       this.logger({
         category: "observation",
         message: "Getting accessibility tree data",
         level: 1,
       });
-      // const tree = await getAccessibilityTree(this.stagehandPage);
-      accessibilityData = "\n\nAccessibility Tree:\n" + tree.simplified;
 
-    } else {
-      await this.stagehandPage.startDomDebug();
-      const evalResult = await this.stagehand.page.evaluate(
-        (fullPage: boolean) =>
-          fullPage ? window.processAllOfDom() : window.processDom([]),
-        fullPage,
-      );
-      ({ outputString, selectorMap } = evalResult);
-    }
-
-    outputString += accessibilityData;
+      outputString = tree.simplified;
+    } 
 
     let annotatedScreenshot: Buffer | undefined;
     if (useVision === true) {
@@ -231,15 +181,26 @@ export class StagehandObserveHandler {
         const { elementId, ...rest } = element;
 
         if (useAccessibilityTree) {
+          const index = Object.entries(backendNodeIdMap).find(([_, value]) => value === elementId)?.[0];
+          if (!index || !selectorMap[index]?.[0]) {
+            console.warn(`No selector found for backendNodeId: ${elementId}`);
+            return {
+              ...rest,
+              selector: `not found in processAllOfDom`, //fallback selector
+              backendNodeId: elementId,
+            };
+          }
           return {
             ...rest,
-            selector: String(elementId),
+            selector: `xpath=${selectorMap[index][0]}`,
+            backendNodeId: elementId,
           };
         }
 
         return {
           ...rest,
           selector: `xpath=${selectorMap[elementId][0]}`,
+          backendNodeId: backendNodeIdMap[elementId],
         };
       },
     );
@@ -287,6 +248,7 @@ function formatSimplifiedTree(node: AccessibilityNode, level = 0): string {
   }
   return result;
 }
+
 // Constructs the hierarchichal representation of the a11y tree
 function buildHierarchicalTree(nodes: any[]): TreeResult {
   const nodeMap = new Map<string, AccessibilityNode>();
@@ -403,55 +365,3 @@ async function getAccessibilityTree(page: StagehandPage) {
     await cdpClient.send("Accessibility.disable");
   }
 }
-
-/*
-  Generate XPath for a locator elementHandle
-*/
-async function getXPath(elementHandle: ElementHandle<HTMLElement | SVGElement>) {
-  // Evaluate the element in the page context to get its XPath
-  return elementHandle.evaluate((element) => {
-      const paths = [];
-      let currentElement: Element | null = element;
-      
-      while (currentElement && currentElement.nodeType === Node.ELEMENT_NODE) {
-          let index = 1;
-          let sibling = currentElement.previousElementSibling;
-
-          // Count siblings with same tag name
-          while (sibling) {
-              if (sibling.nodeName === currentElement.nodeName) {
-                  index++;
-              }
-              sibling = sibling.previousElementSibling;
-          }
-
-          // Try to create a more specific XPath using id or class if available
-          let pathSegment = currentElement.nodeName.toLowerCase();
-          const id = currentElement.getAttribute('id');
-          const className = currentElement.getAttribute('class');
-          
-          if (id) {
-              // If element has an ID, use that for a more specific path
-              pathSegment += `[@id='${id}']`;
-          } else if (className) {
-              // If element has classes, use them for a more specific path
-              pathSegment += `[@class='${className}']`;
-          } else {
-              // Otherwise use the position index
-              pathSegment += `[${index}]`;
-          }
-          
-          paths.unshift(pathSegment);
-          currentElement = currentElement.parentElement;
-      }
-
-      return '/' + paths.join('/');
-  });
-} 
-
-/*
-  Sample usage for getXPath
-*/
-// const locator = page.getByRole('link', { name: 'Perplexity' }).nth(1);
-// const elementHandle = await locator.elementHandle();
-// console.log(await getXPath(elementHandle));

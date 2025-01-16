@@ -13,11 +13,11 @@ export const observe_shopify: EvalFunction = async ({ modelName, logger, useAcce
   await stagehand.page.goto("https://www.shopify.com/");
 
   const observations = await stagehand.page.observe({
-    instruction: "find all the links in the solutions tab",
+    instruction: "find all the links in the footer",
     useAccessibilityTree: useAccessibilityTree
   });
 
-  if (observations.length === 0 || observations.length < 7 ) {
+  if (observations.length === 0 || observations.length < 30 ) {
     await stagehand.close();
     return {
       _success: false,
@@ -40,7 +40,7 @@ export const observe_shopify: EvalFunction = async ({ modelName, logger, useAcce
       });
       
       // Check if the node is a link in the navigation
-      if (node.nodeName !== 'A' || !node.attributes?.includes('class') || !node.attributes.includes('nav')) {
+      if (node.nodeName !== 'A') {
         foundMatches = false;
         break;
       }
