@@ -183,12 +183,14 @@ export class StagehandObserveHandler {
         if (useAccessibilityTree) {
           const index = Object.entries(backendNodeIdMap).find(([_, value]) => value === elementId)?.[0];
           if (!index || !selectorMap[index]?.[0]) {
-            console.warn(`No selector found for backendNodeId: ${elementId}`);
-            return {
-              ...rest,
-              selector: `not found in processAllOfDom`, //fallback selector
-              backendNodeId: elementId,
-            };
+            // console.warn(`No selector found for backendNodeId: ${elementId}`);
+            // TODO: generate xpath for the given id if none has been previously generated
+            // return {
+            //   ...rest,
+            //   selector: `not found in processAllOfDom`, //fallback selector
+            //   backendNodeId: elementId,
+            // };
+            return
           }
           return {
             ...rest,
