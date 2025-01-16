@@ -76,7 +76,10 @@ export async function processAllOfDom() {
 
   const mainScrollable = getMainScrollableElement();
 
-  const container = createStagehandContainer(mainScrollable);
+  const container =
+    mainScrollable === document.documentElement
+      ? createStagehandContainer(window)
+      : createStagehandContainer(mainScrollable);
 
   const viewportHeight = container.getViewportHeight();
   const documentHeight = container.getScrollHeight();
