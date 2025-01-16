@@ -1198,10 +1198,12 @@ export class StagehandActHandler {
               },
             },
           });
-          const container = await this.stagehandPage.page.evaluate(() => {
-            return window.createStagehandContainer(document.documentElement);
+          await this.stagehandPage.page.evaluate(() => {
+            const container = window.createStagehandContainer(
+              document.documentElement,
+            );
+            return container.scrollTo(0);
           });
-          await container.scrollTo(0);
 
           return await this.act({
             action,
