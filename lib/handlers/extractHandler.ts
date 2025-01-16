@@ -139,7 +139,7 @@ export class StagehandExtractHandler {
       this.logger({
         category: "extraction",
         message:
-          "WARNING: using old extraction approach. This is deprecated and will be removed in the future.",
+          "WARNING: using old extraction approach. This is deprecated and will be removed in the next major release.",
         level: 1,
       });
       return this.domExtract({
