@@ -11,21 +11,26 @@ export const extract_zillow: EvalFunction = async ({
     modelName,
     logger,
     domSettleTimeoutMs: 3000,
+    configOverrides: {
+      debugDom: false,
+    }
   });
 
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
-    "https://www.zillow.com/homes/San-Francisco,-CA_rb/",
+    "https://zillow-eval.surge.sh/"
   );
+  // timeout for 5 seconds
+  await stagehand.page.waitForTimeout(5000);
   const real_estate_listings = await stagehand.page.extract({
     instruction:
-      "Extract all the real estate listings with their prices and their addresses.",
+      "Extract EACH AND EVERY HOME PRICE AND ADDRESS ON THE PAGE. DO NOT MISS ANY OF THEM.",
     schema: z.object({
       listings: z.array(
         z.object({
-          price: z.string().describe("The price of the listing"),
-          trails: z.string().describe("The address of the listing"),
+          price: z.string().describe("The price of the home"),
+          trails: z.string().describe("The address of the home"),
         }),
       ),
     }),
