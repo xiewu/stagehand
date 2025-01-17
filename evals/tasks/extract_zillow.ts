@@ -13,14 +13,12 @@ export const extract_zillow: EvalFunction = async ({
     domSettleTimeoutMs: 3000,
     configOverrides: {
       debugDom: false,
-    }
+    },
   });
 
   const { debugUrl, sessionUrl } = initResponse;
 
-  await stagehand.page.goto(
-    "https://zillow-eval.surge.sh/"
-  );
+  await stagehand.page.goto("https://zillow-eval.surge.sh/");
   // timeout for 5 seconds
   await stagehand.page.waitForTimeout(5000);
   const real_estate_listings = await stagehand.page.extract({
