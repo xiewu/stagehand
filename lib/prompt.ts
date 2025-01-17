@@ -350,7 +350,7 @@ You will be given:
     ? 'a hierarchical accessibility tree showing the semantic structure of the page' 
     : 'a numbered list of possible elements or an annotated image of the page'}
 
-Return an array of elements that match the instruction.`;
+Return an array of elements that match the instruction if they exist, otherwise return an empty array.`;
 
   const content = basePrompt.replace(/\s+/g, " ");
 
