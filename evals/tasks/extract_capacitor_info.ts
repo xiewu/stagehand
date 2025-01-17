@@ -7,7 +7,6 @@ export const extract_capacitor_info: EvalFunction = async ({
   modelName,
   logger,
   useTextExtract,
-  useAccessibilityTree,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
@@ -29,7 +28,6 @@ export const extract_capacitor_info: EvalFunction = async ({
     }),
     modelName,
     useTextExtract,
-    useAccessibilityTree,
   });
 
   await stagehand.close();
