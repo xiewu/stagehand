@@ -11,7 +11,8 @@ export class GlobalPageContainer implements StagehandContainer {
   }
 
   public async scrollTo(offset: number): Promise<void> {
-    window.scrollTo({ top: offset, left: 0, behavior: "smooth" });
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    window.scrollTo({ top: offset, left: 0, behavior: "smooth" , });
     await this.waitForScrollEnd();
   }
 

@@ -12,6 +12,7 @@ export class ElementContainer implements StagehandContainer {
   }
 
   public async scrollTo(offset: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     this.el.scrollTo({ top: offset, left: 0, behavior: "smooth" });
     await this.waitForScrollEnd();
   }
