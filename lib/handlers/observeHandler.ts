@@ -176,21 +176,21 @@ export class StagehandObserveHandler {
     console.log(
       `\n\nobservationResponse: ${JSON.stringify(observationResponse)}`,
     );
-    const elementsWithSelectors = observationResponse.elements.map(
-      (element) => {
+    const elementsWithSelectors = await Promise.all(observationResponse.elements.map(
+      async (element) => {
         const { elementId, ...rest } = element;
 
         if (useAccessibilityTree) {
           const index = Object.entries(backendNodeIdMap).find(([_, value]) => value === elementId)?.[0];
           if (!index || !selectorMap[index]?.[0]) {
-            // console.warn(`No selector found for backendNodeId: ${elementId}`);
-            // TODO: generate xpath for the given id if none has been previously generated
-            // return {
-            //   ...rest,
-            //   selector: `not found in processAllOfDom`, //fallback selector
-            //   backendNodeId: elementId,
-            // };
-            return
+            // Generate xpath for the given element if not found in selectorMap
+            const { object } = await cdpClient.send('DOM.resolveNode', { backendNodeId: elementId });
+            const xpath = await getXPathByResolvedObjectId(cdpClient,object.objectId);
+            return {
+              ...rest,
+              selector: xpath,
+              backendNodeId: elementId,
+            };
           }
           return {
             ...rest,
@@ -205,7 +205,7 @@ export class StagehandObserveHandler {
           backendNodeId: backendNodeIdMap[elementId],
         };
       },
-    );
+    ));
 
     await this.stagehandPage.cleanupDomDebug();
 
@@ -366,4 +366,44 @@ async function getAccessibilityTree(page: StagehandPage) {
   } finally {
     await cdpClient.send("Accessibility.disable");
   }
+}
+
+async function getXPathByResolvedObjectId(cdpClient: any, resolvedObjectId: string): Promise<string> {
+  const { result } = await cdpClient.send('Runtime.callFunctionOn', {
+    objectId: resolvedObjectId,
+    functionDeclaration: `function() {
+      function getNodePath(node) {
+        const parts = [];
+        let current = node;
+        
+        while (current && current.parentNode) {
+          if (current.nodeType === Node.ELEMENT_NODE) {
+            let tagName = current.tagName.toLowerCase();
+            let sameTagSiblings = Array.from(current.parentNode.children).filter(
+              child => child.tagName === current.tagName
+            );
+            
+            if (sameTagSiblings.length > 1) {
+              let index = 1;
+              for (let sibling of sameTagSiblings) {
+                if (sibling === current) break;
+                index++;
+              }
+              tagName += '[' + index + ']';
+            }
+            
+            parts.unshift(tagName);
+          }
+          current = current.parentNode;
+        }
+        
+        return '/' + parts.join('/');
+      }
+      
+      return getNodePath(this);
+    }`,
+    returnByValue: true
+  });
+
+  return result.value || '';
 }
