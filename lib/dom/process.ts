@@ -295,6 +295,11 @@ export function createTextBoundingBoxes(): void {
         return;
       }
 
+      const boundingRect = element.getBoundingClientRect();
+      if (boundingRect.width < 2 || boundingRect.height < 2) {
+        return;
+      }
+
       const childNodes = Array.from(element.childNodes);
       childNodes.forEach((node) => {
         if (node.nodeType === 3 && node.textContent?.trim().length > 0) {
