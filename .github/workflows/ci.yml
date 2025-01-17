@@ -186,7 +186,7 @@ jobs:
     timeout-minutes: 25
     concurrency:
       group: evals-${{ github.run_id }}
-      cancel-in-progress: false
+      cancel-in-progress: true
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -237,7 +237,7 @@ jobs:
     timeout-minutes: 50
     concurrency:
       group: evals-${{ github.run_id }}
-      cancel-in-progress: false
+      cancel-in-progress: true
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -299,7 +299,7 @@ jobs:
     timeout-minutes: 120
     concurrency:
       group: evals-${{ github.run_id }}
-      cancel-in-progress: false
+      cancel-in-progress: true
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -361,7 +361,7 @@ jobs:
     timeout-minutes: 25
     concurrency:
       group: evals-${{ github.run_id }}
-      cancel-in-progress: false
+      cancel-in-progress: true
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -404,4 +404,3 @@ jobs:
             echo "Eval summary not found for observe category. Failing CI."
             exit 1
           fi
-
