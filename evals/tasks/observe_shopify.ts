@@ -1,23 +1,29 @@
 import { initStagehand } from "../initStagehand";
 import { EvalFunction } from "../../types/evals";
 
-export const observe_shopify: EvalFunction = async ({ modelName, logger, useAccessibilityTree }) => {
+export const observe_shopify: EvalFunction = async ({
+  modelName,
+  logger,
+  useAccessibilityTree,
+}) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
-  const cdpClient = await stagehand.page.context().newCDPSession(stagehand.page);
+  const cdpClient = await stagehand.page
+    .context()
+    .newCDPSession(stagehand.page);
 
   await stagehand.page.goto("https://www.shopify.com/");
 
   const observations = await stagehand.page.observe({
     instruction: "find all the links to social media platforms",
-    useAccessibilityTree: useAccessibilityTree
+    useAccessibilityTree: useAccessibilityTree,
   });
 
-  if (observations.length === 0 || observations.length < 7 ) {
+  if (observations.length === 0 || observations.length < 7) {
     await stagehand.close();
     return {
       _success: false,
@@ -33,14 +39,14 @@ export const observe_shopify: EvalFunction = async ({ modelName, logger, useAcce
 
   if (useAccessibilityTree) {
     for (const observation of observations) {
-      const { node } = await cdpClient.send('DOM.describeNode', { 
+      const { node } = await cdpClient.send("DOM.describeNode", {
         backendNodeId: parseInt(observation.selector),
         depth: -1,
-        pierce: true
+        pierce: true,
       });
-      
+
       // Check if the node is a link in the navigation
-      if (node.nodeName !== 'A') {
+      if (node.nodeName !== "A") {
         foundMatches = false;
         break;
       }

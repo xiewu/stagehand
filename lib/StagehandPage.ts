@@ -31,40 +31,57 @@ export class StagehandPage {
     stagehand: Stagehand,
     context: StagehandContext,
     llmClient: LLMClient,
+    userProvidedInstructions?: string,
   ) {
     this.intPage = Object.assign(page, {
       act: () => {
-        throw new Error("act() is not implemented on the base page object");
+        throw new Error(
+          "You seem to be calling `act` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
+        );
       },
       extract: () => {
-        throw new Error("extract() is not implemented on the base page object");
+        throw new Error(
+          "You seem to be calling `extract` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
+        );
       },
       observe: () => {
-        throw new Error("observe() is not implemented on the base page object");
+        throw new Error(
+          "You seem to be calling `observe` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
+        );
+      },
+      on: () => {
+        throw new Error(
+          "You seem to be referencing a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
+        );
       },
     });
     this.stagehand = stagehand;
     this.intContext = context;
-    this.actHandler = new StagehandActHandler({
-      verbose: this.stagehand.verbose,
-      llmProvider: this.stagehand.llmProvider,
-      enableCaching: this.stagehand.enableCaching,
-      logger: this.stagehand.logger,
-      stagehandPage: this,
-      stagehandContext: this.intContext,
-      llmClient: llmClient,
-    });
-    this.extractHandler = new StagehandExtractHandler({
-      stagehand: this.stagehand,
-      logger: this.stagehand.logger,
-      stagehandPage: this,
-    });
-    this.observeHandler = new StagehandObserveHandler({
-      stagehand: this.stagehand,
-      logger: this.stagehand.logger,
-      stagehandPage: this,
-    });
     this.llmClient = llmClient;
+    if (this.llmClient) {
+      this.actHandler = new StagehandActHandler({
+        verbose: this.stagehand.verbose,
+        llmProvider: this.stagehand.llmProvider,
+        enableCaching: this.stagehand.enableCaching,
+        logger: this.stagehand.logger,
+        stagehandPage: this,
+        stagehandContext: this.intContext,
+        llmClient: llmClient,
+        userProvidedInstructions,
+      });
+      this.extractHandler = new StagehandExtractHandler({
+        stagehand: this.stagehand,
+        logger: this.stagehand.logger,
+        stagehandPage: this,
+        userProvidedInstructions,
+      });
+      this.observeHandler = new StagehandObserveHandler({
+        stagehand: this.stagehand,
+        logger: this.stagehand.logger,
+        stagehandPage: this,
+        userProvidedInstructions,
+      });
+    }
   }
 
   async init(): Promise<StagehandPage> {
@@ -87,27 +104,64 @@ export class StagehandPage {
             return result;
           };
 
-        if (prop === "act") {
-          return async (options: ActOptions) => {
-            return this.act(options);
-          };
+        if (this.llmClient) {
+          if (prop === "act") {
+            return async (options: ActOptions) => {
+              return this.act(options);
+            };
+          }
+          if (prop === "extract") {
+            return async (options: ExtractOptions<z.AnyZodObject>) => {
+              return this.extract(options);
+            };
+          }
+          if (prop === "observe") {
+            return async (options: ObserveOptions) => {
+              return this.observe(options);
+            };
+          }
+        } else {
+          if (prop === "act" || prop === "extract" || prop === "observe") {
+            return () => {
+              throw new Error(
+                "No LLM API key or LLM Client configured. An LLM API key or a custom LLM Client is required to use act, extract, or observe.",
+              );
+            };
+          }
         }
 
-        if (prop === "extract") {
-          return async (options: ExtractOptions<z.AnyZodObject>) => {
-            return this.extract(options);
-          };
-        }
+        if (prop === "on") {
+          return (event: string, listener: (param: unknown) => void) => {
+            if (event === "popup") {
+              return this.context.on("page", async (page) => {
+                const newContext = await StagehandContext.init(
+                  page.context(),
+                  stagehand,
+                );
+                const newStagehandPage = new StagehandPage(
+                  page,
+                  stagehand,
+                  newContext,
+                  this.llmClient,
+                );
 
-        if (prop === "observe") {
-          return async (options: ObserveOptions) => {
-            return this.observe(options);
+                await newStagehandPage.init();
+
+                listener(newStagehandPage.page);
+              });
+            }
+
+            return this.context.on(
+              event as keyof PlaywrightPage["on"],
+              listener,
+            );
           };
         }
 
         return target[prop as keyof PlaywrightPage];
       },
     });
+
     await this._waitForSettledDom();
     return this;
   }
@@ -411,13 +465,15 @@ export class StagehandPage {
         useAccessibilityTree: {
           value: options?.useAccessibilityTree ? "true" : "false",
           type: "boolean",
-        }
+        },
       },
     });
 
     return this.observeHandler
       .observe({
-        instruction: options?.instruction ?? "Find actions that can be performed on this page.",
+        instruction:
+          options?.instruction ??
+          "Find actions that can be performed on this page.",
         llmClient,
         useVision: options?.useVision ?? false,
         fullPage: false,

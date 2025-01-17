@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { LLMTool } from "../types/llm";
 import { ChatMessage } from "./llm/LLMClient";
 
 // act
@@ -12,6 +12,7 @@ You will receive:
 2. the steps that you've taken so far
 3. a list of active DOM elements in this chunk to consider to get closer to the goal. 
 4. Optionally, a list of variable names that the user has provided that you may use to accomplish the goal. To use the variables, you must use the special <|VARIABLE_NAME|> syntax.
+5. Optionally, custom instructions will be provided by the user. If the user's instructions are not relevant to the current task, ignore them. Otherwise, make sure to adhere to them.
 
 
 ## Your Goal / Specification
@@ -21,7 +22,7 @@ If the user's goal will be accomplished after running the playwright action, set
 Note 1: If there is a popup on the page for cookies or advertising that has nothing to do with the goal, try to close it first before proceeding. As this can block the goal from being completed.
 Note 2: Sometimes what your are looking for is hidden behind and element you need to interact with. For example, sliders, buttons, etc...
 
-Again, if the user's goal will be accomplished after running the playwright action, set completed to true.
+Again, if the user's goal will be accomplished after running the playwright action, set completed to true. Also, if the user provides custom instructions, it is imperative that you follow them no matter what.
 `;
 
 const verifyActCompletionSystemPrompt = `
@@ -96,10 +97,32 @@ ${domElements}
   };
 }
 
-export function buildActSystemPrompt(): ChatMessage {
+export function buildUserInstructionsString(
+  userProvidedInstructions?: string,
+): string {
+  if (!userProvidedInstructions) {
+    return "";
+  }
+
+  return `\n\n# Custom Instructions Provided by the User
+    
+Please keep the user's instructions in mind when performing actions. If the user's instructions are not relevant to the current task, ignore them.
+
+User Instructions:
+${userProvidedInstructions}`;
+}
+
+export function buildActSystemPrompt(
+  userProvidedInstructions?: string,
+): ChatMessage {
   return {
     role: "system",
-    content: actSystemPrompt,
+    content: [
+      actSystemPrompt,
+      buildUserInstructionsString(userProvidedInstructions),
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
   };
 }
 
@@ -135,65 +158,60 @@ ${Object.keys(variables)
   };
 }
 
-export const actTools: Array<OpenAI.ChatCompletionTool> = [
+export const actTools: LLMTool[] = [
   {
     type: "function",
-    function: {
-      name: "doAction",
-      description:
-        "execute the next playwright step that directly accomplishes the goal",
-      parameters: {
-        type: "object",
-        required: ["method", "element", "args", "step", "completed"],
-        properties: {
-          method: {
+    name: "doAction",
+    description:
+      "execute the next playwright step that directly accomplishes the goal",
+    parameters: {
+      type: "object",
+      required: ["method", "element", "args", "step", "completed"],
+      properties: {
+        method: {
+          type: "string",
+          description: "The playwright function to call.",
+        },
+        element: {
+          type: "number",
+          description: "The element number to act on",
+        },
+        args: {
+          type: "array",
+          description: "The required arguments",
+          items: {
             type: "string",
-            description: "The playwright function to call.",
+            description: "The argument to pass to the function",
           },
-          element: {
-            type: "number",
-            description: "The element number to act on",
-          },
-          args: {
-            type: "array",
-            description: "The required arguments",
-            items: {
-              type: "string",
-              description: "The argument to pass to the function",
-            },
-          },
-          step: {
-            type: "string",
-            description:
-              "human readable description of the step that is taken in the past tense. Please be very detailed.",
-          },
-          why: {
-            type: "string",
-            description:
-              "why is this step taken? how does it advance the goal?",
-          },
-          completed: {
-            type: "boolean",
-            description:
-              "true if the goal should be accomplished after this step",
-          },
+        },
+        step: {
+          type: "string",
+          description:
+            "human readable description of the step that is taken in the past tense. Please be very detailed.",
+        },
+        why: {
+          type: "string",
+          description: "why is this step taken? how does it advance the goal?",
+        },
+        completed: {
+          type: "boolean",
+          description:
+            "true if the goal should be accomplished after this step",
         },
       },
     },
   },
   {
     type: "function",
-    function: {
-      name: "skipSection",
-      description:
-        "skips this area of the webpage because the current goal cannot be accomplished here",
-      parameters: {
-        type: "object",
-        properties: {
-          reason: {
-            type: "string",
-            description: "reason that no action is taken",
-          },
+    name: "skipSection",
+    description:
+      "skips this area of the webpage because the current goal cannot be accomplished here",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: {
+          type: "string",
+          description: "reason that no action is taken",
         },
       },
     },
@@ -203,8 +221,8 @@ export const actTools: Array<OpenAI.ChatCompletionTool> = [
 // extract
 export function buildExtractSystemPrompt(
   isUsingPrintExtractedDataTool: boolean = false,
-  useTextExtract: boolean = false,
-  useAccessibilityExtract: boolean = true,
+  useTextExtract: boolean = true,
+  userProvidedInstructions?: string,
 ): ChatMessage {
   const baseContent = `You are extracting content on behalf of a user.
   If a user asks you to extract a 'list' of information, or 'all' information, 
@@ -216,17 +234,11 @@ export function buildExtractSystemPrompt(
 
   const contentDetail = useTextExtract
     ? `A text representation of a webpage to extract information from.`
-    : useAccessibilityExtract
-      ? `A cleaned accessibility tree from the page to extract information from.`
-      : `A list of DOM elements to extract from.`;
+    : `A list of DOM elements to extract from.`;
 
   const instructions = `
 Print the exact text from the ${
-    useTextExtract
-      ? "text-rendered webpage"
-      : useAccessibilityExtract
-        ? "accessibility tree"
-        : "DOM elements"
+    useTextExtract ? "text-rendered webpage" : "DOM elements"
   } with all symbols, characters, and endlines as is.
 Print null or an empty string if no new information is found.
   `.trim();
@@ -242,17 +254,16 @@ ONLY print the content using the print_extracted_data tool provided.
     ? `Once you are given the text-rendered webpage, 
     you must thoroughly and meticulously analyze it. Be very careful to ensure that you
     do not miss any important information.`
-    : useAccessibilityExtract
-      ? `Once you are given the accessibility tree, 
-    you must thoroughly and meticulously analyze it. Be very careful to ensure that you
-    do not miss any important information. In some cases, information might show twice in different element roles.
-    Make sure to aggregate these and review before returning the result.`
-      : "";
+    : "";
+
+  const userInstructions = buildUserInstructionsString(
+    userProvidedInstructions,
+  );
 
   const content =
     `${baseContent}${contentDetail}\n\n${instructions}\n${toolInstructions}${
       additionalInstructions ? `\n\n${additionalInstructions}` : ""
-    }`.replace(/\s+/g, " ");
+    }${userInstructions ? `\n\n${userInstructions}` : ""}`.replace(/\s+/g, " ");
 
   return {
     role: "system",
@@ -271,7 +282,7 @@ DOM: ${domElements}`;
   if (isUsingPrintExtractedDataTool) {
     content += `
 ONLY print the content using the print_extracted_data tool provided.
-ONLY print the content using the print_extracted_data tool provided.`; // duplicate?
+ONLY print the content using the print_extracted_data tool provided.`;
   }
 
   return {
@@ -285,7 +296,6 @@ const refineSystemPrompt = `You are tasked with refining and filtering informati
 2. For text fields, append or update relevant text if the new content is an extension, replacement, or continuation.
 3. For non-text fields (e.g., numbers, booleans), update with new values if they differ.
 4. Add any completely new fields or objects.
-5. Clean any responses to match the correct string format, if there are multiple lines aggregate into a single line.
 
 Return the updated content that includes both the previous content and the new, non-duplicate, or extended information.`;
 
@@ -342,21 +352,28 @@ chunksTotal: ${chunksTotal}`,
 }
 
 // observe
-export function buildObserveSystemPrompt(isUsingAccessibilityTree = false): ChatMessage {
-  const basePrompt = `You are helping the user automate the browser by finding elements based on what the user wants to observe in the page.
+export function buildObserveSystemPrompt(
+  userProvidedInstructions?: string,
+  isUsingAccessibilityTree = false,
+): ChatMessage {
+  const observeSystemPrompt = `
+You are helping the user automate the browser by finding elements based on what the user wants to observe in the page.
 You will be given:
 1. a instruction of elements to observe
-2. ${isUsingAccessibilityTree 
-    ? 'a hierarchical accessibility tree showing the semantic structure of the page' 
-    : 'a numbered list of possible elements or an annotated image of the page'}
+2. ${
+    isUsingAccessibilityTree
+      ? "a hierarchical accessibility tree showing the semantic structure of the page"
+      : "a numbered list of possible elements or an annotated image of the page"
+  }
 
 Return an array of elements that match the instruction if they exist, otherwise return an empty array.`;
-
-  const content = basePrompt.replace(/\s+/g, " ");
+  const content = observeSystemPrompt.replace(/\s+/g, " ");
 
   return {
     role: "system",
-    content,
+    content: [content, buildUserInstructionsString(userProvidedInstructions)]
+      .filter(Boolean)
+      .join("\n\n"),
   };
 }
 
@@ -368,24 +385,6 @@ export function buildObserveUserMessage(
   return {
     role: "user",
     content: `instruction: ${instruction}
-${isUsingAccessibilityTree ? 'Accessibility Tree' : 'DOM'}: ${domElements}`,
-  };
-}
-
-// ask
-const askSystemPrompt = `
-you are a simple question answering assistent given the user's question. respond with only the answer.
-`;
-export function buildAskSystemPrompt(): ChatMessage {
-  return {
-    role: "system",
-    content: askSystemPrompt,
-  };
-}
-
-export function buildAskUserPrompt(question: string): ChatMessage {
-  return {
-    role: "user",
-    content: `question: ${question}`,
+${isUsingAccessibilityTree ? "Accessibility Tree" : "DOM"}: ${domElements}`,
   };
 }

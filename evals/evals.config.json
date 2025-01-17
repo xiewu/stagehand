@@ -5,6 +5,10 @@
       "categories": ["act"]
     },
     {
+      "name": "instructions",
+      "categories": ["combination"]
+    },
+    {
       "name": "bidnet",
       "categories": ["act"]
     },
@@ -92,11 +96,11 @@
     },
     {
       "name": "extract_aigrant_companies",
-      "categories": ["experimental", "text_extract", "accessibility_tree"]
+      "categories": ["experimental", "text_extract"]
     },
     {
       "name": "extract_capacitor_info",
-      "categories": ["experimental", "text_extract", "accessibility_tree"]
+      "categories": ["experimental", "text_extract"]
     },
     {
       "name": "extract_partners",
@@ -104,11 +108,11 @@
     },
     {
       "name": "extract_press_releases",
-      "categories": ["experimental", "text_extract", "accessibility_tree"]
+      "categories": ["experimental", "text_extract"]
     },
     {
       "name": "extract_snowshoeing_destinations",
-      "categories": ["experimental", "text_extract", "accessibility_tree"]
+      "categories": ["experimental", "text_extract"]
     },
     {
       "name": "google_jobs",
@@ -116,10 +120,6 @@
     },
     {
       "name": "homedepot",
-      "categories": ["experimental"]
-    },
-    {
-      "name": "ibm",
       "categories": ["experimental"]
     },
     {
@@ -156,8 +156,8 @@
       "categories": ["extract"]
     },
     {
-      "name": "extract_regulations",
-      "categories": ["extract"]
+      "name": "extract_csa",
+      "categories": ["text_extract"]
     },
     {
       "name": "extract_resistor_info",
@@ -181,15 +181,7 @@
       "categories": ["observe"]
     },
     {
-      "name": "panamcs2",
-      "categories": ["observe"]
-    },
-    {
       "name": "shopify_homepage",
-      "categories": ["observe"]
-    },
-    {
-      "name": "observe_shopify",
       "categories": ["observe"]
     },
     {
@@ -202,15 +194,15 @@
     },
     {
       "name": "extract_area_codes",
-      "categories": ["text_extract", "accessibility_tree"]
+      "categories": ["text_extract"]
     },
     {
       "name": "extract_public_notices",
-      "categories": ["text_extract", "accessibility_tree"]
+      "categories": ["text_extract"]
     },
     {
       "name": "extract_research_reports",
-      "categories": ["text_extract", "accessibility_tree"]
+      "categories": ["text_extract"]
     }
   ]
 }

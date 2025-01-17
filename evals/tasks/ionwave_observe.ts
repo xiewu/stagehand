@@ -1,7 +1,11 @@
 import { initStagehand } from "../initStagehand";
 import { EvalFunction } from "../../types/evals";
 
-export const ionwave_observe: EvalFunction = async ({ modelName, logger, useAccessibilityTree}) => {
+export const ionwave_observe: EvalFunction = async ({
+  modelName,
+  logger,
+  useAccessibilityTree,
+}) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,

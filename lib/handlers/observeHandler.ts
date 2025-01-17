@@ -2,9 +2,10 @@ import { LogLine } from "../../types/log";
 import { Stagehand } from "../index";
 import { observe } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
+import { StagehandPage } from "../StagehandPage";
 import { generateId } from "../utils";
 import { ScreenshotService } from "../vision";
-import { StagehandPage } from "../StagehandPage";
+import { CDPSession } from "playwright";
 
 export class StagehandObserveHandler {
   private readonly stagehand: Stagehand;
@@ -17,19 +18,22 @@ export class StagehandObserveHandler {
       instruction: string;
     };
   };
-
+  private readonly userProvidedInstructions?: string;
   constructor({
     stagehand,
     logger,
     stagehandPage,
+    userProvidedInstructions,
   }: {
     stagehand: Stagehand;
     logger: (logLine: LogLine) => void;
     stagehandPage: StagehandPage;
+    userProvidedInstructions?: string;
   }) {
     this.stagehand = stagehand;
     this.logger = logger;
     this.stagehandPage = stagehandPage;
+    this.userProvidedInstructions = userProvidedInstructions;
     this.observations = {};
   }
 
@@ -50,7 +54,6 @@ export class StagehandObserveHandler {
     fullPage,
     llmClient,
     requestId,
-    domSettleTimeoutMs,
     useAccessibilityTree = false,
   }: {
     instruction: string;
@@ -78,37 +81,35 @@ export class StagehandObserveHandler {
 
     let outputString: string;
     let selectorMap: Record<string, string[]> = {};
-    let backendNodeIdMap: Record<string, number> = {};
-    let accessibilityData = "";
+    const backendNodeIdMap: Record<string, number> = {};
 
     await this.stagehandPage.startDomDebug();
-    const cdpClient = await this.stagehandPage.context.newCDPSession(this.stagehandPage.page);
+    const cdpClient = await this.stagehandPage.context.newCDPSession(
+      this.stagehandPage.page,
+    );
     await cdpClient.send("DOM.enable");
 
-    const evalResult = await this.stagehand.page.evaluate(
-      async (fullPage: boolean) => {
-        const result = await window.processAllOfDom();
-        return result;
-      },
-      fullPage,
-    );
+    const evalResult = await this.stagehand.page.evaluate(async () => {
+      const result = await window.processAllOfDom();
+      return result;
+    });
 
     // For each element in the selector map, get its backendNodeId
     for (const [index, xpaths] of Object.entries(evalResult.selectorMap)) {
       try {
         // Use the first xpath to find the element
         const xpath = xpaths[0];
-        const { result } = await cdpClient.send('Runtime.evaluate', {
+        const { result } = await cdpClient.send("Runtime.evaluate", {
           expression: `document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
-          returnByValue: false
+          returnByValue: false,
         });
 
         if (result.objectId) {
           // Get the node details using CDP
-          const { node } = await cdpClient.send('DOM.describeNode', {
+          const { node } = await cdpClient.send("DOM.describeNode", {
             objectId: result.objectId,
             depth: -1,
-            pierce: true
+            pierce: true,
           });
 
           if (node.backendNodeId) {
@@ -116,7 +117,10 @@ export class StagehandObserveHandler {
           }
         }
       } catch (error) {
-        console.warn(`Failed to get backendNodeId for element ${index}:`, error);
+        console.warn(
+          `Failed to get backendNodeId for element ${index}:`,
+          error,
+        );
         continue;
       }
     }
@@ -135,7 +139,7 @@ export class StagehandObserveHandler {
       });
 
       outputString = tree.simplified;
-    } 
+    }
 
     let annotatedScreenshot: Buffer | undefined;
     if (useVision === true) {
@@ -171,21 +175,30 @@ export class StagehandObserveHandler {
       llmClient,
       image: annotatedScreenshot,
       requestId,
+      userProvidedInstructions: this.userProvidedInstructions,
+      logger: this.logger,
       isUsingAccessibilityTree: useAccessibilityTree,
     });
     console.log(
       `\n\nobservationResponse: ${JSON.stringify(observationResponse)}`,
     );
-    const elementsWithSelectors = await Promise.all(observationResponse.elements.map(
-      async (element) => {
+    const elementsWithSelectors = await Promise.all(
+      observationResponse.elements.map(async (element) => {
         const { elementId, ...rest } = element;
 
         if (useAccessibilityTree) {
-          const index = Object.entries(backendNodeIdMap).find(([_, value]) => value === elementId)?.[0];
+          const index = Object.entries(backendNodeIdMap).find(
+            ([, value]) => value === elementId,
+          )?.[0];
           if (!index || !selectorMap[index]?.[0]) {
             // Generate xpath for the given element if not found in selectorMap
-            const { object } = await cdpClient.send('DOM.resolveNode', { backendNodeId: elementId });
-            const xpath = await getXPathByResolvedObjectId(cdpClient,object.objectId);
+            const { object } = await cdpClient.send("DOM.resolveNode", {
+              backendNodeId: elementId,
+            });
+            const xpath = await getXPathByResolvedObjectId(
+              cdpClient,
+              object.objectId,
+            );
             return {
               ...rest,
               selector: xpath,
@@ -204,8 +217,8 @@ export class StagehandObserveHandler {
           selector: `xpath=${selectorMap[elementId][0]}`,
           backendNodeId: backendNodeIdMap[elementId],
         };
-      },
-    ));
+      }),
+    );
 
     await this.stagehandPage.cleanupDomDebug();
 
@@ -232,6 +245,8 @@ type AccessibilityNode = {
   description?: string;
   value?: string;
   children?: AccessibilityNode[];
+  childIds?: string[];
+  parentId?: string;
   nodeId?: string;
 };
 
@@ -242,17 +257,19 @@ interface TreeResult {
 
 // Parser function for str output
 function formatSimplifiedTree(node: AccessibilityNode, level = 0): string {
-  const indent = '  '.repeat(level);
-  let result = `${indent}[${node.nodeId}] ${node.role}${node.name ? `: ${node.name}` : ''}\n`;
-  
+  const indent = "  ".repeat(level);
+  let result = `${indent}[${node.nodeId}] ${node.role}${node.name ? `: ${node.name}` : ""}\n`;
+
   if (node.children?.length) {
-    result += node.children.map(child => formatSimplifiedTree(child, level + 1)).join('');
+    result += node.children
+      .map((child) => formatSimplifiedTree(child, level + 1))
+      .join("");
   }
   return result;
 }
 
 // Constructs the hierarchichal representation of the a11y tree
-function buildHierarchicalTree(nodes: any[]): TreeResult {
+function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
   const nodeMap = new Map<string, AccessibilityNode>();
 
   // First pass: Create all important nodes
@@ -290,9 +307,9 @@ function buildHierarchicalTree(nodes: any[]): TreeResult {
   });
   // console.log(nodeMap);
 
-  const initialTree = nodes
-    .filter(node => !node.parentId && nodeMap.has(node.nodeId))
-    .map(node => nodeMap.get(node.nodeId))
+  nodes
+    .filter((node) => !node.parentId && nodeMap.has(node.nodeId))
+    .map((node) => nodeMap.get(node.nodeId))
     .filter(Boolean) as AccessibilityNode[];
 
   // Third pass: Clean up generic and none nodes by lifting their children
@@ -321,17 +338,19 @@ function buildHierarchicalTree(nodes: any[]): TreeResult {
   }
 
   const finalTree = nodes
-  .filter(node => !node.parentId && nodeMap.has(node.nodeId))
-  .map(node => nodeMap.get(node.nodeId))
-  .filter(Boolean)
-  .map(node => cleanStructuralNodes(node))
-  .filter(Boolean) as AccessibilityNode[];
+    .filter((node) => !node.parentId && nodeMap.has(node.nodeId))
+    .map((node) => nodeMap.get(node.nodeId))
+    .filter(Boolean)
+    .map((node) => cleanStructuralNodes(node))
+    .filter(Boolean) as AccessibilityNode[];
 
-  const simplifiedFormat = finalTree.map(node => formatSimplifiedTree(node)).join('\n');
+  const simplifiedFormat = finalTree
+    .map((node) => formatSimplifiedTree(node))
+    .join("\n");
 
   return {
     tree: finalTree,
-    simplified: simplifiedFormat
+    simplified: simplifiedFormat,
   };
 }
 
@@ -357,19 +376,19 @@ async function getAccessibilityTree(page: StagehandPage) {
     const hierarchicalTree = buildHierarchicalTree(sources);
 
     return hierarchicalTree;
-
   } catch (error) {
-
     console.error("Error in getAccessibilityTree:", error);
     throw error;
-    
   } finally {
     await cdpClient.send("Accessibility.disable");
   }
 }
 
-async function getXPathByResolvedObjectId(cdpClient: any, resolvedObjectId: string): Promise<string> {
-  const { result } = await cdpClient.send('Runtime.callFunctionOn', {
+async function getXPathByResolvedObjectId(
+  cdpClient: CDPSession,
+  resolvedObjectId: string,
+): Promise<string> {
+  const { result } = await cdpClient.send("Runtime.callFunctionOn", {
     objectId: resolvedObjectId,
     functionDeclaration: `function() {
       function getNodePath(node) {
@@ -402,8 +421,8 @@ async function getXPathByResolvedObjectId(cdpClient: any, resolvedObjectId: stri
       
       return getNodePath(this);
     }`,
-    returnByValue: true
+    returnByValue: true,
   });
 
-  return result.value || '';
+  return result.value || "";
 }

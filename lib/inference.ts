@@ -1,28 +1,27 @@
-import {
-  actTools,
-  buildActSystemPrompt,
-  buildActUserPrompt,
-  buildAskSystemPrompt,
-  buildExtractSystemPrompt,
-  buildExtractUserPrompt,
-  buildObserveSystemPrompt,
-  buildObserveUserMessage,
-  buildAskUserPrompt,
-  buildVerifyActCompletionSystemPrompt,
-  buildVerifyActCompletionUserPrompt,
-  buildRefineSystemPrompt,
-  buildRefineUserPrompt,
-  buildMetadataSystemPrompt,
-  buildMetadataPrompt,
-} from "./prompt";
 import { z } from "zod";
+import { ActCommandParams, ActCommandResult } from "../types/act";
+import { VerifyActCompletionParams } from "../types/inference";
+import { LogLine } from "../types/log";
 import {
   AnnotatedScreenshotText,
   ChatMessage,
   LLMClient,
 } from "./llm/LLMClient";
-import { VerifyActCompletionParams } from "../types/inference";
-import { ActResult, ActParams } from "../types/act";
+import {
+  actTools,
+  buildActSystemPrompt,
+  buildActUserPrompt,
+  buildExtractSystemPrompt,
+  buildExtractUserPrompt,
+  buildMetadataPrompt,
+  buildMetadataSystemPrompt,
+  buildObserveSystemPrompt,
+  buildObserveUserMessage,
+  buildRefineSystemPrompt,
+  buildRefineUserPrompt,
+  buildVerifyActCompletionSystemPrompt,
+  buildVerifyActCompletionUserPrompt,
+} from "./prompt";
 
 export async function verifyActCompletion({
   goal,
@@ -40,25 +39,28 @@ export async function verifyActCompletion({
   type VerificationResponse = z.infer<typeof verificationSchema>;
 
   const response = await llmClient.createChatCompletion<VerificationResponse>({
-    messages: [
-      buildVerifyActCompletionSystemPrompt(),
-      buildVerifyActCompletionUserPrompt(goal, steps, domElements),
-    ],
-    temperature: 0.1,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0,
-    image: screenshot
-      ? {
-          buffer: screenshot,
-          description: "This is a screenshot of the whole visible page.",
-        }
-      : undefined,
-    response_model: {
-      name: "Verification",
-      schema: verificationSchema,
+    options: {
+      messages: [
+        buildVerifyActCompletionSystemPrompt(),
+        buildVerifyActCompletionUserPrompt(goal, steps, domElements),
+      ],
+      temperature: 0.1,
+      top_p: 1,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+      image: screenshot
+        ? {
+            buffer: screenshot,
+            description: "This is a screenshot of the whole visible page.",
+          }
+        : undefined,
+      response_model: {
+        name: "Verification",
+        schema: verificationSchema,
+      },
+      requestId,
     },
-    requestId,
+    logger,
   });
 
   if (!response || typeof response !== "object") {
@@ -102,24 +104,28 @@ export async function act({
   logger,
   requestId,
   variables,
-}: ActParams): Promise<ActResult | null> {
+  userProvidedInstructions,
+}: ActCommandParams): Promise<ActCommandResult | null> {
   const messages: ChatMessage[] = [
-    buildActSystemPrompt(),
+    buildActSystemPrompt(userProvidedInstructions),
     buildActUserPrompt(action, steps, domElements, variables),
   ];
 
   const response = await llmClient.createChatCompletion({
-    messages,
-    temperature: 0.1,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0,
-    tool_choice: "auto" as const,
-    tools: actTools,
-    image: screenshot
-      ? { buffer: screenshot, description: AnnotatedScreenshotText }
-      : undefined,
-    requestId,
+    options: {
+      messages,
+      temperature: 0.1,
+      top_p: 1,
+      frequency_penalty: 0,
+      presence_penalty: 0,
+      tool_choice: "auto" as const,
+      tools: actTools,
+      image: screenshot
+        ? { buffer: screenshot, description: AnnotatedScreenshotText }
+        : undefined,
+      requestId,
+    },
+    logger,
   });
 
   const toolCalls = response.choices[0].message.tool_calls;
@@ -160,8 +166,9 @@ export async function extract({
   chunksSeen,
   chunksTotal,
   requestId,
+  logger,
   isUsingTextExtract,
-  isUsingAccessibilityExtract,
+  userProvidedInstructions,
 }: {
   instruction: string;
   previouslyExtractedContent: object;
@@ -172,51 +179,59 @@ export async function extract({
   chunksTotal: number;
   requestId: string;
   isUsingTextExtract?: boolean;
-  isUsingAccessibilityExtract?: boolean;
+  userProvidedInstructions?: string;
+  logger: (message: LogLine) => void;
 }) {
   type ExtractionResponse = z.infer<typeof schema>;
   type MetadataResponse = z.infer<typeof metadataSchema>;
+  // TODO: antipattern
   const isUsingAnthropic = llmClient.type === "anthropic";
 
   const extractionResponse = await llmClient.createChatCompletion({
-    messages: [
-      buildExtractSystemPrompt(
-        isUsingAnthropic,
-        isUsingTextExtract,
-        isUsingAccessibilityExtract,
-      ),
-      buildExtractUserPrompt(instruction, domElements, isUsingAnthropic),
-    ],
-    response_model: {
-      schema: schema,
-      name: "Extraction",
-    },
-    temperature: 0.1,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0,
-    requestId,
-  });
-
-  const refinedResponse =
-    await llmClient.createChatCompletion<ExtractionResponse>({
+    options: {
       messages: [
-        buildRefineSystemPrompt(),
-        buildRefineUserPrompt(
-          instruction,
-          previouslyExtractedContent,
-          extractionResponse,
+        buildExtractSystemPrompt(
+          isUsingAnthropic,
+          isUsingTextExtract,
+          userProvidedInstructions,
         ),
+        buildExtractUserPrompt(instruction, domElements, isUsingAnthropic),
       ],
       response_model: {
         schema: schema,
-        name: "RefinedExtraction",
+        name: "Extraction",
       },
       temperature: 0.1,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
       requestId,
+    },
+    logger,
+  });
+
+  const refinedResponse =
+    await llmClient.createChatCompletion<ExtractionResponse>({
+      options: {
+        messages: [
+          buildRefineSystemPrompt(),
+          buildRefineUserPrompt(
+            instruction,
+            previouslyExtractedContent,
+            extractionResponse,
+          ),
+        ],
+        response_model: {
+          schema: schema,
+          name: "RefinedExtraction",
+        },
+        temperature: 0.1,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        requestId,
+      },
+      logger,
     });
 
   const metadataSchema = z.object({
@@ -234,24 +249,27 @@ export async function extract({
 
   const metadataResponse =
     await llmClient.createChatCompletion<MetadataResponse>({
-      messages: [
-        buildMetadataSystemPrompt(),
-        buildMetadataPrompt(
-          instruction,
-          refinedResponse,
-          chunksSeen,
-          chunksTotal,
-        ),
-      ],
-      response_model: {
-        name: "Metadata",
-        schema: metadataSchema,
+      options: {
+        messages: [
+          buildMetadataSystemPrompt(),
+          buildMetadataPrompt(
+            instruction,
+            refinedResponse,
+            chunksSeen,
+            chunksTotal,
+          ),
+        ],
+        response_model: {
+          name: "Metadata",
+          schema: metadataSchema,
+        },
+        temperature: 0.1,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        requestId,
       },
-      temperature: 0.1,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-      requestId,
+      logger,
     });
 
   return {
@@ -267,12 +285,16 @@ export async function observe({
   image,
   requestId,
   isUsingAccessibilityTree = false,
+  userProvidedInstructions,
+  logger,
 }: {
   instruction: string;
   domElements: string;
   llmClient: LLMClient;
   image?: Buffer;
   requestId: string;
+  userProvidedInstructions?: string;
+  logger: (message: LogLine) => void;
   isUsingAccessibilityTree?: boolean;
 }) {
   const observeSchema = z.object({
@@ -283,66 +305,57 @@ export async function observe({
           description: z
             .string()
             .describe(
-              isUsingAccessibilityTree 
+              isUsingAccessibilityTree
                 ? "a description of the accessible element and its purpose"
                 : "a description of the element and what it is relevant for",
             ),
         }),
       )
-      .describe(isUsingAccessibilityTree 
-        ? "an array of accessible elements that match the instruction"
-        : "an array of elements that match the instruction"),
+      .describe(
+        isUsingAccessibilityTree
+          ? "an array of accessible elements that match the instruction"
+          : "an array of elements that match the instruction",
+      ),
   });
 
   type ObserveResponse = z.infer<typeof observeSchema>;
 
   const observationResponse =
     await llmClient.createChatCompletion<ObserveResponse>({
-      messages: [
-        buildObserveSystemPrompt(isUsingAccessibilityTree),
-        buildObserveUserMessage(instruction, domElements, isUsingAccessibilityTree),
-      ],
-      image: image
-        ? { buffer: image, description: AnnotatedScreenshotText }
-        : undefined,
-      response_model: {
-        schema: observeSchema,
-        name: "Observation",
+      options: {
+        messages: [
+          buildObserveSystemPrompt(
+            userProvidedInstructions,
+            isUsingAccessibilityTree,
+          ),
+          buildObserveUserMessage(
+            instruction,
+            domElements,
+            isUsingAccessibilityTree,
+          ),
+        ],
+        image: image
+          ? { buffer: image, description: AnnotatedScreenshotText }
+          : undefined,
+        response_model: {
+          schema: observeSchema,
+          name: "Observation",
+        },
+        temperature: 0.1,
+        top_p: 1,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        requestId,
       },
-      temperature: 0.1,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0,
-      requestId,
+      logger,
     });
-
-  return {
+  const parsedResponse = {
     elements:
       observationResponse.elements?.map((el) => ({
         elementId: Number(el.elementId),
         description: String(el.description),
       })) ?? [],
-  };
-}
+  } satisfies { elements: { elementId: number; description: string }[] };
 
-export async function ask({
-  question,
-  llmClient,
-  requestId,
-}: {
-  question: string;
-  llmClient: LLMClient;
-  requestId: string;
-}) {
-  const response = await llmClient.createChatCompletion({
-    messages: [buildAskSystemPrompt(), buildAskUserPrompt(question)],
-    temperature: 0.1,
-    top_p: 1,
-    frequency_penalty: 0,
-    presence_penalty: 0,
-    requestId,
-  });
-
-  // The parsing is now handled in the LLM clients
-  return response.choices[0].message.content;
+  return parsedResponse;
 }

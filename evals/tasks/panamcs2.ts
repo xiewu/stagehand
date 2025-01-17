@@ -1,20 +1,26 @@
 import { initStagehand } from "../initStagehand";
 import { EvalFunction } from "../../types/evals";
 
-export const panamcs2: EvalFunction = async ({ modelName, logger, useAccessibilityTree }) => {
+export const panamcs2: EvalFunction = async ({
+  modelName,
+  logger,
+  useAccessibilityTree,
+}) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
-  const cdpClient  = await stagehand.page.context().newCDPSession(stagehand.page);
+  const cdpClient = await stagehand.page
+    .context()
+    .newCDPSession(stagehand.page);
 
   await stagehand.page.goto("https://panamcs.org/about/staff/");
 
   const observations = await stagehand.page.observe({
     instruction: "find all the links for the people in the page",
-    useAccessibilityTree: useAccessibilityTree
+    useAccessibilityTree: useAccessibilityTree,
   });
 
   if (observations.length === 0 || observations.length < 47) {
@@ -28,13 +34,11 @@ export const panamcs2: EvalFunction = async ({ modelName, logger, useAccessibili
     };
   }
 
-
   let foundMatches = true;
   const expectedLocator = `a.btn:nth-child(3)`;
 
   if (useAccessibilityTree) {
-
-    for (const observation of observations) { 
+    for (const observation of observations) {
       // const { object } = await cdpClient.send('DOM.resolveNode', { backendNodeId: parseInt(observation.selector) });
       // const { result } = await cdpClient.send('Runtime.callFunctionOn', {
       //   objectId: object.objectId,
@@ -43,12 +47,12 @@ export const panamcs2: EvalFunction = async ({ modelName, logger, useAccessibili
 
       // console.log(result.value);
 
-      const { node } = await cdpClient.send('DOM.describeNode', { 
+      const { node } = await cdpClient.send("DOM.describeNode", {
         backendNodeId: parseInt(observation.selector),
         depth: -1,
-        pierce: true
+        pierce: true,
       });
-      if (node.nodeName !== 'A') {
+      if (node.nodeName !== "A") {
         foundMatches = false;
         break;
       }
@@ -70,7 +74,7 @@ export const panamcs2: EvalFunction = async ({ modelName, logger, useAccessibili
       .first()
       .innerText();
 
-    let foundMatch = false;
+    // let foundMatch = false;
     for (const observation of observations) {
       try {
         const observationResult = await stagehand.page
@@ -79,7 +83,7 @@ export const panamcs2: EvalFunction = async ({ modelName, logger, useAccessibili
           .innerText();
 
         if (observationResult === expectedResult) {
-          foundMatch = true;
+          // foundMatch = true;
           break;
         }
       } catch (error) {
