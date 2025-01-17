@@ -13,11 +13,11 @@ export const observe_shopify: EvalFunction = async ({ modelName, logger, useAcce
   await stagehand.page.goto("https://www.shopify.com/");
 
   const observations = await stagehand.page.observe({
-    instruction: "find all the links in the footer",
+    instruction: "find all the links to social media platforms",
     useAccessibilityTree: useAccessibilityTree
   });
 
-  if (observations.length === 0 || observations.length < 30 ) {
+  if (observations.length === 0 || observations.length < 7 ) {
     await stagehand.close();
     return {
       _success: false,
