@@ -314,25 +314,19 @@ jobs:
       - name: Install Playwright browsers
         run: npm exec playwright install --with-deps
 
-      # 1. Run with textExtract
+      # 1. Run text_extract category with textExtract first
       - name: Run text_extract Evals (textExtract)
         run: npm run evals category text_extract -- --extract-method=textExtract
       - name: Save text_extract Text Results
         run: mv eval-summary.json eval-summary-text_extract-text.json
 
-      # 2. Run with domExtract
+      # 2. Then run text_extract category with domExtract
       - name: Run text_extract Evals (domExtract)
         run: npm run evals category text_extract -- --extract-method=domExtract
       - name: Save text_extract Dom Results
         run: mv eval-summary.json eval-summary-text_extract-dom.json
 
-      # 3. Run with accessibilityExtract
-      - name: Run text_extract Evals (accessibilityExtract)
-        run: npm run evals category text_extract -- --extract-method=accessibility
-      - name: Save text_extract Accessibility Results
-        run: mv eval-summary.json eval-summary-text_extract-accessibility.json
-
-      # 4. Log and Compare Performance
+      # 3. Log and Compare text_extract Evals Performance
       - name: Log and Compare text_extract Evals Performance
         run: |
           experimentNameText=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
@@ -345,12 +339,7 @@ jobs:
           echo "DomExtract text_extract category score: $dom_score%"
           echo "View domExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
 
-          experimentNameAccess=$(jq -r '.experimentName' eval-summary-text_extract-accessibility.json)
-          accessibility_score=$(jq '.categories.text_extract' eval-summary-text_extract-accessibility.json)
-          echo "AccessibilityExtract text_extract category score: $accessibility_score%"
-          echo "View accessibilityExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameAccess}"
-
-          # If textExtract <80% fail CI (keeping original criteria)
+          # 4. If textExtract (for text_extract category) <80% fail CI
           if (( $(echo "$text_score < 80" | bc -l) )); then
             echo "textExtract text_extract category score is below 80%. Failing CI."
             exit 1

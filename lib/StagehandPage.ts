@@ -405,7 +405,6 @@ export class StagehandPage {
         requestId,
         domSettleTimeoutMs,
         useTextExtract,
-        useAccessibilityTree,
       })
       .catch((e) => {
         this.stagehand.log({
