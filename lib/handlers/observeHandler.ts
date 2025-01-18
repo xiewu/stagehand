@@ -84,10 +84,7 @@ export class StagehandObserveHandler {
     const backendNodeIdMap: Record<string, number> = {};
 
     await this.stagehandPage.startDomDebug();
-    const cdpClient = await this.stagehandPage.context.newCDPSession(
-      this.stagehandPage.page,
-    );
-    await cdpClient.send("DOM.enable");
+    await this.stagehandPage.enableCDP('DOM');
 
     const evalResult = await this.stagehand.page.evaluate(async () => {
       const result = await window.processAllOfDom();
@@ -99,14 +96,14 @@ export class StagehandObserveHandler {
       try {
         // Use the first xpath to find the element
         const xpath = xpaths[0];
-        const { result } = await cdpClient.send("Runtime.evaluate", {
+        const { result } = await this.stagehandPage.sendCDP<{ result: { objectId: string } }>("Runtime.evaluate", {
           expression: `document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
           returnByValue: false,
         });
 
         if (result.objectId) {
           // Get the node details using CDP
-          const { node } = await cdpClient.send("DOM.describeNode", {
+          const { node } = await this.stagehandPage.sendCDP<{ node: { backendNodeId: number } }>("DOM.describeNode", {
             objectId: result.objectId,
             depth: -1,
             pierce: true,
@@ -125,12 +122,11 @@ export class StagehandObserveHandler {
       }
     }
 
-    await cdpClient.send("DOM.disable");
+    await this.stagehandPage.disableCDP('DOM');
     ({ outputString, selectorMap } = evalResult);
 
     if (useAccessibilityTree) {
-      console.log("Getting accessibility tree...");
-      const tree = await getAccessibilityTree(this.stagehandPage);
+      const tree = await getAccessibilityTree(this.stagehandPage, this.logger);
 
       this.logger({
         category: "observation",
@@ -179,9 +175,6 @@ export class StagehandObserveHandler {
       logger: this.logger,
       isUsingAccessibilityTree: useAccessibilityTree,
     });
-    console.log(
-      `\n\nobservationResponse: ${JSON.stringify(observationResponse)}`,
-    );
     const elementsWithSelectors = await Promise.all(
       observationResponse.elements.map(async (element) => {
         const { elementId, ...rest } = element;
@@ -192,11 +185,11 @@ export class StagehandObserveHandler {
           )?.[0];
           if (!index || !selectorMap[index]?.[0]) {
             // Generate xpath for the given element if not found in selectorMap
-            const { object } = await cdpClient.send("DOM.resolveNode", {
+            const { object } = await this.stagehandPage.sendCDP<{ object: { objectId: string } }>("DOM.resolveNode", {
               backendNodeId: elementId,
             });
             const xpath = await getXPathByResolvedObjectId(
-              cdpClient,
+              await this.stagehandPage.getCDPClient(),
               object.objectId,
             );
             return {
@@ -354,13 +347,11 @@ function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
   };
 }
 
-async function getAccessibilityTree(page: StagehandPage) {
-  console.log("Starting getAccessibilityTree");
-  const cdpClient = await page.context.newCDPSession(page.page);
-  await cdpClient.send("Accessibility.enable");
+async function getAccessibilityTree(page: StagehandPage, logger: (logLine: LogLine) => void) {
+  await page.enableCDP("Accessibility");
 
   try {
-    const { nodes } = await cdpClient.send("Accessibility.getFullAXTree");
+    const { nodes } = await page.sendCDP<{ nodes: any[] }>("Accessibility.getFullAXTree");
 
     // Extract specific sources
     const sources = nodes.map((node) => ({
@@ -377,10 +368,24 @@ async function getAccessibilityTree(page: StagehandPage) {
 
     return hierarchicalTree;
   } catch (error) {
-    console.error("Error in getAccessibilityTree:", error);
+    this.logger({
+      category: "observation",
+      message: "Error getting accessibility tree",
+      level: 1,
+      auxiliary: {
+        error: {
+          value: error.message,
+          type: "string",
+        },
+        trace: {
+          value: error.stack,
+          type: "string",
+        },
+      },
+    });
     throw error;
   } finally {
-    await cdpClient.send("Accessibility.disable");
+    await page.disableCDP("Accessibility");
   }
 }
 

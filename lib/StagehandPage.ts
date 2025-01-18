@@ -1,7 +1,9 @@
 import type {
   Page as PlaywrightPage,
   BrowserContext as PlaywrightContext,
+  CDPSession,
 } from "@playwright/test";
+import { Protocol } from "playwright-core/types/protocol";
 import { LLMClient } from "./llm/LLMClient";
 import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
 import { StagehandActHandler } from "./handlers/actHandler";
@@ -25,6 +27,7 @@ export class StagehandPage {
   private extractHandler: StagehandExtractHandler;
   private observeHandler: StagehandObserveHandler;
   private llmClient: LLMClient;
+  private cdpClient: CDPSession | null = null;
 
   constructor(
     page: PlaywrightPage,
@@ -510,5 +513,25 @@ export class StagehandPage {
 
         throw e;
       });
+  }
+
+  async getCDPClient(): Promise<CDPSession> {
+    if (!this.cdpClient) {
+      this.cdpClient = await this.context.newCDPSession(this.page);
+    }
+    return this.cdpClient;
+  }
+
+  async sendCDP<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+    const client = await this.getCDPClient();
+    return client.send(command as any, args || {}) as Promise<T>;
+  }
+
+  async enableCDP(domain: string): Promise<void> {
+    await this.sendCDP(`${domain}.enable`, {});
+  }
+
+  async disableCDP(domain: string): Promise<void> {
+    await this.sendCDP(`${domain}.disable`, {});
   }
 }
