@@ -22,7 +22,7 @@ export interface ConstructorParams {
   modelName?: AvailableModel;
   llmClient?: LLMClient;
   modelClientOptions?: ClientOptions;
-  unsafeMode?: boolean;
+  unsafeIframeSupport?: boolean;
 }
 
 export interface InitOptions {

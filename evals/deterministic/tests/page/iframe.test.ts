@@ -7,7 +7,7 @@ test.describe("StagehandPage - iframe support", () => {
   test("should be able to click on the support button in iframe", async () => {
     const stagehand = new Stagehand({
       ...StagehandConfig,
-      unsafeMode: true,
+      unsafeIframeSupport: true,
     });
     await stagehand.init();
 

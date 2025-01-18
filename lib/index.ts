@@ -48,7 +48,7 @@ async function getBrowser(
   logger: (message: LogLine) => void,
   browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams,
   browserbaseSessionID?: string,
-  shouldUseUnsafeMode: boolean = false,
+  unsafeIframeSupport: boolean = false,
 ): Promise<BrowserResult> {
   if (env === "BROWSERBASE") {
     if (!apiKey) {
@@ -148,9 +148,12 @@ async function getBrowser(
       const session = await browserbase.sessions.create({
         projectId,
         ...browserbaseSessionCreateParams,
-        ...(shouldUseUnsafeMode
+        ...(unsafeIframeSupport
           ? {
-              unsafeMode: true,
+              browserSettings: {
+                // @ts-ignore - Will be added to SDK types in the future
+                unsafeMode: true,
+              },
             }
           : {}),
       });
@@ -253,7 +256,7 @@ async function getBrowser(
           "--use-gl=swiftshader",
           "--enable-accelerated-2d-canvas",
           "--disable-blink-features=AutomationControlled",
-          ...(shouldUseUnsafeMode
+          ...(unsafeIframeSupport
             ? [
                 "--disable-web-security",
                 "--disable-site-isolation-trials",
@@ -340,7 +343,7 @@ export class Stagehand {
   public variables: { [key: string]: unknown };
   private contextPath?: string;
   private llmClient: LLMClient;
-  private unsafeMode: boolean;
+  private unsafeIframeSupport: boolean;
 
   constructor(
     {
@@ -359,7 +362,7 @@ export class Stagehand {
       browserbaseSessionID,
       modelName,
       modelClientOptions,
-      unsafeMode,
+      unsafeIframeSupport,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
@@ -385,7 +388,7 @@ export class Stagehand {
     this.headless = headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
     this.browserbaseSessionID = browserbaseSessionID;
-    this.unsafeMode = unsafeMode ?? false;
+    this.unsafeIframeSupport = unsafeIframeSupport ?? false;
   }
 
   public get logger(): (logLine: LogLine) => void {
@@ -439,7 +442,7 @@ export class Stagehand {
         this.logger,
         this.browserbaseSessionCreateParams,
         this.browserbaseSessionID,
-        this.unsafeMode,
+        this.unsafeIframeSupport,
       ).catch((e) => {
         console.error("Error in init:", e);
         const br: BrowserResult = {
