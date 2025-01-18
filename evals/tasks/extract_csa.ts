@@ -100,7 +100,7 @@ export const extract_csa: EvalFunction = async ({
         },
         actual: {
           value: JSON.stringify(publications),
-          type: "array",
+          type: "object",
         },
       },
     });
@@ -133,7 +133,7 @@ export const extract_csa: EvalFunction = async ({
         },
         actual: {
           value: JSON.stringify(publications),
-          type: "array",
+          type: "object",
         },
       },
     });
