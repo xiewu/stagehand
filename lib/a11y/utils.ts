@@ -4,7 +4,10 @@ import { LogLine } from "../../types/log";
 import { CDPSession } from "playwright";
 
 // Parser function for str output
-export function formatSimplifiedTree(node: AccessibilityNode, level = 0): string {
+export function formatSimplifiedTree(
+  node: AccessibilityNode,
+  level = 0,
+): string {
   const indent = "  ".repeat(level);
   let result = `${indent}[${node.nodeId}] ${node.role}${node.name ? `: ${node.name}` : ""}\n`;
 

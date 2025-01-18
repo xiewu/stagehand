@@ -5,7 +5,10 @@ import { LLMClient } from "../llm/LLMClient";
 import { StagehandPage } from "../StagehandPage";
 import { generateId } from "../utils";
 import { ScreenshotService } from "../vision";
-import { getAccessibilityTree, getXPathByResolvedObjectId } from "../a11y/utils";
+import {
+  getAccessibilityTree,
+  getXPathByResolvedObjectId,
+} from "../a11y/utils";
 
 export class StagehandObserveHandler {
   private readonly stagehand: Stagehand;
