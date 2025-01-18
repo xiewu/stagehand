@@ -84,7 +84,7 @@ export class StagehandObserveHandler {
     const backendNodeIdMap: Record<string, number> = {};
 
     await this.stagehandPage.startDomDebug();
-    await this.stagehandPage.enableCDP('DOM');
+    await this.stagehandPage.enableCDP("DOM");
 
     const evalResult = await this.stagehand.page.evaluate(async () => {
       const result = await window.processAllOfDom();
@@ -96,14 +96,18 @@ export class StagehandObserveHandler {
       try {
         // Use the first xpath to find the element
         const xpath = xpaths[0];
-        const { result } = await this.stagehandPage.sendCDP<{ result: { objectId: string } }>("Runtime.evaluate", {
+        const { result } = await this.stagehandPage.sendCDP<{
+          result: { objectId: string };
+        }>("Runtime.evaluate", {
           expression: `document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
           returnByValue: false,
         });
 
         if (result.objectId) {
           // Get the node details using CDP
-          const { node } = await this.stagehandPage.sendCDP<{ node: { backendNodeId: number } }>("DOM.describeNode", {
+          const { node } = await this.stagehandPage.sendCDP<{
+            node: { backendNodeId: number };
+          }>("DOM.describeNode", {
             objectId: result.objectId,
             depth: -1,
             pierce: true,
@@ -122,7 +126,7 @@ export class StagehandObserveHandler {
       }
     }
 
-    await this.stagehandPage.disableCDP('DOM');
+    await this.stagehandPage.disableCDP("DOM");
     ({ outputString, selectorMap } = evalResult);
 
     if (useAccessibilityTree) {
@@ -185,7 +189,9 @@ export class StagehandObserveHandler {
           )?.[0];
           if (!index || !selectorMap[index]?.[0]) {
             // Generate xpath for the given element if not found in selectorMap
-            const { object } = await this.stagehandPage.sendCDP<{ object: { objectId: string } }>("DOM.resolveNode", {
+            const { object } = await this.stagehandPage.sendCDP<{
+              object: { objectId: string };
+            }>("DOM.resolveNode", {
               backendNodeId: elementId,
             });
             const xpath = await getXPathByResolvedObjectId(
@@ -347,11 +353,26 @@ function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
   };
 }
 
-async function getAccessibilityTree(page: StagehandPage, logger: (logLine: LogLine) => void) {
+interface AXNode {
+  role?: { value: string };
+  name?: { value: string };
+  description?: { value: string };
+  value?: { value: string };
+  nodeId: string;
+  parentId?: string;
+  childIds?: string[];
+}
+
+async function getAccessibilityTree(
+  page: StagehandPage,
+  logger: (logLine: LogLine) => void,
+) {
   await page.enableCDP("Accessibility");
 
   try {
-    const { nodes } = await page.sendCDP<{ nodes: any[] }>("Accessibility.getFullAXTree");
+    const { nodes } = await page.sendCDP<{ nodes: AXNode[] }>(
+      "Accessibility.getFullAXTree",
+    );
 
     // Extract specific sources
     const sources = nodes.map((node) => ({
@@ -368,7 +389,7 @@ async function getAccessibilityTree(page: StagehandPage, logger: (logLine: LogLi
 
     return hierarchicalTree;
   } catch (error) {
-    this.logger({
+    logger({
       category: "observation",
       message: "Error getting accessibility tree",
       level: 1,

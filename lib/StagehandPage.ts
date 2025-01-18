@@ -3,7 +3,6 @@ import type {
   BrowserContext as PlaywrightContext,
   CDPSession,
 } from "@playwright/test";
-import { Protocol } from "playwright-core/types/protocol";
 import { LLMClient } from "./llm/LLMClient";
 import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
 import { StagehandActHandler } from "./handlers/actHandler";
@@ -522,9 +521,16 @@ export class StagehandPage {
     return this.cdpClient;
   }
 
-  async sendCDP<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  async sendCDP<T>(
+    command: string,
+    args?: Record<string, unknown>,
+  ): Promise<T> {
     const client = await this.getCDPClient();
-    return client.send(command as any, args || {}) as Promise<T>;
+    // Type assertion needed because CDP command strings are not fully typed
+    return client.send(
+      command as Parameters<CDPSession["send"]>[0],
+      args || {},
+    ) as Promise<T>;
   }
 
   async enableCDP(domain: string): Promise<void> {
