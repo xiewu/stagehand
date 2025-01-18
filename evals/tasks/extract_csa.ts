@@ -39,13 +39,14 @@ export const extract_csa: EvalFunction = async ({
   await stagehand.close();
 
   const publications = result.publications;
-  const expectedLength = 15;
+  const expectedLength = 14;
 
   const expectedFirstItem = {
-    publication_date: "01-09-2025",
+    publication_date: "11-30-2024",
     session_type: "Regular Session",
     publication_type: "Assembly Weekly History",
-    annotation: "",
+    annotation:
+      "2024 -- This publication includes the complete histories of second-year bills. The complete electronic history of all bills is always available at leginfo.legislature.ca.gov",
   };
 
   const expectedLastItem = {
