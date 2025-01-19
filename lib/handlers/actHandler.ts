@@ -9,9 +9,9 @@ import { act, fillInVariables, verifyActCompletion } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { LLMProvider } from "../llm/LLMProvider";
 import { generateId, safeLocatorWithIframeSupport } from "../utils";
-import { ScreenshotService } from "../vision";
-import { StagehandPage } from "../StagehandPage";
 import { StagehandContext } from "../StagehandContext";
+import { StagehandPage } from "../StagehandPage";
+import { ScreenshotService } from "../vision";
 
 export class StagehandActHandler {
   private readonly stagehandPage: StagehandPage;
@@ -23,6 +23,7 @@ export class StagehandActHandler {
   private readonly actions: {
     [key: string]: { result: string; action: string };
   };
+  private readonly userProvidedInstructions?: string;
 
   constructor({
     verbose,
@@ -30,6 +31,7 @@ export class StagehandActHandler {
     enableCaching,
     logger,
     stagehandPage,
+    userProvidedInstructions,
   }: {
     verbose: 0 | 1 | 2;
     llmProvider: LLMProvider;
@@ -38,6 +40,7 @@ export class StagehandActHandler {
     llmClient: LLMClient;
     stagehandPage: StagehandPage;
     stagehandContext: StagehandContext;
+    userProvidedInstructions?: string;
   }) {
     this.verbose = verbose;
     this.llmProvider = llmProvider;
@@ -46,6 +49,7 @@ export class StagehandActHandler {
     this.actionCache = enableCaching ? new ActionCache(this.logger) : undefined;
     this.actions = {};
     this.stagehandPage = stagehandPage;
+    this.userProvidedInstructions = userProvidedInstructions;
   }
 
   private async _recordAction(action: string, result: string): Promise<string> {
@@ -1141,6 +1145,7 @@ export class StagehandActHandler {
         logger: this.logger,
         requestId,
         variables,
+        userProvidedInstructions: this.userProvidedInstructions,
       });
 
       this.logger({
@@ -1388,7 +1393,6 @@ export class StagehandActHandler {
           llmClient,
           domSettleTimeoutMs,
         }).catch((error) => {
-          console.log("error verifying action completion", error);
           this.logger({
             category: "action",
             message:
@@ -1397,6 +1401,10 @@ export class StagehandActHandler {
             auxiliary: {
               error: {
                 value: error.message,
+                type: "string",
+              },
+              trace: {
+                value: error.stack,
                 type: "string",
               },
             },

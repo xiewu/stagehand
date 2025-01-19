@@ -23,6 +23,10 @@ export interface ConstructorParams {
   llmClient?: LLMClient;
   modelClientOptions?: ClientOptions;
   unsafeIframeSupport?: boolean;
+  /**
+   * Instructions for stagehand.
+   */
+  systemPrompt?: string;
 }
 
 export interface InitOptions {

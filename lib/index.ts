@@ -338,11 +338,12 @@ export class Stagehand {
   private apiKey: string | undefined;
   private projectId: string | undefined;
   // We want external logger to accept async functions
-  private externalLogger?: (logLine: LogLine) => void | Promise<void>;
+  private externalLogger?: (logLine: LogLine) => void;
   private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   public variables: { [key: string]: unknown };
   private contextPath?: string;
   private llmClient: LLMClient;
+  private userProvidedInstructions?: string;
   private unsafeIframeSupport: boolean;
 
   constructor(
@@ -362,6 +363,7 @@ export class Stagehand {
       browserbaseSessionID,
       modelName,
       modelClientOptions,
+      systemPrompt,
       unsafeIframeSupport,
     }: ConstructorParams = {
       env: "BROWSERBASE",
@@ -378,17 +380,26 @@ export class Stagehand {
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
     this.verbose = verbose ?? 0;
     this.debugDom = debugDom ?? false;
-    this.llmClient =
-      llmClient ||
-      this.llmProvider.getClient(
-        modelName ?? DEFAULT_MODEL_NAME,
-        modelClientOptions,
-      );
+    if (llmClient) {
+      this.llmClient = llmClient;
+    } else {
+      try {
+        // try to set a default LLM client
+        this.llmClient = this.llmProvider.getClient(
+          modelName ?? DEFAULT_MODEL_NAME,
+          modelClientOptions,
+        );
+      } catch {
+        this.llmClient = undefined;
+      }
+    }
+
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
     this.headless = headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
     this.browserbaseSessionID = browserbaseSessionID;
     this.unsafeIframeSupport = unsafeIframeSupport ?? false;
+    this.userProvidedInstructions = systemPrompt;
   }
 
   public get logger(): (logLine: LogLine) => void {
@@ -463,6 +474,7 @@ export class Stagehand {
       this,
       this.stagehandContext,
       this.llmClient,
+      this.userProvidedInstructions,
     ).init();
 
     // Set the browser to headless mode if specified
@@ -635,3 +647,4 @@ export * from "../types/model";
 export * from "../types/playwright";
 export * from "../types/stagehand";
 export * from "../types/page";
+export * from "./llm/LLMClient";

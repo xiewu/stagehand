@@ -7,45 +7,53 @@ import {
 } from "@anthropic-ai/sdk/resources";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { LogLine } from "../../types/log";
-import {
-  AnthropicJsonSchemaObject,
-  AnthropicTransformedResponse,
-  AvailableModel,
-} from "../../types/model";
+import { AnthropicJsonSchemaObject, AvailableModel } from "../../types/model";
 import { LLMCache } from "../cache/LLMCache";
-import { ChatCompletionOptions, LLMClient } from "./LLMClient";
+import {
+  CreateChatCompletionOptions,
+  LLMClient,
+  LLMResponse,
+} from "./LLMClient";
 
 export class AnthropicClient extends LLMClient {
   public type = "anthropic" as const;
   private client: Anthropic;
   private cache: LLMCache | undefined;
-  public logger: (message: LogLine) => void;
   private enableCaching: boolean;
   public clientOptions: ClientOptions;
 
-  constructor(
-    logger: (message: LogLine) => void,
+  constructor({
     enableCaching = false,
-    cache: LLMCache | undefined,
-    modelName: AvailableModel,
-    clientOptions?: ClientOptions,
-  ) {
+    cache,
+    modelName,
+    clientOptions,
+    userProvidedInstructions,
+  }: {
+    logger: (message: LogLine) => void;
+    enableCaching?: boolean;
+    cache?: LLMCache;
+    modelName: AvailableModel;
+    clientOptions?: ClientOptions;
+    userProvidedInstructions?: string;
+  }) {
     super(modelName);
     this.client = new Anthropic(clientOptions);
-    this.logger = logger;
     this.cache = cache;
     this.enableCaching = enableCaching;
     this.modelName = modelName;
     this.clientOptions = clientOptions;
+    this.userProvidedInstructions = userProvidedInstructions;
   }
 
-  async createChatCompletion<T = AnthropicTransformedResponse>(
-    options: ChatCompletionOptions & { retries?: number },
-  ): Promise<T> {
+  async createChatCompletion<T = LLMResponse>({
+    options,
+    retries,
+    logger,
+  }: CreateChatCompletionOptions): Promise<T> {
     const optionsWithoutImage = { ...options };
     delete optionsWithoutImage.image;
 
-    this.logger({
+    logger({
       category: "anthropic",
       message: "creating chat completion",
       level: 1,
@@ -56,6 +64,7 @@ export class AnthropicClient extends LLMClient {
         },
       },
     });
+
     // Try to get cached response
     const cacheOptions = {
       model: this.modelName,
@@ -64,7 +73,7 @@ export class AnthropicClient extends LLMClient {
       image: options.image,
       response_model: options.response_model,
       tools: options.tools,
-      retries: options.retries,
+      retries: retries,
     };
 
     if (this.enableCaching) {
@@ -73,7 +82,7 @@ export class AnthropicClient extends LLMClient {
         options.requestId,
       );
       if (cachedResponse) {
-        this.logger({
+        logger({
           category: "llm_cache",
           message: "LLM cache hit - returning cached response",
           level: 1,
@@ -94,7 +103,7 @@ export class AnthropicClient extends LLMClient {
         });
         return cachedResponse as T;
       } else {
-        this.logger({
+        logger({
           category: "llm_cache",
           message: "LLM cache miss - no cached response found",
           level: 1,
@@ -185,17 +194,15 @@ export class AnthropicClient extends LLMClient {
     }
 
     let anthropicTools: Tool[] = options.tools?.map((tool) => {
-      if (tool.type === "function") {
-        return {
-          name: tool.function.name,
-          description: tool.function.description,
-          input_schema: {
-            type: "object",
-            properties: tool.function.parameters.properties,
-            required: tool.function.parameters.required,
-          },
-        };
-      }
+      return {
+        name: tool.name,
+        description: tool.description,
+        input_schema: {
+          type: "object",
+          properties: tool.parameters.properties,
+          required: tool.parameters.required,
+        },
+      };
     });
 
     let toolDefinition: Tool | undefined;
@@ -231,7 +238,7 @@ export class AnthropicClient extends LLMClient {
       temperature: options.temperature,
     });
 
-    this.logger({
+    logger({
       category: "anthropic",
       message: "response",
       level: 1,
@@ -247,7 +254,7 @@ export class AnthropicClient extends LLMClient {
       },
     });
 
-    const transformedResponse: AnthropicTransformedResponse = {
+    const transformedResponse: LLMResponse = {
       id: response.id,
       object: "chat.completion",
       created: Date.now(),
@@ -281,7 +288,7 @@ export class AnthropicClient extends LLMClient {
       },
     };
 
-    this.logger({
+    logger({
       category: "anthropic",
       message: "transformed response",
       level: 1,
@@ -307,13 +314,14 @@ export class AnthropicClient extends LLMClient {
 
         return result as T; // anthropic returns this as `unknown`, so we need to cast
       } else {
-        if (!options.retries || options.retries < 5) {
+        if (!retries || retries < 5) {
           return this.createChatCompletion({
-            ...options,
-            retries: (options.retries ?? 0) + 1,
+            options,
+            logger,
+            retries: (retries ?? 0) + 1,
           });
         }
-        this.logger({
+        logger({
           category: "anthropic",
           message: "error creating chat completion",
           level: 1,
@@ -332,7 +340,7 @@ export class AnthropicClient extends LLMClient {
 
     if (this.enableCaching) {
       this.cache.set(cacheOptions, transformedResponse, options.requestId);
-      this.logger({
+      logger({
         category: "anthropic",
         message: "cached response",
         level: 1,

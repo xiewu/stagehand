@@ -54,8 +54,8 @@ export const extract_press_releases: EvalFunction = async ({
       publish_date: "Dec 4, 2024",
     };
     const expectedLastItem: PressRelease = {
-      title: "An Unassuming Liberal Makes a Rapid Ascent to Power Broker",
-      publish_date: "Jan 23, 2014",
+      title: "Fox Sued by New York City Pension Funds Over Election Falsehoods",
+      publish_date: "Nov 12, 2023",
     };
 
     if (items.length <= expectedLength) {

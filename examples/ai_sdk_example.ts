@@ -1,13 +1,14 @@
-import { Stagehand } from "../lib";
+import { google } from "@ai-sdk/google";
 import { z } from "zod";
-import { OllamaClient } from "./external_clients/ollama";
+import { Stagehand } from "../lib";
+import { AISdkClient } from "./external_clients/aisdk";
 import StagehandConfig from "./stagehand.config";
 
 async function example() {
   const stagehand = new Stagehand({
     ...StagehandConfig,
-    llmClient: new OllamaClient({
-      modelName: "llama3.2",
+    llmClient: new AISdkClient({
+      model: google("gemini-1.5-flash-latest"),
     }),
   });
 

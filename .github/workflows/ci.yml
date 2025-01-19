@@ -1,12 +1,6 @@
 name: Evals
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "lib/**"
-      - "evals/**"
   pull_request:
     types:
       - opened
@@ -87,6 +81,36 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
+      HEADLESS: true
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npm exec playwright install --with-deps
+
+      - name: Run E2E Tests (Deterministic Playwright)
+        run: npm run e2e
+
+  run-e2e-bb-tests:
+    needs: [run-e2e-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+
+    env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
@@ -108,11 +132,11 @@ jobs:
       - name: Install Playwright browsers
         run: npm exec playwright install --with-deps
 
-      - name: Run E2E Tests
-        run: npm run e2e
+      - name: Run E2E Tests (browserbase)
+        run: npm run e2e:bb
 
   run-combination-evals:
-    needs: [determine-evals, run-e2e-tests]
+    needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -156,10 +180,13 @@ jobs:
           fi
 
   run-act-evals:
-    needs: [determine-evals, run-e2e-tests]
+    needs: [run-e2e-tests, determine-evals, run-combination-evals]
     if: needs.determine-evals.outputs.run-act == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    concurrency:
+      group: evals-${{ github.run_id }}
+      cancel-in-progress: true
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -204,10 +231,13 @@ jobs:
           fi
 
   run-extract-evals:
-    needs: [determine-evals, run-e2e-tests]
+    needs: [run-e2e-tests, determine-evals, run-combination-evals]
     if: needs.determine-evals.outputs.run-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 50
+    concurrency:
+      group: evals-${{ github.run_id }}
+      cancel-in-progress: true
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -263,10 +293,13 @@ jobs:
           fi
 
   run-text-extract-evals:
-    needs: [determine-evals, run-e2e-tests]
+    needs: [run-e2e-tests, determine-evals, run-combination-evals]
     if: needs.determine-evals.outputs.run-text-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    concurrency:
+      group: evals-${{ github.run_id }}
+      cancel-in-progress: true
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -322,10 +355,13 @@ jobs:
           fi
 
   run-observe-evals:
-    needs: [determine-evals, run-e2e-tests]
+    needs: [run-e2e-tests, determine-evals, run-combination-evals]
     if: needs.determine-evals.outputs.run-observe == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    concurrency:
+      group: evals-${{ github.run_id }}
+      cancel-in-progress: true
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

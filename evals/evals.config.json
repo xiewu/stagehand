@@ -5,6 +5,10 @@
       "categories": ["act"]
     },
     {
+      "name": "instructions",
+      "categories": ["combination"]
+    },
+    {
       "name": "bidnet",
       "categories": ["act"]
     },
@@ -119,10 +123,6 @@
       "categories": ["experimental"]
     },
     {
-      "name": "ibm",
-      "categories": ["experimental"]
-    },
-    {
       "name": "rakuten_jp",
       "categories": ["experimental"]
     },
@@ -156,8 +156,8 @@
       "categories": ["extract"]
     },
     {
-      "name": "extract_regulations",
-      "categories": ["extract"]
+      "name": "extract_csa",
+      "categories": ["text_extract"]
     },
     {
       "name": "extract_resistor_info",
