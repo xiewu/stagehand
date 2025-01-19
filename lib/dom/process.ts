@@ -12,11 +12,17 @@ export function isTextNode(node: Node): node is Text {
 }
 
 function getMainScrollableElement(): HTMLElement {
-  // Default to <html> (document.documentElement)
-  let mainScrollable: HTMLElement = document.documentElement;
-  let maxScrollableArea = 0;
+  const docEl = document.documentElement;
+  let mainScrollable: HTMLElement = docEl;
 
-  // Find the largest candidate
+  // 1) Compute how “scrollable” the root <html> is
+  //    i.e. total scrollHeight - visible clientHeight
+  const rootScrollDiff = docEl.scrollHeight - docEl.clientHeight;
+
+  // Keep track of the “largest” scroll diff found so far.
+  let maxScrollDiff = rootScrollDiff;
+
+  // 2) Scan all elements to find if any <div> has a larger scrollable diff
   const allElements = document.querySelectorAll<HTMLElement>("*");
   for (const elem of allElements) {
     const style = window.getComputedStyle(elem);
@@ -25,23 +31,23 @@ function getMainScrollableElement(): HTMLElement {
     const isPotentiallyScrollable =
       overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
 
-    if (isPotentiallyScrollable && elem.scrollHeight > elem.clientHeight) {
-      const rect = elem.getBoundingClientRect();
-      const area = rect.width * rect.height;
-      if (area > maxScrollableArea) {
-        maxScrollableArea = area;
+    if (isPotentiallyScrollable) {
+      const candidateScrollDiff = elem.scrollHeight - elem.clientHeight;
+      // Only pick this <div> if it has strictly more vertical “scrollable distance” than our current best
+      if (candidateScrollDiff > maxScrollDiff) {
+        maxScrollDiff = candidateScrollDiff;
         mainScrollable = elem;
       }
     }
   }
 
-  // Verify we can actually scroll that candidate
-  if (mainScrollable !== document.documentElement) {
+  // 3) Verify the chosen element truly scrolls
+  if (mainScrollable !== docEl) {
     if (!canElementScroll(mainScrollable)) {
       console.log(
         "Stagehand (Browser Process): Unable to scroll candidate. Fallback to <html>.",
       );
-      mainScrollable = document.documentElement;
+      mainScrollable = docEl;
     }
   }
 
@@ -326,7 +332,7 @@ export function createTextBoundingBoxes(): void {
         return;
       }
       if (
-        ["SCRIPT", "STYLE", "IFRAME", "INPUT", "TEXTAREA"].includes(
+        ["SCRIPT", "STYLE", "IFRAME", "INPUT"].includes(
           element.tagName,
         )
       ) {
@@ -570,9 +576,9 @@ const isTextVisible = (element: ChildNode) => {
   if (!parent) {
     return false;
   }
-  if (!isTopElement(parent, rect)) {
-    return false;
-  }
+  // if (!isTopElement(parent, rect)) {
+  //   return false;
+  // }
 
   const visible = parent.checkVisibility({
     checkOpacity: true,
