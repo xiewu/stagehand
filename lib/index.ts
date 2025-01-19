@@ -151,7 +151,7 @@ async function getBrowser(
         ...(unsafeIframeSupport
           ? {
               browserSettings: {
-                // @ts-ignore - Will be added to SDK types in the future
+                // @ts-expect-error - Will be added to SDK types in the future
                 unsafeMode: true,
               },
             }
