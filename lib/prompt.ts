@@ -169,30 +169,29 @@ export const actTools: LLMTool[] = [
       required: ["method", "element", "args", "step", "completed"],
       properties: {
         step: {
+          type: "string",
+          description:
+            "human readable description of the step that is taken in the past tense. Please be very detailed.",
+        },
+        why: {
+          type: "string",
+          description: "why is this step taken? how does it advance the goal?",
+        },
+        method: {
+          type: "string",
+          description: "The playwright function to call.",
+        },
+        element: {
+          type: "number",
+          description: "The element number to act on",
+        },
+        args: {
+          type: "array",
+          description: "The required arguments",
+          items: {
             type: "string",
-            description:
-              "human readable description of the step that is taken in the past tense. Please be very detailed.",
+            description: "The argument to pass to the function",
           },
-          why: {
-            type: "string",
-            description:
-              "why is this step taken? how does it advance the goal?",
-          },
-          method: {
-            type: "string",
-            description: "The playwright function to call.",
-          },
-          element: {
-            type: "number",
-            description: "The element number to act on",
-          },
-          args: {
-            type: "array",
-            description: "The required arguments",
-            items: {
-              type: "string",
-              description: "The argument to pass to the function",
-            },
         },
         completed: {
           type: "boolean",
