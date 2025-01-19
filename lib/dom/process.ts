@@ -331,11 +331,7 @@ export function createTextBoundingBoxes(): void {
       if (element.closest(".stagehand-nav, .stagehand-marker")) {
         return;
       }
-      if (
-        ["SCRIPT", "STYLE", "IFRAME", "INPUT"].includes(
-          element.tagName,
-        )
-      ) {
+      if (["SCRIPT", "STYLE", "IFRAME", "INPUT"].includes(element.tagName)) {
         return;
       }
 
