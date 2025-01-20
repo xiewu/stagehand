@@ -11,10 +11,6 @@ env:
   EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
   EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
 
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   determine-evals:
     runs-on: ubuntu-latest
@@ -43,6 +39,7 @@ jobs:
           echo "run-text-extract=${{ contains(github.event.pull_request.labels.*.name, 'text-extract') }}" >> $GITHUB_OUTPUT
 
   run-lint:
+    needs: [determine-evals]
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
@@ -60,6 +57,7 @@ jobs:
         run: npm run lint
 
   run-build:
+    needs: [run-lint]
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
@@ -136,7 +134,7 @@ jobs:
         run: npm run e2e:bb
 
   run-combination-evals:
-    needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
+    needs: [run-e2e-bb-tests, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -147,7 +145,6 @@ jobs:
       BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
       HEADLESS: true
       EVAL_ENV: browserbase
-
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -180,7 +177,7 @@ jobs:
           fi
 
   run-act-evals:
-    needs: [run-e2e-tests, determine-evals, run-combination-evals]
+    needs: [run-combination-evals]
     if: needs.determine-evals.outputs.run-act == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -231,7 +228,7 @@ jobs:
           fi
 
   run-extract-evals:
-    needs: [run-e2e-tests, determine-evals, run-combination-evals]
+    needs: [run-combination-evals]
     if: needs.determine-evals.outputs.run-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 50
@@ -246,6 +243,7 @@ jobs:
       BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
       HEADLESS: true
       EVAL_ENV: browserbase
+
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -267,7 +265,7 @@ jobs:
       - name: Save Extract Dom Results
         run: mv eval-summary.json eval-summary-extract-dom.json
 
-      # 2. Once domExtract finishes, run extract category with textExtract
+      # 2. Run extract category with textExtract
       - name: Run Extract Evals (textExtract)
         run: npm run evals category extract -- --extract-method=textExtract
       - name: Save Extract Text Results
@@ -293,7 +291,7 @@ jobs:
           fi
 
   run-text-extract-evals:
-    needs: [run-e2e-tests, determine-evals, run-combination-evals]
+    needs: [run-combination-evals]
     if: needs.determine-evals.outputs.run-text-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -355,7 +353,7 @@ jobs:
           fi
 
   run-observe-evals:
-    needs: [run-e2e-tests, determine-evals, run-combination-evals]
+    needs: [run-combination-evals]
     if: needs.determine-evals.outputs.run-observe == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
