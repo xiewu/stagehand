@@ -171,6 +171,8 @@ export async function getAccessibilityTree(
   }
 }
 
+// This function is wrapped into a string and sent as a CDP command
+// It is not meant to be actually executed here
 function getNodePath(node: Element) {
   const parts = [];
   let current = node;
