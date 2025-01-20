@@ -15,6 +15,7 @@ import {
 import { LogLine } from "../types/log";
 import { z } from "zod";
 import { GotoOptions } from "../types/playwright";
+import zodToJsonSchema from "zod-to-json-schema";
 
 const API_URL = "http://localhost:3001/api";
 
@@ -87,9 +88,10 @@ export class StagehandAPI {
   async extract<T extends z.AnyZodObject>(
     options: ExtractOptions<T>,
   ): Promise<ExtractResult<T>> {
+    const parsedSchema = zodToJsonSchema(options.schema);
     return this.execute<ExtractResult<T>>({
       method: "extract",
-      args: { ...options },
+      args: { ...options, schemaDefinition: parsedSchema },
     });
   }
 
