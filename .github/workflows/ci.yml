@@ -13,7 +13,7 @@ env:
 
 concurrency:
   group: ${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   determine-evals:
@@ -186,7 +186,7 @@ jobs:
     timeout-minutes: 25
     concurrency:
       group: evals-${{ github.run_id }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -237,7 +237,7 @@ jobs:
     timeout-minutes: 50
     concurrency:
       group: evals-${{ github.run_id }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -299,7 +299,7 @@ jobs:
     timeout-minutes: 120
     concurrency:
       group: evals-${{ github.run_id }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -361,7 +361,7 @@ jobs:
     timeout-minutes: 25
     concurrency:
       group: evals-${{ github.run_id }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
