@@ -15,28 +15,22 @@ export const extract_jstor_news: EvalFunction = async ({
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.init();
-  await stagehand.page.goto(
-    "http://jstor-eval.surge.sh",
-    { waitUntil: "load" },
-  );
-  await stagehand.page.act({action: "close the cookie"});
+  await stagehand.page.goto("http://jstor-eval.surge.sh", {
+    waitUntil: "load",
+  });
+  await stagehand.page.act({ action: "close the cookie" });
 
   const result = await stagehand.page.extract({
-    instruction:
-      "Extract ALL the news report titles and their dates.",
+    instruction: "Extract ALL the news report titles and their dates.",
     schema: z.object({
       reports: z.array(
         z.object({
           report_name: z
             .string()
-            .describe(
-              "The name or title of the news report.",
-            ),
+            .describe("The name or title of the news report."),
           publish_date: z
             .string()
-            .describe(
-              "The date the news report was published.",
-            ),
+            .describe("The date the news report was published."),
         }),
       ),
     }),
@@ -50,8 +44,7 @@ export const extract_jstor_news: EvalFunction = async ({
   const expectedLength = 10;
 
   const expectedFirstItem = {
-    report_name:
-      "JSTOR retires Publisher Sales Service",
+    report_name: "JSTOR retires Publisher Sales Service",
     publish_date: "December 9, 2024",
   };
 
