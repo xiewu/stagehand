@@ -8,8 +8,9 @@ import path from "path";
 import { z } from "zod";
 import { BrowserResult } from "../types/browser";
 import { LogLine } from "../types/log";
+import { AvailableModel } from "../types/model";
+import { BrowserContext, Page } from "../types/page";
 import { GotoOptions } from "../types/playwright";
-import { Page, BrowserContext } from "../types/page";
 import {
   ActOptions,
   ActResult,
@@ -23,12 +24,13 @@ import {
   ObserveOptions,
   ObserveResult,
 } from "../types/stagehand";
+import { StagehandContext } from "./StagehandContext";
+import { StagehandPage } from "./StagehandPage";
+import { StagehandAPI } from "./api";
 import { scriptContent } from "./dom/build/scriptContent";
 import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString } from "./utils";
-import { StagehandPage } from "./StagehandPage";
-import { StagehandContext } from "./StagehandContext";
 
 dotenv.config({ path: ".env" });
 
@@ -327,6 +329,8 @@ export class Stagehand {
   private contextPath?: string;
   private llmClient: LLMClient;
   private userProvidedInstructions?: string;
+  private usingAPI: boolean;
+  private modelName: AvailableModel;
 
   constructor(
     {
@@ -346,6 +350,7 @@ export class Stagehand {
       modelName,
       modelClientOptions,
       systemPrompt,
+      useAPI,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
@@ -380,6 +385,8 @@ export class Stagehand {
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
     this.browserbaseSessionID = browserbaseSessionID;
     this.userProvidedInstructions = systemPrompt;
+    this.usingAPI = useAPI ?? false;
+    this.modelName = modelName ?? DEFAULT_MODEL_NAME;
   }
 
   public get logger(): (logLine: LogLine) => void {
@@ -424,6 +431,29 @@ export class Stagehand {
         "Passing parameters to init() is deprecated and will be removed in the next major version. Use constructor options instead.",
       );
     }
+
+    let api: StagehandAPI | undefined;
+
+    if (this.usingAPI) {
+      api = new StagehandAPI({
+        apiKey: this.apiKey,
+        projectId: this.projectId,
+        logger: this.logger,
+      });
+
+      const { sessionId } = await api.init({
+        modelName: this.modelName,
+        modelApiKey:
+          LLMProvider.getModelProvider(this.modelName) === "openai"
+            ? process.env.OPENAI_API_KEY
+            : process.env.ANTHROPIC_API_KEY,
+        domSettleTimeoutMs: this.domSettleTimeoutMs,
+        verbose: this.verbose,
+        debugDom: this.debugDom,
+      });
+      this.browserbaseSessionID = sessionId;
+    }
+
     const { context, debugUrl, sessionUrl, contextPath, sessionId, env } =
       await getBrowser(
         this.apiKey,
@@ -454,6 +484,7 @@ export class Stagehand {
       this.stagehandContext,
       this.llmClient,
       this.userProvidedInstructions,
+      api,
     ).init();
 
     // Set the browser to headless mode if specified
@@ -623,7 +654,7 @@ export class Stagehand {
 export * from "../types/browser";
 export * from "../types/log";
 export * from "../types/model";
+export * from "../types/page";
 export * from "../types/playwright";
 export * from "../types/stagehand";
-export * from "../types/page";
 export * from "./llm/LLMClient";

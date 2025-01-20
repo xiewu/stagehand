@@ -1,12 +1,9 @@
 import type {
-  Page as PlaywrightPage,
-  BrowserContext as PlaywrightContext,
   CDPSession,
+  BrowserContext as PlaywrightContext,
+  Page as PlaywrightPage,
 } from "@playwright/test";
-import { LLMClient } from "./llm/LLMClient";
-import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
-import { StagehandActHandler } from "./handlers/actHandler";
-import { StagehandContext } from "./StagehandContext";
+import { z } from "zod";
 import { Page } from "../types/page";
 import {
   ExtractOptions,
@@ -14,9 +11,13 @@ import {
   ObserveOptions,
   ObserveResult,
 } from "../types/stagehand";
-import { z } from "zod";
+import { StagehandAPI } from "./api";
+import { StagehandActHandler } from "./handlers/actHandler";
 import { StagehandExtractHandler } from "./handlers/extractHandler";
 import { StagehandObserveHandler } from "./handlers/observeHandler";
+import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
+import { LLMClient } from "./llm/LLMClient";
+import { StagehandContext } from "./StagehandContext";
 
 export class StagehandPage {
   private stagehand: Stagehand;
@@ -27,6 +28,7 @@ export class StagehandPage {
   private observeHandler: StagehandObserveHandler;
   private llmClient: LLMClient;
   private cdpClient: CDPSession | null = null;
+  private api: StagehandAPI;
 
   constructor(
     page: PlaywrightPage,
@@ -34,6 +36,7 @@ export class StagehandPage {
     context: StagehandContext,
     llmClient: LLMClient,
     userProvidedInstructions?: string,
+    api?: StagehandAPI,
   ) {
     this.intPage = Object.assign(page, {
       act: () => {
@@ -60,6 +63,7 @@ export class StagehandPage {
     this.stagehand = stagehand;
     this.intContext = context;
     this.llmClient = llmClient;
+    this.api = api;
     if (this.llmClient) {
       this.actHandler = new StagehandActHandler({
         verbose: this.stagehand.verbose,
