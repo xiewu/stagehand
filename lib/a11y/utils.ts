@@ -20,6 +20,45 @@ export function formatSimplifiedTree(
 }
 
 /**
+ * Helper function to remove or collapse unnecessary structural nodes
+ * Handles three cases:
+ * 1. Removes generic/none nodes with no children
+ * 2. Collapses generic/none nodes with single child
+ * 3. Keeps generic/none nodes with multiple children but cleans their subtrees
+ */
+function cleanStructuralNodes(
+  node: AccessibilityNode,
+): AccessibilityNode | null {
+  // Base case: leaf node
+  if (!node.children) {
+    return node.role === "generic" || node.role === "none" ? null : node;
+  }
+
+  // Recursively clean children
+  const cleanedChildren = node.children
+    .map((child) => cleanStructuralNodes(child))
+    .filter(Boolean) as AccessibilityNode[];
+
+  // Handle generic/none nodes specially
+  if (node.role === "generic" || node.role === "none") {
+    if (cleanedChildren.length === 1) {
+      // Collapse single-child generic nodes
+      return cleanedChildren[0];
+    } else if (cleanedChildren.length > 1) {
+      // Keep generic nodes with multiple children
+      return { ...node, children: cleanedChildren };
+    }
+    // Remove generic nodes with no children
+    return null;
+  }
+
+  // For non-generic nodes, keep them if they have children after cleaning
+  return cleanedChildren.length > 0
+    ? { ...node, children: cleanedChildren }
+    : node;
+}
+
+/**
  * Builds a hierarchical tree structure from a flat array of accessibility nodes.
  * The function processes nodes in multiple passes to create a clean, meaningful tree.
  * @param nodes - Flat array of accessibility nodes from the CDP
@@ -65,45 +104,6 @@ export function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
       }
     }
   });
-
-  /**
-   * Helper function to remove or collapse unnecessary structural nodes
-   * Handles three cases:
-   * 1. Removes generic/none nodes with no children
-   * 2. Collapses generic/none nodes with single child
-   * 3. Keeps generic/none nodes with multiple children but cleans their subtrees
-   */
-  function cleanStructuralNodes(
-    node: AccessibilityNode,
-  ): AccessibilityNode | null {
-    // Base case: leaf node
-    if (!node.children) {
-      return node.role === "generic" || node.role === "none" ? null : node;
-    }
-
-    // Recursively clean children
-    const cleanedChildren = node.children
-      .map((child) => cleanStructuralNodes(child))
-      .filter(Boolean) as AccessibilityNode[];
-
-    // Handle generic/none nodes specially
-    if (node.role === "generic" || node.role === "none") {
-      if (cleanedChildren.length === 1) {
-        // Collapse single-child generic nodes
-        return cleanedChildren[0];
-      } else if (cleanedChildren.length > 1) {
-        // Keep generic nodes with multiple children
-        return { ...node, children: cleanedChildren };
-      }
-      // Remove generic nodes with no children
-      return null;
-    }
-
-    // For non-generic nodes, keep them if they have children after cleaning
-    return cleanedChildren.length > 0
-      ? { ...node, children: cleanedChildren }
-      : node;
-  }
 
   // Final pass: Build the root-level tree and clean up structural nodes
   const finalTree = nodes
@@ -171,6 +171,36 @@ export async function getAccessibilityTree(
   }
 }
 
+function getNodePath(node: Element) {
+  const parts = [];
+  let current = node;
+
+  while (current && current.parentNode) {
+    if (current.nodeType === Node.ELEMENT_NODE) {
+      let tagName = current.tagName.toLowerCase();
+      const sameTagSiblings = Array.from(current.parentNode.children).filter(
+        (child) => child.tagName === current.tagName,
+      );
+
+      if (sameTagSiblings.length > 1) {
+        let index = 1;
+        for (const sibling of sameTagSiblings) {
+          if (sibling === current) break;
+          index++;
+        }
+        tagName += "[" + index + "]";
+      }
+
+      parts.unshift(tagName);
+    }
+    current = current.parentNode as Element;
+  }
+
+  return "/" + parts.join("/");
+}
+
+const functionString = getNodePath.toString();
+
 export async function getXPathByResolvedObjectId(
   cdpClient: CDPSession,
   resolvedObjectId: string,
@@ -178,34 +208,7 @@ export async function getXPathByResolvedObjectId(
   const { result } = await cdpClient.send("Runtime.callFunctionOn", {
     objectId: resolvedObjectId,
     functionDeclaration: `function() {
-      function getNodePath(node) {
-        const parts = [];
-        let current = node;
-        
-        while (current && current.parentNode) {
-          if (current.nodeType === Node.ELEMENT_NODE) {
-            let tagName = current.tagName.toLowerCase();
-            let sameTagSiblings = Array.from(current.parentNode.children).filter(
-              child => child.tagName === current.tagName
-            );
-            
-            if (sameTagSiblings.length > 1) {
-              let index = 1;
-              for (let sibling of sameTagSiblings) {
-                if (sibling === current) break;
-                index++;
-              }
-              tagName += '[' + index + ']';
-            }
-            
-            parts.unshift(tagName);
-          }
-          current = current.parentNode;
-        }
-        
-        return '/' + parts.join('/');
-      }
-      
+      ${functionString}
       return getNodePath(this);
     }`,
     returnByValue: true,

@@ -284,7 +284,7 @@ export async function observe({
   llmClient,
   image,
   requestId,
-  isUsingAccessibilityTree = false,
+  isUsingAccessibilityTree,
   userProvidedInstructions,
   logger,
 }: {
