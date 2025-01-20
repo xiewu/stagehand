@@ -28,6 +28,7 @@ export interface Page extends Omit<PlaywrightPage, "on"> {
     options: ExtractOptions<T>,
   ): Promise<ExtractResult<T>>;
 
+  observe(): Promise<ObserveResult[]>;
   observe(instruction: string): Promise<ObserveResult[]>;
   observe(options?: ObserveOptions): Promise<ObserveResult[]>;
 
