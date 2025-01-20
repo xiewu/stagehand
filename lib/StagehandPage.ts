@@ -98,7 +98,10 @@ export class StagehandPage {
         // Override the goto method to add debugDom and waitForSettledDom
         if (prop === "goto")
           return async (url: string, options: GotoOptions) => {
-            const result = await page.goto(url, options);
+            const result = this.api
+              ? await this.api.goto(url, options)
+              : await page.goto(url, options);
+
             if (stagehand.debugDom) {
               await page.evaluate(
                 (debugDom) => (window.showChunks = debugDom),
@@ -308,6 +311,10 @@ export class StagehandPage {
       domSettleTimeoutMs,
     } = options;
 
+    if (this.api) {
+      return this.api.act(options);
+    }
+
     const requestId = Math.random().toString(36).substring(2);
     const llmClient: LLMClient = modelName
       ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
@@ -395,6 +402,10 @@ export class StagehandPage {
       useTextExtract,
     } = options;
 
+    if (this.api) {
+      return this.api.extract<T>(options);
+    }
+
     const requestId = Math.random().toString(36).substring(2);
     const llmClient = modelName
       ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
@@ -474,6 +485,10 @@ export class StagehandPage {
       domSettleTimeoutMs,
       useAccessibilityTree = false,
     } = options;
+
+    if (this.api) {
+      return this.api.observe(options);
+    }
 
     const requestId = Math.random().toString(36).substring(2);
     const llmClient = modelName

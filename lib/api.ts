@@ -4,9 +4,19 @@ import {
   StartSessionParams,
   StartSessionResult,
 } from "../types/api";
+import {
+  ActOptions,
+  ActResult,
+  ExtractOptions,
+  ExtractResult,
+  ObserveOptions,
+  ObserveResult,
+} from "../types/stagehand";
 import { LogLine } from "../types/log";
+import { z } from "zod";
+import { GotoOptions } from "../types/playwright";
 
-const API_URL = "http://localhost:3000/api";
+const API_URL = "http://localhost:3001/api";
 
 export class StagehandAPI {
   private apiKey: string;
@@ -67,14 +77,47 @@ export class StagehandAPI {
     return sessionResponseBody;
   }
 
-  async execute<T>({ method, args }: ExecuteActionParams): Promise<T> {
-    const response = await this.request("/execute", {
+  async act(options: ActOptions): Promise<ActResult> {
+    return this.execute<ActResult>({
+      method: "act",
+      args: { ...options },
+    });
+  }
+
+  async extract<T extends z.AnyZodObject>(
+    options: ExtractOptions<T>,
+  ): Promise<ExtractResult<T>> {
+    return this.execute<ExtractResult<T>>({
+      method: "extract",
+      args: { ...options },
+    });
+  }
+
+  async observe(options?: ObserveOptions): Promise<ObserveResult[]> {
+    return this.execute<ObserveResult[]>({
+      method: "observe",
+      args: { ...options },
+    });
+  }
+
+  async goto(url: string, options?: GotoOptions): Promise<void> {
+    return this.execute<void>({
+      method: "navigate",
+      args: { url, options },
+    });
+  }
+
+  private async execute<T>({ method, args }: ExecuteActionParams): Promise<T> {
+    const response = await this.request(`/${method}`, {
       method: "POST",
-      body: JSON.stringify({ method, args, useSpotlight: true }),
+      body: JSON.stringify(args),
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorBody = await response.text();
+      throw new Error(
+        `HTTP error! status: ${response.status}, body: ${errorBody}`,
+      );
     }
 
     if (!response.body) {
