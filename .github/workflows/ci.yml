@@ -7,6 +7,10 @@ on:
       - synchronize
       - labeled
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
   EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
@@ -182,7 +186,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     concurrency:
-      group: evals-${{ github.run_id }}
+      group: labeled-evals-${{ github.run_id }}
       cancel-in-progress: false
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -233,7 +237,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     concurrency:
-      group: evals-${{ github.run_id }}
+      group: labeled-evals-${{ github.run_id }}
       cancel-in-progress: false
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -265,7 +269,7 @@ jobs:
       - name: Save Extract Dom Results
         run: mv eval-summary.json eval-summary-extract-dom.json
 
-      # 2. Run extract category with textExtract
+      # 2. Then run extract category with textExtract
       - name: Run Extract Evals (textExtract)
         run: npm run evals category extract -- --extract-method=textExtract
       - name: Save Extract Text Results
@@ -296,7 +300,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     concurrency:
-      group: evals-${{ github.run_id }}
+      group: labeled-evals-${{ github.run_id }}
       cancel-in-progress: false
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -358,7 +362,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     concurrency:
-      group: evals-${{ github.run_id }}
+      group: labeled-evals-${{ github.run_id }}
       cancel-in-progress: false
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
