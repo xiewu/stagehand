@@ -111,7 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
-      group: labeled-evals-${{ github.run_id }}
+      group: labeled-evals-${{ github.job_id }}
       cancel-in-progress: false
     steps:
       - name: Dummy Act Evals
@@ -147,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
-      group: labeled-evals-${{ github.run_id }}
+      group: labeled-evals-${{ github.job_id }}
       cancel-in-progress: false
     steps:
       - name: Step 1 - Dummy Extract (domExtract)
@@ -197,7 +197,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
-      group: labeled-evals-${{ github.run_id }}
+      group: labeled-evals-${{ github.job_id }}
       cancel-in-progress: false
     steps:
       - name: Step 1 - Dummy text_extract (textExtract)
@@ -247,7 +247,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
-      group: labeled-evals-${{ github.run_id }}
+      group: labeled-evals-${{ github.job_id }}
       cancel-in-progress: false
     steps:
       - name: Dummy Observe Evals
