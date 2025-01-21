@@ -196,6 +196,7 @@ jobs:
           else
             echo "Eval summary not found for combination category. Failing CI."
             exit 1
+          fi
 
   run-extract-evals:
     needs: [determine-evals, run-combination-evals]
@@ -283,3 +284,4 @@ jobs:
           if [ -f eval-summary-extract-text.json ]; then
             experimentNameText=$(jq -r '.experimentName' eval-summary-extract-text.json)
             text_score=$(jq '.categories.extract' eval-summary
+          fi
