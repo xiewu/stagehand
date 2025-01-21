@@ -50,15 +50,10 @@ Here's a sample of what you can do with Stagehand:
 await page.goto("https://docs.stagehand.dev");
 
 // Stagehand AI: Extract data from the page
-const { description } = await page.extract({
-  instruction: "Extract the description of the page",
-  schema: z.object({
-    description: z.string(),
-  }),
-});
+const { extraction } = await page.extract("Extract the description of the page");
 
 // Stagehand AI: Act on the page
-await page.act({ action: "click on the 'Quickstart'" });
+await page.act("click on the 'Quickstart'");
 ```
 
 ## Why?
