@@ -28,7 +28,6 @@ jobs:
         run: |
           # Default to running all tests on main branch
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "Running all tests for main branch"
             echo "run-extract=true" >> $GITHUB_OUTPUT
             echo "run-act=true" >> $GITHUB_OUTPUT
             echo "run-observe=true" >> $GITHUB_OUTPUT
@@ -47,19 +46,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Dummy Lint
-        run: echo "Pretend lint succeeded"
+        run: echo "Pretend lint completed successfully"
 
   run-build:
     needs: [run-lint]
     runs-on: ubuntu-latest
     steps:
       - name: Dummy Build
-        run: echo "Pretend build succeeded"
+        run: echo "Pretend build completed successfully"
 
   run-e2e-tests:
     needs: [run-lint, run-build]
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 5
     steps:
       - name: Dummy E2E Tests
         run: echo "Pretend E2E tests succeeded"
@@ -67,7 +66,7 @@ jobs:
   run-e2e-bb-tests:
     needs: [run-e2e-tests]
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 5
     if: >
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
@@ -78,15 +77,15 @@ jobs:
   run-combination-evals:
     needs: [run-e2e-bb-tests, determine-evals]
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 5
     steps:
       - name: Dummy Combination Eval
         run: |
           echo "Pretending to run combination eval..."
-          # Create a dummy eval-summary.json with a passing score
+          # Create a dummy eval-summary.json with a PASSING combo score
           cat <<EOF > eval-summary.json
           {
-            "experimentName": "dummyCombExp",
+            "experimentName": "dummyCombinationTest",
             "categories": {
               "combination": 85
             }
@@ -95,22 +94,22 @@ jobs:
 
       - name: Log Combination Evals Performance
         run: |
-          experimentName=$(jq -r '.experimentName' eval-summary.json)
-          echo "View results at https://fake-url.com/experiments/${experimentName}"
-          if [ -f eval-summary.json ]; then
-            combination_score=$(jq '.categories.combination' eval-summary.json)
-            echo "Combination category score: $combination_score%"
-            exit 0
-          else
+          if [ ! -f eval-summary.json ]; then
             echo "Eval summary not found for combination category. Failing CI."
             exit 1
           fi
+
+          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          combination_score=$(jq '.categories.combination' eval-summary.json)
+
+          echo "Combination category score: ${combination_score}%"
+          echo "View results at https://example.com/experiments/${experimentName}"
 
   run-act-evals:
     needs: [run-combination-evals]
     if: needs.determine-evals.outputs.run-act == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 5
     concurrency:
       group: labeled-evals-${{ github.run_id }}
       cancel-in-progress: false
@@ -118,7 +117,7 @@ jobs:
       - name: Dummy Act Evals
         run: |
           echo "Pretending to run ACT eval..."
-          # Create a passing score
+          # Create a passing ACT score
           cat <<EOF > eval-summary.json
           {
             "experimentName": "dummyActExp",
@@ -130,17 +129,15 @@ jobs:
 
       - name: Log Act Evals Performance
         run: |
-          experimentName=$(jq -r '.experimentName' eval-summary.json)
-          echo "View results at https://fake-url.com/experiments/${experimentName}"
-          if [ -f eval-summary.json ]; then
-            act_score=$(jq '.categories.act' eval-summary.json)
-            echo "Act category score: $act_score%"
-            if (( $(echo "$act_score < 80" | bc -l) )); then
-              echo "Act category score is below 80%. Failing CI."
-              exit 1
-            fi
-          else
+          if [ ! -f eval-summary.json ]; then
             echo "Eval summary not found for act category. Failing CI."
+            exit 1
+          fi
+          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          act_score=$(jq '.categories.act' eval-summary.json)
+          echo "Act category score: $act_score%"
+          if (( $(echo "$act_score < 80" | bc -l) )); then
+            echo "Act category score <80%. Failing CI."
             exit 1
           fi
 
@@ -148,14 +145,14 @@ jobs:
     needs: [run-combination-evals]
     if: needs.determine-evals.outputs.run-extract == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 5
     concurrency:
       group: labeled-evals-${{ github.run_id }}
       cancel-in-progress: false
     steps:
-      - name: Step 1 - Dummy Extract Evals (domExtract)
+      - name: Step 1 - Dummy Extract (domExtract)
         run: |
-          echo "Pretending to run extract with domExtract..."
+          echo "Pretending to run domExtract..."
           cat <<EOF > eval-summary.json
           {
             "experimentName": "dummyExtractDomExp",
@@ -164,14 +161,13 @@ jobs:
             }
           }
           EOF
-        shell: bash
 
       - name: Save Extract Dom Results
         run: mv eval-summary.json eval-summary-extract-dom.json
 
-      - name: Step 2 - Dummy Extract Evals (textExtract)
+      - name: Step 2 - Dummy Extract (textExtract)
         run: |
-          echo "Pretending to run extract with textExtract..."
+          echo "Pretending to run textExtract..."
           cat <<EOF > eval-summary.json
           {
             "experimentName": "dummyExtractTextExp",
@@ -180,26 +176,18 @@ jobs:
             }
           }
           EOF
-        shell: bash
 
       - name: Save Extract Text Results
         run: mv eval-summary.json eval-summary-extract-text.json
 
-      - name: Step 3 - Log and Compare Extract Evals Performance
+      - name: Step 3 - Compare Extract Evals
         run: |
-          experimentNameDom=$(jq -r '.experimentName' eval-summary-extract-dom.json)
           dom_score=$(jq '.categories.extract' eval-summary-extract-dom.json)
-          echo "DomExtract Extract category score: $dom_score%"
-          echo "View domExtract results: https://fake-url.com/experiments/${experimentNameDom}"
-
-          experimentNameText=$(jq -r '.experimentName' eval-summary-extract-text.json)
           text_score=$(jq '.categories.extract' eval-summary-extract-text.json)
-          echo "TextExtract Extract category score: $text_score%"
-          echo "View textExtract results: https://fake-url.com/experiments/${experimentNameText}"
-
-          # If domExtract <80% fail CI
+          echo "DomExtract score: $dom_score%"
+          echo "TextExtract score: $text_score%"
           if (( $(echo "$dom_score < 80" | bc -l) )); then
-            echo "DomExtract extract category score is below 80%. Failing CI."
+            echo "DomExtract <80%. Failing CI."
             exit 1
           fi
 
@@ -207,12 +195,12 @@ jobs:
     needs: [run-combination-evals]
     if: needs.determine-evals.outputs.run-text-extract == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 5
     concurrency:
       group: labeled-evals-${{ github.run_id }}
       cancel-in-progress: false
     steps:
-      - name: Step 1 - Dummy text_extract Evals (textExtract)
+      - name: Step 1 - Dummy text_extract (textExtract)
         run: |
           echo "Pretending to run text_extract with textExtract..."
           cat <<EOF > eval-summary.json
@@ -227,14 +215,14 @@ jobs:
       - name: Save text_extract Text Results
         run: mv eval-summary.json eval-summary-text_extract-text.json
 
-      - name: Step 2 - Dummy text_extract Evals (domExtract)
+      - name: Step 2 - Dummy text_extract (domExtract)
         run: |
           echo "Pretending to run text_extract with domExtract..."
           cat <<EOF > eval-summary.json
           {
             "experimentName": "dummyTextExtractDomExp",
             "categories": {
-              "text_extract": 92
+              "text_extract": 93
             }
           }
           EOF
@@ -242,21 +230,14 @@ jobs:
       - name: Save text_extract Dom Results
         run: mv eval-summary.json eval-summary-text_extract-dom.json
 
-      - name: Step 3 - Log and Compare text_extract Evals Performance
+      - name: Step 3 - Compare text_extract Evals
         run: |
-          experimentNameText=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
           text_score=$(jq '.categories.text_extract' eval-summary-text_extract-text.json)
-          echo "TextExtract text_extract category score: $text_score%"
-          echo "View textExtract results: https://fake-url.com/experiments/${experimentNameText}"
-
-          experimentNameDom=$(jq -r '.experimentName' eval-summary-text_extract-dom.json)
           dom_score=$(jq '.categories.text_extract' eval-summary-text_extract-dom.json)
-          echo "DomExtract text_extract category score: $dom_score%"
-          echo "View domExtract results: https://fake-url.com/experiments/${experimentNameDom}"
-
-          # If textExtract <80% fail CI
+          echo "TextExtract text_extract score: $text_score%"
+          echo "DomExtract text_extract score: $dom_score%"
           if (( $(echo "$text_score < 80" | bc -l) )); then
-            echo "textExtract text_extract category score is below 80%. Failing CI."
+            echo "textExtract text_extract <80%. Failing CI."
             exit 1
           fi
 
@@ -264,7 +245,7 @@ jobs:
     needs: [run-combination-evals]
     if: needs.determine-evals.outputs.run-observe == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 5
     concurrency:
       group: labeled-evals-${{ github.run_id }}
       cancel-in-progress: false
@@ -272,32 +253,27 @@ jobs:
       - name: Dummy Observe Evals
         run: |
           echo "Pretending to run OBSERVE eval..."
-          # This time let's produce a failing score to test the logic:
-          # (uncomment to see it fail!)
-          #score=75
-          score=82
-
+          # You can simulate a failing score (e.g. 75) or passing (85)
+          observe_score=85
           cat <<EOF > eval-summary.json
           {
             "experimentName": "dummyObserveExp",
             "categories": {
-              "observe": $score
+              "observe": $observe_score
             }
           }
           EOF
 
       - name: Log Observe Evals Performance
         run: |
-          experimentName=$(jq -r '.experimentName' eval-summary.json)
-          echo "View results at https://fake-url.com/experiments/${experimentName}"
-          if [ -f eval-summary.json ]; then
-            observe_score=$(jq '.categories.observe' eval-summary.json)
-            echo "Observe category score: $observe_score%"
-            if (( $(echo "$observe_score < 80" | bc -l) )); then
-              echo "Observe category score is below 80%. Failing CI."
-              exit 1
-            fi
-          else
+          if [ ! -f eval-summary.json ]; then
             echo "Eval summary not found for observe category. Failing CI."
+            exit 1
+          fi
+          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          observe_score=$(jq '.categories.observe' eval-summary.json)
+          echo "Observe category score: $observe_score%"
+          if (( $(echo "$observe_score < 80" | bc -l) )); then
+            echo "Observe category score <80%. Failing CI."
             exit 1
           fi
