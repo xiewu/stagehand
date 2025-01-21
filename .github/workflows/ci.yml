@@ -196,6 +196,7 @@ jobs:
           else
             echo "Eval summary not found for combination category. Failing CI."
             exit 1
+          fi
 
   #
   # Specialized evals (dummy data) - run sequentially by concurrency group
@@ -440,6 +441,7 @@ jobs:
           else
             echo "Eval summary not found. Failing CI."
             exit 1
+          fi
 
   run-observe-evals:
     needs: [determine-evals, run-combination-evals]
@@ -503,3 +505,4 @@ jobs:
           else
             echo "Eval summary not found. Failing CI."
             exit 1
+          fi
