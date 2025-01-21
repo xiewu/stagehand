@@ -196,7 +196,10 @@ jobs:
           else
             echo "Eval summary not found for combination category. Failing CI."
             exit 1
-          fi
+
+  #
+  # Specialized evals (dummy data) - run sequentially by concurrency group
+  #
 
   run-extract-evals:
     needs: [determine-evals, run-combination-evals]
@@ -283,5 +286,220 @@ jobs:
           # Check if we have the textExtract results
           if [ -f eval-summary-extract-text.json ]; then
             experimentNameText=$(jq -r '.experimentName' eval-summary-extract-text.json)
-            text_score=$(jq '.categories.extract' eval-summary
+            text_score=$(jq '.categories.extract' eval-summary-extract-text.json)
+            echo "TextExtract Score: $text_score%"
+            echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
           fi
+
+  run-text-extract-evals:
+    needs: [determine-evals, run-combination-evals]
+    if: needs.determine-evals.outputs.run-text-extract == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: specialized-evals-${{ github.run_id }}
+      cancel-in-progress: false
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+      HEADLESS: true
+      EVAL_ENV: browserbase
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-frozen-lockfile
+
+      - name: Build Stagehand
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npm exec playwright install --with-deps
+
+      # 1. text_extract with textExtract (Dummy)
+      - name: Run text_extract Evals (textExtract)
+        run: |
+          echo "Pretending to run text_extract eval with textExtract..."
+          cat <<EOF > eval-summary.json
+          {
+            "experimentName": "dummyTextExtract_TextMode",
+            "categories": {
+              "text_extract": 78
+            }
+          }
+          EOF
+      - name: Save text_extract Text Results
+        run: mv eval-summary.json eval-summary-text_extract-text.json
+
+      # 2. text_extract with domExtract (Dummy)
+      - name: Run text_extract Evals (domExtract)
+        run: |
+          echo "Pretending to run text_extract eval with domExtract..."
+          cat <<EOF > eval-summary.json
+          {
+            "experimentName": "dummyTextExtract_DomMode",
+            "categories": {
+              "text_extract": 85
+            }
+          }
+          EOF
+      - name: Save text_extract Dom Results
+        run: mv eval-summary.json eval-summary-text_extract-dom.json
+
+      # 3. Log and Compare text_extract (Dummy)
+      - name: Log and Compare text_extract
+        run: |
+          if [ -f eval-summary-text_extract-text.json ]; then
+            experimentNameTxt=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
+            txt_score=$(jq '.categories.text_extract' eval-summary-text_extract-text.json)
+            echo "TextExtract (text_extract) Score: $txt_score%"
+            echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameTxt}"
+
+            if (( $(echo "$txt_score < 80" | bc -l) )); then
+              echo "text_extract score <80%. Failing CI."
+              exit 1
+            fi
+          fi
+
+          if [ -f eval-summary-text_extract-dom.json ]; then
+            experimentNameDom=$(jq -r '.experimentName' eval-summary-text_extract-dom.json)
+            dom_score=$(jq '.categories.text_extract' eval-summary-text_extract-dom.json)
+            echo "DomExtract (text_extract) Score: $dom_score%"
+            echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
+          fi
+
+  run-act-evals:
+    needs: [determine-evals, run-combination-evals]
+    if: needs.determine-evals.outputs.run-act == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: specialized-evals-${{ github.run_id }}
+      cancel-in-progress: false
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+      HEADLESS: true
+      EVAL_ENV: browserbase
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-frozen-lockfile
+
+      - name: Build Stagehand
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npm exec playwright install --with-deps
+
+      # Dummy "Act" eval
+      - name: Run Act Evals
+        run: |
+          echo "Pretending to run act eval..."
+          cat <<EOF > eval-summary.json
+          {
+            "experimentName": "dummyActEval",
+            "categories": {
+              "act": 82
+            }
+          }
+          EOF
+
+      - name: Log Act Evals Performance
+        run: |
+          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
+          if [ -f eval-summary.json ]; then
+            act_score=$(jq '.categories.act' eval-summary.json)
+            echo "Act category score: $act_score%"
+            if (( $(echo "$act_score < 80" | bc -l) )); then
+              echo "Act <80%. Failing CI."
+              exit 1
+            fi
+          else
+            echo "Eval summary not found. Failing CI."
+            exit 1
+
+  run-observe-evals:
+    needs: [determine-evals, run-combination-evals]
+    if: needs.determine-evals.outputs.run-observe == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: specialized-evals-${{ github.run_id }}
+      cancel-in-progress: false
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+      HEADLESS: true
+      EVAL_ENV: browserbase
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-frozen-lockfile
+
+      - name: Build Stagehand
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npm exec playwright install --with-deps
+
+      # Dummy "Observe" eval
+      - name: Run Observe Evals
+        run: |
+          echo "Pretending to run observe eval..."
+          cat <<EOF > eval-summary.json
+          {
+            "experimentName": "dummyObserveEval",
+            "categories": {
+              "observe": 88
+            }
+          }
+          EOF
+
+      - name: Log Observe Evals Performance
+        run: |
+          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
+          if [ -f eval-summary.json ]; then
+            observe_score=$(jq '.categories.observe' eval-summary.json)
+            echo "Observe category score: $observe_score%"
+            if (( $(echo "$observe_score < 80" | bc -l) )); then
+              echo "Observe <80%. Failing CI."
+              exit 1
+            fi
+          else
+            echo "Eval summary not found. Failing CI."
+            exit 1
