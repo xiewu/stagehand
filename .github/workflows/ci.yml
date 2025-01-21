@@ -12,6 +12,13 @@ env:
   EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
 
 jobs:
+  ####################################################################
+  # 1. DETERMINE-EVALS
+  #
+  #    Checks if the PR is on the main branch or if it has
+  #    certain labels, then sets outputs to instruct
+  #    which specialized evals should run.
+  ####################################################################
   determine-evals:
     runs-on: ubuntu-latest
     outputs:
@@ -38,6 +45,9 @@ jobs:
           echo "run-observe=${{ contains(github.event.pull_request.labels.*.name, 'observe') }}" >> $GITHUB_OUTPUT
           echo "run-text-extract=${{ contains(github.event.pull_request.labels.*.name, 'text-extract') }}" >> $GITHUB_OUTPUT
 
+  ####################################################################
+  # 2. LINT JOB
+  ####################################################################
   run-lint:
     runs-on: ubuntu-latest
     steps:
@@ -55,6 +65,9 @@ jobs:
       - name: Run Lint
         run: npm run lint
 
+  ####################################################################
+  # 3. BUILD JOB
+  ####################################################################
   run-build:
     runs-on: ubuntu-latest
     needs: [run-lint]
@@ -73,6 +86,9 @@ jobs:
       - name: Run Build
         run: npm run build
 
+  ####################################################################
+  # 4. E2E TESTS JOB
+  ####################################################################
   run-e2e-tests:
     needs: [run-lint, run-build]
     runs-on: ubuntu-latest
@@ -101,6 +117,9 @@ jobs:
       - name: Run E2E Tests (Deterministic Playwright)
         run: npm run e2e
 
+  ####################################################################
+  # 5. E2E-BB (Browserbase) TESTS JOB
+  ####################################################################
   run-e2e-bb-tests:
     needs: [run-e2e-tests]
     runs-on: ubuntu-latest
@@ -137,6 +156,9 @@ jobs:
       - name: Run E2E Tests (browserbase)
         run: npm run e2e:bb
 
+  ####################################################################
+  # 6. COMBINATION EVALS JOB (DUMMY DATA)
+  ####################################################################
   run-combination-evals:
     needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
     runs-on: ubuntu-latest
@@ -194,18 +216,22 @@ jobs:
             exit 1
           fi
 
+  ####################################################################
+  # 7. SPECIALIZED EVALS (Single Job, Multi-Step)
   #
-  # Specialized evals (dummy data) - run sequentially by concurrency group
+  #    This job replaces the old separate jobs for:
+  #      - extract
+  #      - text-extract
+  #      - act
+  #      - observe
   #
-
-  run-extract-evals:
+  #    It runs them in sequence, each block gated by an IF condition
+  #    so we skip any eval steps that are not labeled.
+  ####################################################################
+  run-specialized-evals:
     needs: [determine-evals, run-combination-evals]
-    if: needs.determine-evals.outputs.run-extract == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
-    concurrency:
-      group: specialized-evals-${{ github.run_id }}
-      cancel-in-progress: false
+    timeout-minutes: 60
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -233,11 +259,14 @@ jobs:
       - name: Install Playwright browsers
         run: npm exec playwright install --with-deps
 
-      # 1. "Run Extract Evals (domExtract)" - Dummy
+      ############################################################
+      # 7A. EXTRACT EVALS (if label = 'extract')
+      ############################################################
       - name: Run Extract Evals (domExtract)
+        if: ${{ needs.determine-evals.outputs.run-extract == 'true' }}
         run: |
           echo "Pretending to run extract eval with domExtract..."
-          cat <<EOF > eval-summary.json
+          cat <<EOF > eval-summary-extract-dom.json
           {
             "experimentName": "dummyExtractDom",
             "categories": {
@@ -245,14 +274,12 @@ jobs:
             }
           }
           EOF
-      - name: Save Extract Dom Results
-        run: mv eval-summary.json eval-summary-extract-dom.json
 
-      # 2. "Run Extract Evals (textExtract)" - Dummy
       - name: Run Extract Evals (textExtract)
+        if: ${{ needs.determine-evals.outputs.run-extract == 'true' }}
         run: |
           echo "Pretending to run extract eval with textExtract..."
-          cat <<EOF > eval-summary.json
+          cat <<EOF > eval-summary-extract-text.json
           {
             "experimentName": "dummyExtractText",
             "categories": {
@@ -260,27 +287,24 @@ jobs:
             }
           }
           EOF
-      - name: Save Extract Text Results
-        run: mv eval-summary.json eval-summary-extract-text.json
 
-      # 3. Log and Compare (Dummy)
       - name: Log and Compare Extract Evals Performance
+        if: ${{ needs.determine-evals.outputs.run-extract == 'true' }}
         run: |
-          # Check if we have the domExtract results
+          # Check domExtract results
           if [ -f eval-summary-extract-dom.json ]; then
             experimentNameDom=$(jq -r '.experimentName' eval-summary-extract-dom.json)
             dom_score=$(jq '.categories.extract' eval-summary-extract-dom.json)
             echo "DomExtract Score: $dom_score%"
             echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
 
-            # Example fail if below threshold
             if (( $(echo "$dom_score < 80" | bc -l) )); then
               echo "DomExtract extract category <80%. Failing CI."
               exit 1
             fi
           fi
 
-          # Check if we have the textExtract results
+          # Check textExtract results
           if [ -f eval-summary-extract-text.json ]; then
             experimentNameText=$(jq -r '.experimentName' eval-summary-extract-text.json)
             text_score=$(jq '.categories.extract' eval-summary-extract-text.json)
@@ -288,46 +312,14 @@ jobs:
             echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
           fi
 
-  run-text-extract-evals:
-    needs: [determine-evals, run-combination-evals]
-    if: needs.determine-evals.outputs.run-text-extract == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    concurrency:
-      group: specialized-evals-${{ github.run_id }}
-      cancel-in-progress: false
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
-      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
-      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
-      HEADLESS: true
-      EVAL_ENV: browserbase
-
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --no-frozen-lockfile
-
-      - name: Build Stagehand
-        run: npm run build
-
-      - name: Install Playwright browsers
-        run: npm exec playwright install --with-deps
-
-      # 1. text_extract with textExtract (Dummy)
+      ############################################################
+      # 7B. TEXT-EXTRACT EVALS (if label = 'text-extract')
+      ############################################################
       - name: Run text_extract Evals (textExtract)
+        if: ${{ needs.determine-evals.outputs.run-text-extract == 'true' }}
         run: |
           echo "Pretending to run text_extract eval with textExtract..."
-          cat <<EOF > eval-summary.json
+          cat <<EOF > eval-summary-text_extract-text.json
           {
             "experimentName": "dummyTextExtract_TextMode",
             "categories": {
@@ -335,14 +327,12 @@ jobs:
             }
           }
           EOF
-      - name: Save text_extract Text Results
-        run: mv eval-summary.json eval-summary-text_extract-text.json
 
-      # 2. text_extract with domExtract (Dummy)
       - name: Run text_extract Evals (domExtract)
+        if: ${{ needs.determine-evals.outputs.run-text-extract == 'true' }}
         run: |
           echo "Pretending to run text_extract eval with domExtract..."
-          cat <<EOF > eval-summary.json
+          cat <<EOF > eval-summary-text_extract-dom.json
           {
             "experimentName": "dummyTextExtract_DomMode",
             "categories": {
@@ -350,11 +340,9 @@ jobs:
             }
           }
           EOF
-      - name: Save text_extract Dom Results
-        run: mv eval-summary.json eval-summary-text_extract-dom.json
 
-      # 3. Log and Compare text_extract (Dummy)
       - name: Log and Compare text_extract
+        if: ${{ needs.determine-evals.outputs.run-text-extract == 'true' }}
         run: |
           if [ -f eval-summary-text_extract-text.json ]; then
             experimentNameTxt=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
@@ -375,46 +363,14 @@ jobs:
             echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
           fi
 
-  run-act-evals:
-    needs: [determine-evals, run-combination-evals]
-    if: needs.determine-evals.outputs.run-act == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    concurrency:
-      group: specialized-evals-${{ github.run_id }}
-      cancel-in-progress: false
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
-      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
-      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
-      HEADLESS: true
-      EVAL_ENV: browserbase
-
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --no-frozen-lockfile
-
-      - name: Build Stagehand
-        run: npm run build
-
-      - name: Install Playwright browsers
-        run: npm exec playwright install --with-deps
-
-      # Dummy "Act" eval
+      ############################################################
+      # 7C. ACT EVALS (if label = 'act')
+      ############################################################
       - name: Run Act Evals
+        if: ${{ needs.determine-evals.outputs.run-act == 'true' }}
         run: |
           echo "Pretending to run act eval..."
-          cat <<EOF > eval-summary.json
+          cat <<EOF > eval-summary-act.json
           {
             "experimentName": "dummyActEval",
             "categories": {
@@ -424,11 +380,12 @@ jobs:
           EOF
 
       - name: Log Act Evals Performance
+        if: ${{ needs.determine-evals.outputs.run-act == 'true' }}
         run: |
-          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          experimentName=$(jq -r '.experimentName' eval-summary-act.json)
           echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
-          if [ -f eval-summary.json ]; then
-            act_score=$(jq '.categories.act' eval-summary.json)
+          if [ -f eval-summary-act.json ]; then
+            act_score=$(jq '.categories.act' eval-summary-act.json)
             echo "Act category score: $act_score%"
             if (( $(echo "$act_score < 80" | bc -l) )); then
               echo "Act <80%. Failing CI."
@@ -439,46 +396,14 @@ jobs:
             exit 1
           fi
 
-  run-observe-evals:
-    needs: [determine-evals, run-combination-evals]
-    if: needs.determine-evals.outputs.run-observe == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    concurrency:
-      group: specialized-evals-${{ github.run_id }}-
-      cancel-in-progress: false
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
-      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
-      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
-      HEADLESS: true
-      EVAL_ENV: browserbase
-
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --no-frozen-lockfile
-
-      - name: Build Stagehand
-        run: npm run build
-
-      - name: Install Playwright browsers
-        run: npm exec playwright install --with-deps
-
-      # Dummy "Observe" eval
+      ############################################################
+      # 7D. OBSERVE EVALS (if label = 'observe')
+      ############################################################
       - name: Run Observe Evals
+        if: ${{ needs.determine-evals.outputs.run-observe == 'true' }}
         run: |
           echo "Pretending to run observe eval..."
-          cat <<EOF > eval-summary.json
+          cat <<EOF > eval-summary-observe.json
           {
             "experimentName": "dummyObserveEval",
             "categories": {
@@ -488,11 +413,12 @@ jobs:
           EOF
 
       - name: Log Observe Evals Performance
+        if: ${{ needs.determine-evals.outputs.run-observe == 'true' }}
         run: |
-          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          experimentName=$(jq -r '.experimentName' eval-summary-observe.json)
           echo "See: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
-          if [ -f eval-summary.json ]; then
-            observe_score=$(jq '.categories.observe' eval-summary.json)
+          if [ -f eval-summary-observe.json ]; then
+            observe_score=$(jq '.categories.observe' eval-summary-observe.json)
             echo "Observe category score: $observe_score%"
             if (( $(echo "$observe_score < 80" | bc -l) )); then
               echo "Observe <80%. Failing CI."
