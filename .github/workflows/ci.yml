@@ -11,10 +11,6 @@ env:
   EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
   EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
 
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   determine-evals:
     runs-on: ubuntu-latest
@@ -449,7 +445,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     concurrency:
-      group: specialized-evals-${{ github.run_id }}
+      group: specialized-evals-${{ github.run_id }}-
       cancel-in-progress: false
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
