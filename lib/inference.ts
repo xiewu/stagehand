@@ -287,6 +287,7 @@ export async function observe({
   isUsingAccessibilityTree,
   userProvidedInstructions,
   logger,
+  returnAction = false,
 }: {
   instruction: string;
   domElements: string;
@@ -296,6 +297,7 @@ export async function observe({
   userProvidedInstructions?: string;
   logger: (message: LogLine) => void;
   isUsingAccessibilityTree?: boolean;
+  returnAction?: boolean;
 }) {
   const observeSchema = z.object({
     elements: z
@@ -309,6 +311,21 @@ export async function observe({
                 ? "a description of the accessible element and its purpose"
                 : "a description of the element and what it is relevant for",
             ),
+          ...(returnAction
+            ? {
+                method: z
+                  .string()
+                  .describe(
+                    "the candidate method/action to interact with the element. Select one of the available Playwright interaction methods.",
+                  ),
+                arguments: z
+                  .array(
+                    z.string().describe(
+                      "the arguments to pass to the method. For example, for a click, the arguments are empty, but for a fill, the arguments are the value to fill in.",
+                    )
+                  )
+              }
+            : {}),
         }),
       )
       .describe(
@@ -351,10 +368,18 @@ export async function observe({
     });
   const parsedResponse = {
     elements:
-      observationResponse.elements?.map((el) => ({
-        elementId: Number(el.elementId),
-        description: String(el.description),
-      })) ?? [],
+      observationResponse.elements?.map((el) => {
+        const base = {
+          elementId: Number(el.elementId),
+          description: String(el.description),
+        };
+        
+        return returnAction ? {
+          ...base,
+          method: String(el.method),
+          arguments: el.arguments,
+        } : base;
+      }) ?? [],
   } satisfies { elements: { elementId: number; description: string }[] };
 
   return parsedResponse;

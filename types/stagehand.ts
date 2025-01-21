@@ -88,9 +88,14 @@ export interface ObserveOptions {
   useVision?: boolean;
   domSettleTimeoutMs?: number;
   useAccessibilityTree?: boolean;
+  returnAction?: boolean;
 }
 
 export interface ObserveResult {
   selector: string;
   description: string;
+  backendNodeId: number;
+  //TODO: review name
+  method?: string;
+  arguments?: any[];
 }

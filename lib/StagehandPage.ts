@@ -469,6 +469,7 @@ export class StagehandPage {
       useVision = false,
       domSettleTimeoutMs,
       useAccessibilityTree = false,
+      returnAction = false,
     } = options;
 
     const requestId = Math.random().toString(36).substring(2);
@@ -497,6 +498,10 @@ export class StagehandPage {
           value: useAccessibilityTree ? "true" : "false",
           type: "boolean",
         },
+        returnAction: {
+          value: returnAction ? "true" : "false",
+          type: "boolean",
+        },
       },
     });
 
@@ -509,6 +514,7 @@ export class StagehandPage {
         requestId,
         domSettleTimeoutMs,
         useAccessibilityTree,
+        returnAction,
       })
       .catch((e) => {
         this.stagehand.log({
