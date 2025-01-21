@@ -50,7 +50,7 @@ Here's a sample of what you can do with Stagehand:
 await page.goto("https://docs.stagehand.dev");
 
 // Stagehand AI: Extract data from the page
-const { extraction } = await page.extract("Extract the description of the page");
+const { extraction } = await page.extract("extract the description of the page");
 
 // Stagehand AI: Act on the page
 await page.act("click on the 'Quickstart'");
