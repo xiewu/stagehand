@@ -54,7 +54,7 @@ await page.act("click on the 'Quickstart'");
 
 // Stagehand AI: Extract data from the page
 const { description } = await page.extract({
-  instruction: "Extract the description of the page",
+  instruction: "extract the description of the page",
   schema: z.object({
     description: z.string(),
   }),
