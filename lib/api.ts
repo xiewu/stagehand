@@ -17,8 +17,6 @@ import { z } from "zod";
 import { GotoOptions } from "../types/playwright";
 import zodToJsonSchema from "zod-to-json-schema";
 
-const API_URL = "http://localhost:3001/api";
-
 export class StagehandAPI {
   private apiKey: string;
   private projectId: string;
@@ -196,7 +194,7 @@ export class StagehandAPI {
       "Content-Type": "application/json",
     };
 
-    const response = await fetch(`${API_URL}${path}`, {
+    const response = await fetch(`${process.env.STAGEHAND_API_URL}${path}`, {
       ...options,
       headers: {
         ...defaultHeaders,
