@@ -17,6 +17,7 @@ export interface StartSessionParams {
   domSettleTimeoutMs: number;
   verbose: number;
   debugDom: boolean;
+  systemPrompt?: string;
 }
 
 export interface StartSessionResult {

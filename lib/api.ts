@@ -35,6 +35,7 @@ export class StagehandAPI {
     domSettleTimeoutMs,
     verbose,
     debugDom,
+    systemPrompt,
   }: StartSessionParams): Promise<StartSessionResult> {
     const whitelistResponse = await this.request("/verify-whitelist", {
       method: "POST",
@@ -59,6 +60,7 @@ export class StagehandAPI {
         domSettleTimeoutMs,
         verbose,
         debugDom,
+        systemPrompt,
       }),
       headers: {
         "model-api-key": modelApiKey,

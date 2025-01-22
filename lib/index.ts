@@ -450,6 +450,7 @@ export class Stagehand {
         domSettleTimeoutMs: this.domSettleTimeoutMs,
         verbose: this.verbose,
         debugDom: this.debugDom,
+        systemPrompt: this.userProvidedInstructions,
       });
       this.browserbaseSessionID = sessionId;
     }
