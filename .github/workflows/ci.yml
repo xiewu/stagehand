@@ -192,7 +192,7 @@ jobs:
 
   # 2) Act depends on combination. If no label: exit 0 and pass.
   run-act-evals:
-    needs: [run-combination-evals]
+    needs: [run-combination-evals, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
