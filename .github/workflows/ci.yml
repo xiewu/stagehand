@@ -138,7 +138,7 @@ jobs:
         run: npm run e2e:bb
 
   # --------------------------------------------------------------------
-  # From here on, we replace real eval steps with dummy commands
+  # From here on, dummy eval steps with approach A for skipping
   # --------------------------------------------------------------------
   run-combination-evals:
     needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
@@ -170,9 +170,6 @@ jobs:
 
   run-act-evals:
     needs: [run-combination-evals]
-    if: >
-      (needs.run-combination-evals.conclusion != 'failure')
-      && needs.determine-evals.outputs.run-act == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -181,6 +178,13 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+
+      - name: Check for 'act' label
+        run: |
+          if [ "${{ needs.determine-evals.outputs.run-act }}" != "true" ]; then
+            echo "No 'act' label found. Skipping job steps."
+            exit 0
+          fi
 
       - name: Dummy Act Evals
         run: |
@@ -205,9 +209,6 @@ jobs:
 
   run-extract-evals:
     needs: [run-act-evals]
-    if: >
-      (needs.run-act-evals.conclusion != 'failure')
-      && needs.determine-evals.outputs.run-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
@@ -216,6 +217,13 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+
+      - name: Check for 'extract' label
+        run: |
+          if [ "${{ needs.determine-evals.outputs.run-extract }}" != "true" ]; then
+            echo "No 'extract' label found. Skipping job steps."
+            exit 0
+          fi
 
       # 1. Dummy "domExtract"
       - name: Dummy Extract Evals (domExtract)
@@ -256,9 +264,6 @@ jobs:
 
   run-text-extract-evals:
     needs: [run-extract-evals]
-    if: >
-      (needs.run-extract-evals.conclusion != 'failure')
-      && needs.determine-evals.outputs.run-text-extract == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -267,6 +272,13 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+
+      - name: Check for 'text-extract' label
+        run: |
+          if [ "${{ needs.determine-evals.outputs.run-text-extract }}" != "true" ]; then
+            echo "No 'text-extract' label found. Skipping job steps."
+            exit 0
+          fi
 
       # 1. Dummy text_extract with textExtract
       - name: Dummy text_extract Evals (textExtract)
@@ -286,7 +298,7 @@ jobs:
       - name: Save text_extract Dom Results
         run: mv eval-summary.json eval-summary-text_extract-dom.json
 
-      # 3. Log and Compare
+      # 3. Log and Compare text_extract
       - name: Log and Compare text_extract Evals Performance
         run: |
           experimentNameText=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
@@ -307,9 +319,6 @@ jobs:
 
   run-observe-evals:
     needs: [run-text-extract-evals]
-    if: >
-      (needs.run-text-extract-evals.conclusion != 'failure')
-      && needs.determine-evals.outputs.run-observe == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -318,6 +327,13 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+
+      - name: Check for 'observe' label
+        run: |
+          if [ "${{ needs.determine-evals.outputs.run-observe }}" != "true" ]; then
+            echo "No 'observe' label found. Skipping job steps."
+            exit 0
+          fi
 
       - name: Dummy Observe Evals
         run: |
