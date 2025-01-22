@@ -1,8 +1,10 @@
+import { Browserbase } from "@browserbasehq/sdk";
 import type {
   CDPSession,
   BrowserContext as PlaywrightContext,
   Page as PlaywrightPage,
 } from "@playwright/test";
+import { chromium } from "@playwright/test";
 import { z } from "zod";
 import { Page, defaultExtractSchema } from "../types/page";
 import {
@@ -18,8 +20,6 @@ import { StagehandObserveHandler } from "./handlers/observeHandler";
 import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
 import { LLMClient } from "./llm/LLMClient";
 import { StagehandContext } from "./StagehandContext";
-import { chromium } from "@playwright/test";
-import { Browserbase } from "@browserbasehq/sdk";
 
 const BROWSERBASE_REGION_DOMAIN = {
   "us-west-2": "wss://connect.usw2.browserbase.com",
