@@ -38,11 +38,6 @@ jobs:
           echo "run-observe=${{ contains(github.event.pull_request.labels.*.name, 'observe') }}" >> $GITHUB_OUTPUT
           echo "run-text-extract=${{ contains(github.event.pull_request.labels.*.name, 'text-extract') }}" >> $GITHUB_OUTPUT
 
-          echo "Extract label: ${{ contains(github.event.pull_request.labels.*.name, 'extract') }}"
-          echo "Act label: ${{ contains(github.event.pull_request.labels.*.name, 'act') }}"
-          echo "Observe label: ${{ contains(github.event.pull_request.labels.*.name, 'observe') }}"
-          echo "Text-Extract label: ${{ contains(github.event.pull_request.labels.*.name, 'text-extract') }}"
-
   run-lint:
     runs-on: ubuntu-latest
     steps:
@@ -162,16 +157,14 @@ jobs:
       - name: Install dependencies
         run: npm install --no-frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: npm exec playwright install --with-deps
-
       - name: Build Stagehand
         run: npm run build
 
-      - name: Dummy Combination Evals
-        run: |
-          echo "Running dummy combination evals..."
-          echo '{"experimentName":"dummyCombination","categories":{"combination":95}}' > eval-summary.json
+      - name: Install Playwright browsers
+        run: npm exec playwright install --with-deps
+
+      - name: Run Combination Evals
+        run: npm run evals category combination
 
       - name: Log Combination Evals Performance
         run: |
@@ -226,11 +219,10 @@ jobs:
         if: needs.determine-evals.outputs.run-act == 'true'
         run: npm run build
 
-      - name: Dummy Act Evals
+      - name: Run Act Evals
         if: needs.determine-evals.outputs.run-act == 'true'
         run: |
-          echo "Running dummy act evals..."
-          echo '{"experimentName":"dummyAct","categories":{"act":82}}' > eval-summary.json
+          run: npm run evals category act
 
       - name: Log Act Evals Performance
         if: needs.determine-evals.outputs.run-act == 'true'
@@ -294,26 +286,22 @@ jobs:
         run: npm run build
 
       # 1. Run extract category with domExtract
-      - name: Dummy Extract Evals (domExtract)
+      - name: Run Extract Evals (domExtract)
         if: needs.determine-evals.outputs.run-extract == 'true'
-        run: |
-          echo "Running dummy extract evals (domExtract)..."
-          echo '{"experimentName":"dummyDomExtract","categories":{"extract":85}}' > eval-summary.json
+        run: npm run evals category extract -- --extract-method=domExtract
       - name: Save Extract Dom Results
         if: needs.determine-evals.outputs.run-extract == 'true'
         run: mv eval-summary.json eval-summary-extract-dom.json
 
-      # 2. Then run extract category with textExtract
-      - name: Dummy Extract Evals (textExtract)
+      # 2. Once domExtract finishes, run extract category with textExtract
+      - name: Run Extract Evals (textExtract)
         if: needs.determine-evals.outputs.run-extract == 'true'
-        run: |
-          echo "Running dummy extract evals (textExtract)..."
-          echo '{"experimentName":"dummyTextExtract","categories":{"extract":90}}' > eval-summary.json
+        run: npm run evals category extract -- --extract-method=textExtract
       - name: Save Extract Text Results
         if: needs.determine-evals.outputs.run-extract == 'true'
         run: mv eval-summary.json eval-summary-extract-text.json
 
-      # 3. Log and Compare
+      # 3. Log and Compare Extract Evals Performance
       - name: Log and Compare Extract Evals Performance
         if: needs.determine-evals.outputs.run-extract == 'true'
         run: |
@@ -327,7 +315,7 @@ jobs:
           echo "TextExtract Extract category score: $text_score%"
           echo "View textExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
 
-          # If domExtract <80% fail CI
+          # 4. If domExtract <80% fail CI
           if (( $(echo "$dom_score < 80" | bc -l) )); then
             echo "DomExtract extract category score is below 80%. Failing CI."
             exit 1
@@ -377,27 +365,24 @@ jobs:
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: npm run build
 
-      # 1. text_extract with textExtract first
-      - name: Dummy text_extract Evals (textExtract)
+      # 1. Run text_extract category with textExtract first
+      - name: Run text_extract Evals (textExtract)
         if: needs.determine-evals.outputs.run-text-extract == 'true'
-        run: |
-          echo "Running dummy text_extract (textExtract)..."
-          echo '{"experimentName":"dummyTextExtract","categories":{"text_extract":90}}' > eval-summary.json
+        run: npm run evals category text_extract -- --extract-method=textExtract
+
       - name: Save text_extract Text Results
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: mv eval-summary.json eval-summary-text_extract-text.json
 
-      # 2. Then domExtract
-      - name: Dummy text_extract Evals (domExtract)
+      # 2. Then run text_extract category with domExtract
+      - name: Run text_extract Evals (domExtract)
         if: needs.determine-evals.outputs.run-text-extract == 'true'
-        run: |
-          echo "Running dummy text_extract (domExtract)..."
-          echo '{"experimentName":"dummyDomExtract","categories":{"text_extract":88}}' > eval-summary.json
+        run: npm run evals category text_extract -- --extract-method=domExtract
       - name: Save text_extract Dom Results
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: mv eval-summary.json eval-summary-text_extract-dom.json
 
-      # 3. Log and Compare
+      # 3. Log and Compare text_extract Evals Performance
       - name: Log and Compare text_extract Evals Performance
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: |
@@ -411,7 +396,7 @@ jobs:
           echo "DomExtract text_extract category score: $dom_score%"
           echo "View domExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
 
-          # If text_score <80% fail CI
+          # 4. If textExtract (for text_extract category) <80% fail CI
           if (( $(echo "$text_score < 80" | bc -l) )); then
             echo "textExtract text_extract category score is below 80%. Failing CI."
             exit 1
@@ -461,11 +446,9 @@ jobs:
         if: needs.determine-evals.outputs.run-observe == 'true'
         run: npm run build
 
-      - name: Dummy Observe Evals
+      - name: Run Observe Evals
         if: needs.determine-evals.outputs.run-observe == 'true'
-        run: |
-          echo "Running dummy observe evals..."
-          echo '{"experimentName":"dummyObserve","categories":{"observe":85}}' > eval-summary.json
+        run: npm run evals category observe
 
       - name: Log Observe Evals Performance
         if: needs.determine-evals.outputs.run-observe == 'true'
