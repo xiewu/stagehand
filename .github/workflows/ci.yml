@@ -38,6 +38,11 @@ jobs:
           echo "run-observe=${{ contains(github.event.pull_request.labels.*.name, 'observe') }}" >> $GITHUB_OUTPUT
           echo "run-text-extract=${{ contains(github.event.pull_request.labels.*.name, 'text-extract') }}" >> $GITHUB_OUTPUT
 
+          echo "Extract label: ${{ contains(github.event.pull_request.labels.*.name, 'extract') }}"
+          echo "Act label: ${{ contains(github.event.pull_request.labels.*.name, 'act') }}"
+          echo "Observe label: ${{ contains(github.event.pull_request.labels.*.name, 'observe') }}"
+          echo "Text-Extract label: ${{ contains(github.event.pull_request.labels.*.name, 'text-extract') }}"
+
   run-lint:
     runs-on: ubuntu-latest
     steps:
