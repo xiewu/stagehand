@@ -11,6 +11,10 @@ env:
   EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
   EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   determine-evals:
     runs-on: ubuntu-latest
