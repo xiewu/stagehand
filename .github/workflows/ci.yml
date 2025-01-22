@@ -167,8 +167,28 @@ jobs:
       - name: Install Playwright browsers
         run: npm exec playwright install --with-deps
 
+      # --- LOG eval-summary.json (before) ---
+      - name: Log eval-summary.json (before)
+        run: |
+          echo "### eval-summary.json BEFORE combination ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file yet.)"
+          fi
+
       - name: Run Combination Evals
         run: npm run evals category combination
+
+      # --- LOG eval-summary.json (after) ---
+      - name: Log eval-summary.json (after)
+        run: |
+          echo "### eval-summary.json AFTER combination ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file found.)"
+          fi
 
       - name: Log Combination Evals Performance
         run: |
@@ -183,6 +203,9 @@ jobs:
             exit 1
           fi
 
+  ####################################################################
+  #                      ACT EVALS
+  ####################################################################
   run-act-evals:
     needs: [run-combination-evals, determine-evals]
     runs-on: ubuntu-latest
@@ -227,10 +250,31 @@ jobs:
         if: needs.determine-evals.outputs.run-act == 'true'
         run: npm exec playwright install --with-deps
 
-      - name: Run Act Evals
+      # --- LOG eval-summary.json (before) ---
+      - name: Log eval-summary.json (before)
         if: needs.determine-evals.outputs.run-act == 'true'
         run: |
-          npm run evals category act
+          echo "### eval-summary.json BEFORE act ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file yet.)"
+          fi
+
+      - name: Run Act Evals
+        if: needs.determine-evals.outputs.run-act == 'true'
+        run: npm run evals category act
+
+      # --- LOG eval-summary.json (after) ---
+      - name: Log eval-summary.json (after)
+        if: needs.determine-evals.outputs.run-act == 'true'
+        run: |
+          echo "### eval-summary.json AFTER act ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file found.)"
+          fi
 
       - name: Log Act Evals Performance
         if: needs.determine-evals.outputs.run-act == 'true'
@@ -249,6 +293,9 @@ jobs:
             exit 1
           fi
 
+  ####################################################################
+  #                      EXTRACT EVALS
+  ####################################################################
   run-extract-evals:
     needs: [run-act-evals, determine-evals]
     runs-on: ubuntu-latest
@@ -285,26 +332,61 @@ jobs:
         if: needs.determine-evals.outputs.run-extract == 'true'
         run: npm install --no-frozen-lockfile
 
+      - name: Build Stagehand
+        if: needs.determine-evals.outputs.run-extract == 'true'
+        run: npm run build
+
       - name: Install Playwright browsers
         if: needs.determine-evals.outputs.run-extract == 'true'
         run: npm exec playwright install --with-deps
 
-      - name: Build Stagehand
+      # --- Log eval-summary.json (before) ---
+      - name: Log eval-summary.json (before)
         if: needs.determine-evals.outputs.run-extract == 'true'
-        run: npm run build
+        run: |
+          echo "### eval-summary.json BEFORE extract ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file yet.)"
+          fi
 
       # 1. Run extract category with domExtract
       - name: Run Extract Evals (domExtract)
         if: needs.determine-evals.outputs.run-extract == 'true'
         run: npm run evals category extract -- --extract-method=domExtract
+
+      # --- Log eval-summary.json (after domExtract) ---
+      - name: Log eval-summary.json (after dom)
+        if: needs.determine-evals.outputs.run-extract == 'true'
+        run: |
+          echo "### eval-summary.json AFTER domExtract ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file found.)"
+          fi
+
       - name: Save Extract Dom Results
         if: needs.determine-evals.outputs.run-extract == 'true'
         run: mv eval-summary.json eval-summary-extract-dom.json
 
-      # 2. Once domExtract finishes, run extract category with textExtract
+      # 2. Then run extract category with textExtract
       - name: Run Extract Evals (textExtract)
         if: needs.determine-evals.outputs.run-extract == 'true'
         run: npm run evals category extract -- --extract-method=textExtract
+
+      # --- Log eval-summary.json (after textExtract) ---
+      - name: Log eval-summary.json (after text)
+        if: needs.determine-evals.outputs.run-extract == 'true'
+        run: |
+          echo "### eval-summary.json AFTER textExtract ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file found.)"
+          fi
+
       - name: Save Extract Text Results
         if: needs.determine-evals.outputs.run-extract == 'true'
         run: mv eval-summary.json eval-summary-extract-text.json
@@ -323,12 +405,15 @@ jobs:
           echo "TextExtract Extract category score: $text_score%"
           echo "View textExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
 
-          # 4. If domExtract <80% fail CI
+          # If domExtract <80% fail CI
           if (( $(echo "$dom_score < 80" | bc -l) )); then
             echo "DomExtract extract category score is below 80%. Failing CI."
             exit 1
           fi
 
+  ####################################################################
+  #                      TEXT-EXTRACT EVALS
+  ####################################################################
   run-text-extract-evals:
     needs: [run-extract-evals, determine-evals]
     runs-on: ubuntu-latest
@@ -373,10 +458,32 @@ jobs:
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: npm run build
 
+      # --- Log eval-summary.json (before) ---
+      - name: Log eval-summary.json (before)
+        if: needs.determine-evals.outputs.run-text-extract == 'true'
+        run: |
+          echo "### eval-summary.json BEFORE text-extract ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file yet.)"
+          fi
+
       # 1. Run text_extract category with textExtract first
       - name: Run text_extract Evals (textExtract)
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: npm run evals category text_extract -- --extract-method=textExtract
+
+      # --- Log eval-summary.json (after textExtract) ---
+      - name: Log eval-summary.json (after textExtract)
+        if: needs.determine-evals.outputs.run-text-extract == 'true'
+        run: |
+          echo "### eval-summary.json AFTER textExtract ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file found.)"
+          fi
 
       - name: Save text_extract Text Results
         if: needs.determine-evals.outputs.run-text-extract == 'true'
@@ -386,6 +493,18 @@ jobs:
       - name: Run text_extract Evals (domExtract)
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: npm run evals category text_extract -- --extract-method=domExtract
+
+      # --- Log eval-summary.json (after domExtract) ---
+      - name: Log eval-summary.json (after domExtract)
+        if: needs.determine-evals.outputs.run-text-extract == 'true'
+        run: |
+          echo "### eval-summary.json AFTER domExtract ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file found.)"
+          fi
+
       - name: Save text_extract Dom Results
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: mv eval-summary.json eval-summary-text_extract-dom.json
@@ -404,12 +523,15 @@ jobs:
           echo "DomExtract text_extract category score: $dom_score%"
           echo "View domExtract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
 
-          # 4. If textExtract (for text_extract category) <80% fail CI
+          # If text_score <80% fail CI
           if (( $(echo "$text_score < 80" | bc -l) )); then
             echo "textExtract text_extract category score is below 80%. Failing CI."
             exit 1
           fi
 
+  ####################################################################
+  #                      OBSERVE EVALS
+  ####################################################################
   run-observe-evals:
     needs: [run-text-extract-evals, determine-evals]
     runs-on: ubuntu-latest
@@ -454,9 +576,31 @@ jobs:
         if: needs.determine-evals.outputs.run-observe == 'true'
         run: npm run build
 
+      # --- Log eval-summary.json (before) ---
+      - name: Log eval-summary.json (before)
+        if: needs.determine-evals.outputs.run-observe == 'true'
+        run: |
+          echo "### eval-summary.json BEFORE observe ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file yet.)"
+          fi
+
       - name: Run Observe Evals
         if: needs.determine-evals.outputs.run-observe == 'true'
         run: npm run evals category observe
+
+      # --- Log eval-summary.json (after) ---
+      - name: Log eval-summary.json (after)
+        if: needs.determine-evals.outputs.run-observe == 'true'
+        run: |
+          echo "### eval-summary.json AFTER observe ###"
+          if [ -f eval-summary.json ]; then
+            cat eval-summary.json
+          else
+            echo "(No eval-summary.json file found.)"
+          fi
 
       - name: Log Observe Evals Performance
         if: needs.determine-evals.outputs.run-observe == 'true'
