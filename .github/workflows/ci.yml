@@ -22,6 +22,7 @@ jobs:
     steps:
       - id: check-labels
         run: |
+          # Default to running all tests on main branch
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "Running all tests for main branch"
             echo "run-extract=true" >> $GITHUB_OUTPUT
@@ -31,6 +32,7 @@ jobs:
             exit 0
           fi
 
+          # Check for specific labels
           echo "run-extract=${{ contains(github.event.pull_request.labels.*.name, 'extract') }}" >> $GITHUB_OUTPUT
           echo "run-act=${{ contains(github.event.pull_request.labels.*.name, 'act') }}" >> $GITHUB_OUTPUT
           echo "run-observe=${{ contains(github.event.pull_request.labels.*.name, 'observe') }}" >> $GITHUB_OUTPUT
@@ -212,27 +214,27 @@ jobs:
           fi
 
       - name: Set up Node.js
-        if: steps.label-check.outputs.has_label == 'true'
+        if: needs.determine-evals.outputs.run-act == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
       - name: Install dependencies
-        if: steps.label-check.outputs.has_label == 'true'
+        if: needs.determine-evals.outputs.run-act == 'true'
         run: npm install --no-frozen-lockfile
 
       - name: Build Stagehand
-        if: steps.label-check.outputs.has_label == 'true'
+        if: needs.determine-evals.outputs.run-act == 'true'
         run: npm run build
 
       - name: Dummy Act Evals
-        if: steps.label-check.outputs.has_label == 'true'
+        if: needs.determine-evals.outputs.run-act == 'true'
         run: |
           echo "Running dummy act evals..."
           echo '{"experimentName":"dummyAct","categories":{"act":82}}' > eval-summary.json
 
       - name: Log Act Evals Performance
-        if: steps.label-check.outputs.has_label == 'true'
+        if: needs.determine-evals.outputs.run-act == 'true'
         run: |
           experimentName=$(jq -r '.experimentName' eval-summary.json)
           echo "View results at https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
