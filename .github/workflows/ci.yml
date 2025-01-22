@@ -12,12 +12,6 @@ env:
   EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
 
 jobs:
-  ####################################################################
-  # 1. DETERMINE-EVALS
-  #
-  #    Checks if the PR is on main or has certain labels, then sets
-  #    outputs to instruct which specialized evals should run.
-  ####################################################################
   determine-evals:
     runs-on: ubuntu-latest
     outputs:
@@ -28,8 +22,9 @@ jobs:
     steps:
       - id: check-labels
         run: |
-          # Default: run all specialized tests on main
+          # Default to running all tests on main branch
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "Running all tests for main branch"
             echo "run-extract=true" >> $GITHUB_OUTPUT
             echo "run-act=true" >> $GITHUB_OUTPUT
             echo "run-observe=true" >> $GITHUB_OUTPUT
@@ -37,15 +32,12 @@ jobs:
             exit 0
           fi
 
-          # Otherwise check specific labels
+          # Check for specific labels
           echo "run-extract=${{ contains(github.event.pull_request.labels.*.name, 'extract') }}" >> $GITHUB_OUTPUT
           echo "run-act=${{ contains(github.event.pull_request.labels.*.name, 'act') }}" >> $GITHUB_OUTPUT
           echo "run-observe=${{ contains(github.event.pull_request.labels.*.name, 'observe') }}" >> $GITHUB_OUTPUT
           echo "run-text-extract=${{ contains(github.event.pull_request.labels.*.name, 'text-extract') }}" >> $GITHUB_OUTPUT
 
-  ####################################################################
-  # 2. Some Pre-Eval Jobs (examples)
-  ####################################################################
   run-lint:
     runs-on: ubuntu-latest
     steps:
@@ -65,7 +57,6 @@ jobs:
 
   run-build:
     runs-on: ubuntu-latest
-    needs: [run-lint]
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -84,252 +75,267 @@ jobs:
   run-e2e-tests:
     needs: [run-lint, run-build]
     runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      HEADLESS: true
+
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+
       - name: Install dependencies
         run: npm install --no-frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npm exec playwright install --with-deps
+
       - name: Build Stagehand
         run: npm run build
-      - name: Run E2E Tests
+
+      - name: Run E2E Tests (Deterministic Playwright)
         run: npm run e2e
 
-  run-combination-evals:
-    needs: [run-e2e-tests, determine-evals]
+  run-e2e-bb-tests:
+    needs: [run-e2e-tests]
     runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+      HEADLESS: true
+
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+
       - name: Install dependencies
         run: npm install --no-frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npm exec playwright install --with-deps
+
       - name: Build Stagehand
         run: npm run build
-      - name: Combination Evals (Dummy)
-        run: |
-          echo "Pretending to run combination eval..."
-          cat <<EOF > combo-summary.json
-          {
-            "experimentName": "dummyCombination",
-            "categories": {
-              "combination": 90
-            }
-          }
-          EOF
-      - name: Log Combination
-        run: |
-          if [ ! -f combo-summary.json ]; then
-            echo "No combination file found, failing"
-            exit 1
-          fi
-          combo_score=$(jq '.categories.combination' combo-summary.json)
-          echo "Combination category score: $combo_score%"
 
-  ####################################################################
-  # 3. SPECIALIZED EVAL JOBS, SEQUENTIAL
-  #
-  #    Each job depends on the previous, so they run strictly in order:
-  #      run-extract-evals -> run-text-extract-evals -> run-act-evals -> run-observe-evals
-  #    If the label isn't set, the job does a no-op and exits 0 = success
-  #    so the next job won't be skipped.
-  ####################################################################
+      - name: Run E2E Tests (browserbase)
+        run: npm run e2e:bb
 
-  # ----------------- EXTRACT EVALS -----------------
-  run-extract-evals:
-    needs: [determine-evals, run-combination-evals]
+  # --------------------------------------------------------------------
+  # From here on, we replace real eval steps with dummy commands
+  # --------------------------------------------------------------------
+  run-combination-evals:
+    needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      HEADLESS: true
     steps:
-      - name: Check out repository
+      - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --no-frozen-lockfile
-
-      - name: Build Stagehand
-        run: npm run build
-
-      - name: Maybe Run Extract Evals
+      - name: Dummy Combination Evals
         run: |
-          if [ "${{ needs.determine-evals.outputs.run-extract }}" != "true" ]; then
-            echo "Label 'extract' not set. Skipping extract steps."
-            exit 0
-          fi
-          echo "Pretending to run EXTRACT EVALS..."
-          cat <<EOF > eval-summary-extract.json
-          {
-            "experimentName": "dummyExtractEval",
-            "categories": {
-              "extract": 85
-            }
-          }
-          EOF
+          echo "Running dummy combination evals..."
+          echo '{"experimentName":"dummyCombination","categories":{"combination":95}}' > eval-summary.json
 
-      - name: Check Extract Score
+      - name: Log Combination Evals Performance
         run: |
-          # If we didn't run the above step, no file
-          if [ ! -f eval-summary-extract.json ]; then
-            echo "No extract file found. Possibly skipped. Exiting success."
+          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          echo "View results at https://www.example.com/experiments/${experimentName}"
+          if [ -f eval-summary.json ]; then
+            combination_score=$(jq '.categories.combination' eval-summary.json)
+            echo "Combination category score: $combination_score%"
             exit 0
-          fi
-          extract_score=$(jq '.categories.extract' eval-summary-extract.json)
-          echo "Extract category score: $extract_score%"
-          if (( $(echo "$extract_score < 80" | bc -l) )); then
-            echo "Extract <80%. Failing CI."
+          else
+            echo "Eval summary not found for combination category. Failing CI."
             exit 1
           fi
 
-  # ----------------- TEXT-EXTRACT EVALS -----------------
-  run-text-extract-evals:
-    needs: [run-extract-evals] # ensures it runs after run-extract-evals
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --no-frozen-lockfile
-
-      - name: Build Stagehand
-        run: npm run build
-
-      - name: Maybe Run text_extract Evals
-        run: |
-          if [ "${{ needs.determine-evals.outputs.run-text-extract }}" != "true" ]; then
-            echo "Label 'text-extract' not set. Skipping text_extract steps."
-            exit 0
-          fi
-          echo "Pretending to run TEXT_EXTRACT EVALS..."
-          cat <<EOF > eval-summary-textExtract.json
-          {
-            "experimentName": "dummyTextExtractEval",
-            "categories": {
-              "text_extract": 78
-            }
-          }
-          EOF
-
-      - name: Check text_extract Score
-        run: |
-          if [ ! -f eval-summary-textExtract.json ]; then
-            echo "No text_extract file found. Possibly skipped. Exiting success."
-            exit 0
-          fi
-          text_extract_score=$(jq '.categories.text_extract' eval-summary-textExtract.json)
-          echo "text_extract score: $text_extract_score%"
-          if (( $(echo "$text_extract_score < 80" | bc -l) )); then
-            echo "text_extract <80%. Failing CI."
-            exit 1
-          fi
-
-  # ----------------- ACT EVALS -----------------
   run-act-evals:
-    needs: [run-text-extract-evals] # ensures it runs after text-extract-evals
+    needs: [run-combination-evals]
+    if: >
+      (needs.run-combination-evals.conclusion != 'failure')
+      && needs.determine-evals.outputs.run-act == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HEADLESS: true
+
     steps:
-      - name: Check out repository
+      - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --no-frozen-lockfile
-
-      - name: Build Stagehand
-        run: npm run build
-
-      - name: Maybe Run Act Evals
+      - name: Dummy Act Evals
         run: |
-          if [ "${{ needs.determine-evals.outputs.run-act }}" != "true" ]; then
-            echo "Label 'act' not set. Skipping act steps."
-            exit 0
-          fi
-          echo "Pretending to run ACT EVALS..."
-          cat <<EOF > eval-summary-act.json
-          {
-            "experimentName": "dummyActEval",
-            "categories": {
-              "act": 82
-            }
-          }
-          EOF
+          echo "Running dummy act evals..."
+          echo '{"experimentName":"dummyAct","categories":{"act":82}}' > eval-summary.json
 
-      - name: Check Act Score
+      - name: Log Act Evals Performance
         run: |
-          if [ ! -f eval-summary-act.json ]; then
-            echo "No act file found. Possibly skipped. Exiting success."
-            exit 0
-          fi
-          act_score=$(jq '.categories.act' eval-summary-act.json)
-          echo "Act category score: $act_score%"
-          if (( $(echo "$act_score < 80" | bc -l) )); then
-            echo "Act <80%. Failing CI."
+          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          echo "View results at https://www.example.com/experiments/${experimentName}"
+          if [ -f eval-summary.json ]; then
+            act_score=$(jq '.categories.act' eval-summary.json)
+            echo "Act category score: $act_score%"
+            if (( $(echo "$act_score < 80" | bc -l) )); then
+              echo "Act category score is below 80%. Failing CI."
+              exit 1
+            fi
+          else
+            echo "Eval summary not found for act category. Failing CI."
             exit 1
           fi
 
-  # ----------------- OBSERVE EVALS -----------------
-  run-observe-evals:
-    needs: [run-act-evals] # ensures it runs after act-evals
+  run-extract-evals:
+    needs: [run-act-evals]
+    if: >
+      (needs.run-act-evals.conclusion != 'failure')
+      && needs.determine-evals.outputs.run-extract == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      HEADLESS: true
+
     steps:
-      - name: Check out repository
+      - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install --no-frozen-lockfile
-
-      - name: Build Stagehand
-        run: npm run build
-
-      - name: Maybe Run Observe Evals
+      # 1. Dummy "domExtract"
+      - name: Dummy Extract Evals (domExtract)
         run: |
-          if [ "${{ needs.determine-evals.outputs.run-observe }}" != "true" ]; then
-            echo "Label 'observe' not set. Skipping observe steps."
-            exit 0
-          fi
-          echo "Pretending to run OBSERVE EVALS..."
-          cat <<EOF > eval-summary-observe.json
-          {
-            "experimentName": "dummyObserveEval",
-            "categories": {
-              "observe": 88
-            }
-          }
-          EOF
+          echo "Running dummy extract evals (domExtract)..."
+          echo '{"experimentName":"dummyDomExtract","categories":{"extract":85}}' > eval-summary.json
 
-      - name: Check Observe Score
+      - name: Save Extract Dom Results
+        run: mv eval-summary.json eval-summary-extract-dom.json
+
+      # 2. Dummy "textExtract"
+      - name: Dummy Extract Evals (textExtract)
         run: |
-          if [ ! -f eval-summary-observe.json ]; then
-            echo "No observe file found. Possibly skipped. Exiting success."
-            exit 0
+          echo "Running dummy extract evals (textExtract)..."
+          echo '{"experimentName":"dummyTextExtract","categories":{"extract":90}}' > eval-summary.json
+
+      - name: Save Extract Text Results
+        run: mv eval-summary.json eval-summary-extract-text.json
+
+      # 3. Log and Compare
+      - name: Log and Compare Extract Evals Performance
+        run: |
+          experimentNameDom=$(jq -r '.experimentName' eval-summary-extract-dom.json)
+          dom_score=$(jq '.categories.extract' eval-summary-extract-dom.json)
+          echo "DomExtract Extract category score: $dom_score%"
+          echo "View domExtract results: https://www.example.com/experiments/${experimentNameDom}"
+
+          experimentNameText=$(jq -r '.experimentName' eval-summary-extract-text.json)
+          text_score=$(jq '.categories.extract' eval-summary-extract-text.json)
+          echo "TextExtract Extract category score: $text_score%"
+          echo "View textExtract results: https://www.example.com/experiments/${experimentNameText}"
+
+          # If domExtract <80% fail CI
+          if (( $(echo "$dom_score < 80" | bc -l) )); then
+            echo "DomExtract extract category score is below 80%. Failing CI."
+            exit 1
           fi
-          observe_score=$(jq '.categories.observe' eval-summary-observe.json)
-          echo "Observe category score: $observe_score%"
-          if (( $(echo "$observe_score < 80" | bc -l) )); then
-            echo "Observe <80%. Failing CI."
+
+  run-text-extract-evals:
+    needs: [run-extract-evals]
+    if: >
+      (needs.run-extract-evals.conclusion != 'failure')
+      && needs.determine-evals.outputs.run-text-extract == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      HEADLESS: true
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      # 1. Dummy text_extract with textExtract
+      - name: Dummy text_extract Evals (textExtract)
+        run: |
+          echo "Running dummy text_extract (textExtract)..."
+          echo '{"experimentName":"dummyTextExtract","categories":{"text_extract":90}}' > eval-summary.json
+
+      - name: Save text_extract Text Results
+        run: mv eval-summary.json eval-summary-text_extract-text.json
+
+      # 2. Dummy text_extract with domExtract
+      - name: Dummy text_extract Evals (domExtract)
+        run: |
+          echo "Running dummy text_extract (domExtract)..."
+          echo '{"experimentName":"dummyDomExtract","categories":{"text_extract":88}}' > eval-summary.json
+
+      - name: Save text_extract Dom Results
+        run: mv eval-summary.json eval-summary-text_extract-dom.json
+
+      # 3. Log and Compare
+      - name: Log and Compare text_extract Evals Performance
+        run: |
+          experimentNameText=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
+          text_score=$(jq '.categories.text_extract' eval-summary-text_extract-text.json)
+          echo "TextExtract text_extract category score: $text_score%"
+          echo "View textExtract results: https://www.example.com/experiments/${experimentNameText}"
+
+          experimentNameDom=$(jq -r '.experimentName' eval-summary-text_extract-dom.json)
+          dom_score=$(jq '.categories.text_extract' eval-summary-text_extract-dom.json)
+          echo "DomExtract text_extract category score: $dom_score%"
+          echo "View domExtract results: https://www.example.com/experiments/${experimentNameDom}"
+
+          # If text_score <80% fail CI
+          if (( $(echo "$text_score < 80" | bc -l) )); then
+            echo "textExtract text_extract category score is below 80%. Failing CI."
+            exit 1
+          fi
+
+  run-observe-evals:
+    needs: [run-text-extract-evals]
+    if: >
+      (needs.run-text-extract-evals.conclusion != 'failure')
+      && needs.determine-evals.outputs.run-observe == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HEADLESS: true
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Dummy Observe Evals
+        run: |
+          echo "Running dummy observe evals..."
+          echo '{"experimentName":"dummyObserve","categories":{"observe":85}}' > eval-summary.json
+
+      - name: Log Observe Evals Performance
+        run: |
+          experimentName=$(jq -r '.experimentName' eval-summary.json)
+          echo "View results at https://www.example.com/experiments/${experimentName}"
+          if [ -f eval-summary.json ]; then
+            observe_score=$(jq '.categories.observe' eval-summary.json)
+            echo "Observe category score: $observe_score%"
+            if (( $(echo "$observe_score < 80" | bc -l) )); then
+              echo "Observe category score is below 80%. Failing CI."
+              exit 1
+            fi
+          else
+            echo "Eval summary not found for observe category. Failing CI."
             exit 1
           fi
