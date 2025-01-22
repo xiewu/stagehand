@@ -226,7 +226,7 @@ jobs:
       - name: Run Act Evals
         if: needs.determine-evals.outputs.run-act == 'true'
         run: |
-          run: npm run evals category act
+          npm run evals category act
 
       - name: Log Act Evals Performance
         if: needs.determine-evals.outputs.run-act == 'true'
