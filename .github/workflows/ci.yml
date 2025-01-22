@@ -211,7 +211,7 @@ jobs:
       - name: Check for 'act' label
         id: label-check
         run: |
-          if [ "${{ needs.determine-evals.outputs.run-act }}" != "true" ]; then
+          if [ "${{ contains(github.event.pull_request.labels.*.name, 'act') }}" != "true" ]; then
             echo "has_label=false" >> $GITHUB_OUTPUT
             echo "No label for ACT. Exiting with success."
           else
