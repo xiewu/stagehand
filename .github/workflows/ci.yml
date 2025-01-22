@@ -22,7 +22,6 @@ jobs:
     steps:
       - id: check-labels
         run: |
-          # Default to running all tests on main branch
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "Running all tests for main branch"
             echo "run-extract=true" >> $GITHUB_OUTPUT
@@ -32,7 +31,6 @@ jobs:
             exit 0
           fi
 
-          # Check for specific labels
           echo "run-extract=${{ contains(github.event.pull_request.labels.*.name, 'extract') }}" >> $GITHUB_OUTPUT
           echo "run-act=${{ contains(github.event.pull_request.labels.*.name, 'act') }}" >> $GITHUB_OUTPUT
           echo "run-observe=${{ contains(github.event.pull_request.labels.*.name, 'observe') }}" >> $GITHUB_OUTPUT
