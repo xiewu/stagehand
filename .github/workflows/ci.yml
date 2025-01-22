@@ -138,7 +138,7 @@ jobs:
         run: npm run e2e:bb
 
   # --------------------------------------------------------------------
-  # Dummy eval steps from combination onward, skipping if label missing
+  # From here on: combination always runs; other evals skip sub-steps if no label
   # --------------------------------------------------------------------
   run-combination-evals:
     needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
@@ -233,7 +233,6 @@ jobs:
             echo "has_label=true" >> $GITHUB_OUTPUT
           fi
 
-      # 1. Dummy "domExtract"
       - name: Dummy Extract Evals (domExtract)
         if: steps.label-check.outputs.has_label == 'true'
         run: |
@@ -244,7 +243,6 @@ jobs:
         if: steps.label-check.outputs.has_label == 'true'
         run: mv eval-summary.json eval-summary-extract-dom.json
 
-      # 2. Dummy "textExtract"
       - name: Dummy Extract Evals (textExtract)
         if: steps.label-check.outputs.has_label == 'true'
         run: |
@@ -255,7 +253,6 @@ jobs:
         if: steps.label-check.outputs.has_label == 'true'
         run: mv eval-summary.json eval-summary-extract-text.json
 
-      # 3. Log and Compare
       - name: Log and Compare Extract Evals Performance
         if: steps.label-check.outputs.has_label == 'true'
         run: |
@@ -296,7 +293,6 @@ jobs:
             echo "has_label=true" >> $GITHUB_OUTPUT
           fi
 
-      # 1. Dummy text_extract with textExtract
       - name: Dummy text_extract Evals (textExtract)
         if: steps.label-check.outputs.has_label == 'true'
         run: |
@@ -307,7 +303,6 @@ jobs:
         if: steps.label-check.outputs.has_label == 'true'
         run: mv eval-summary.json eval-summary-text_extract-text.json
 
-      # 2. Dummy text_extract with domExtract
       - name: Dummy text_extract Evals (domExtract)
         if: steps.label-check.outputs.has_label == 'true'
         run: |
@@ -318,7 +313,6 @@ jobs:
         if: steps.label-check.outputs.has_label == 'true'
         run: mv eval-summary.json eval-summary-text_extract-dom.json
 
-      # 3. Log and Compare text_extract Evals
       - name: Log and Compare text_extract Evals Performance
         if: steps.label-check.outputs.has_label == 'true'
         run: |
@@ -344,6 +338,7 @@ jobs:
     timeout-minutes: 25
     env:
       HEADLESS: true
+
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
