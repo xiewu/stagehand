@@ -218,6 +218,11 @@ jobs:
             echo "has_label=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Log value of run-act
+        run: |
+          # log the value of run-act
+            echo "run-act: ${{ needs.determine-evals.outputs.run-act }}"
+
       - name: Set up Node.js
         if: needs.determine-evals.outputs.run-act == 'true'
         uses: actions/setup-node@v4
