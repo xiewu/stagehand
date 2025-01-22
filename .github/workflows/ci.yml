@@ -220,8 +220,8 @@ jobs:
 
       - name: Log value of run-act
         run: |
-          # log the value of run-act
-            echo "run-act: ${{ needs.determine-evals.outputs.run-act }}"
+          echo "run-act: ${{ needs.determine-evals.outputs.run-act }}"
+          echo "run-act: ${{ contains(github.event.pull_request.labels.*.name, 'act') }}"
 
       - name: Set up Node.js
         if: needs.determine-evals.outputs.run-act == 'true'
