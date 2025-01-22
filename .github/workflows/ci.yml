@@ -211,7 +211,7 @@ jobs:
       - name: Check for 'act' label
         id: label-check
         run: |
-          if [ "${{ contains(github.event.pull_request.labels.*.name, 'act') }}" != "true" ]; then
+          if [ "${{ needs.determine-evals.outputs.run-act }}" != "true" ]; then
             echo "has_label=false" >> $GITHUB_OUTPUT
             echo "No label for ACT. Exiting with success."
           else
@@ -262,7 +262,7 @@ jobs:
 
   # 3) Extract depends on act. If no label: exit 0 and pass.
   run-extract-evals:
-    needs: [run-act-evals]
+    needs: [run-act-evals, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
@@ -336,7 +336,7 @@ jobs:
 
   # 4) Text-extract depends on extract. If no label: exit 0 and pass.
   run-text-extract-evals:
-    needs: [run-extract-evals]
+    needs: [run-extract-evals, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -410,7 +410,7 @@ jobs:
 
   # 5) Observe depends on text-extract. If no label: exit 0 and pass.
   run-observe-evals:
-    needs: [run-text-extract-evals]
+    needs: [run-text-extract-evals, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
