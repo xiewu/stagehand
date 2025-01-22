@@ -138,7 +138,7 @@ jobs:
         run: npm run e2e:bb
 
   # --------------------------------------------------------------------
-  # From here on, dummy eval steps with approach A for skipping
+  # Dummy eval steps from combination onward, skipping if label missing
   # --------------------------------------------------------------------
   run-combination-evals:
     needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
@@ -180,18 +180,23 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check for 'act' label
+        id: label-check
         run: |
           if [ "${{ needs.determine-evals.outputs.run-act }}" != "true" ]; then
-            echo "No 'act' label found. Skipping job steps."
-            exit 0
+            echo "No label selected for \"act\", continuing without running \"act\"."
+            echo "has_label=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_label=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Dummy Act Evals
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           echo "Running dummy act evals..."
           echo '{"experimentName":"dummyAct","categories":{"act":82}}' > eval-summary.json
 
       - name: Log Act Evals Performance
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           experimentName=$(jq -r '.experimentName' eval-summary.json)
           echo "View results at https://www.example.com/experiments/${experimentName}"
@@ -219,32 +224,40 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check for 'extract' label
+        id: label-check
         run: |
           if [ "${{ needs.determine-evals.outputs.run-extract }}" != "true" ]; then
-            echo "No 'extract' label found. Skipping job steps."
-            exit 0
+            echo "No label selected for \"extract\", continuing without running \"extract\"."
+            echo "has_label=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_label=true" >> $GITHUB_OUTPUT
           fi
 
       # 1. Dummy "domExtract"
       - name: Dummy Extract Evals (domExtract)
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           echo "Running dummy extract evals (domExtract)..."
           echo '{"experimentName":"dummyDomExtract","categories":{"extract":85}}' > eval-summary.json
 
       - name: Save Extract Dom Results
+        if: steps.label-check.outputs.has_label == 'true'
         run: mv eval-summary.json eval-summary-extract-dom.json
 
       # 2. Dummy "textExtract"
       - name: Dummy Extract Evals (textExtract)
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           echo "Running dummy extract evals (textExtract)..."
           echo '{"experimentName":"dummyTextExtract","categories":{"extract":90}}' > eval-summary.json
 
       - name: Save Extract Text Results
+        if: steps.label-check.outputs.has_label == 'true'
         run: mv eval-summary.json eval-summary-extract-text.json
 
       # 3. Log and Compare
       - name: Log and Compare Extract Evals Performance
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           experimentNameDom=$(jq -r '.experimentName' eval-summary-extract-dom.json)
           dom_score=$(jq '.categories.extract' eval-summary-extract-dom.json)
@@ -274,32 +287,40 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check for 'text-extract' label
+        id: label-check
         run: |
           if [ "${{ needs.determine-evals.outputs.run-text-extract }}" != "true" ]; then
-            echo "No 'text-extract' label found. Skipping job steps."
-            exit 0
+            echo "No label selected for \"text-extract\", continuing without running \"text-extract\"."
+            echo "has_label=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_label=true" >> $GITHUB_OUTPUT
           fi
 
       # 1. Dummy text_extract with textExtract
       - name: Dummy text_extract Evals (textExtract)
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           echo "Running dummy text_extract (textExtract)..."
           echo '{"experimentName":"dummyTextExtract","categories":{"text_extract":90}}' > eval-summary.json
 
       - name: Save text_extract Text Results
+        if: steps.label-check.outputs.has_label == 'true'
         run: mv eval-summary.json eval-summary-text_extract-text.json
 
       # 2. Dummy text_extract with domExtract
       - name: Dummy text_extract Evals (domExtract)
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           echo "Running dummy text_extract (domExtract)..."
           echo '{"experimentName":"dummyDomExtract","categories":{"text_extract":88}}' > eval-summary.json
 
       - name: Save text_extract Dom Results
+        if: steps.label-check.outputs.has_label == 'true'
         run: mv eval-summary.json eval-summary-text_extract-dom.json
 
-      # 3. Log and Compare text_extract
+      # 3. Log and Compare text_extract Evals
       - name: Log and Compare text_extract Evals Performance
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           experimentNameText=$(jq -r '.experimentName' eval-summary-text_extract-text.json)
           text_score=$(jq '.categories.text_extract' eval-summary-text_extract-text.json)
@@ -323,24 +344,28 @@ jobs:
     timeout-minutes: 25
     env:
       HEADLESS: true
-
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
 
       - name: Check for 'observe' label
+        id: label-check
         run: |
           if [ "${{ needs.determine-evals.outputs.run-observe }}" != "true" ]; then
-            echo "No 'observe' label found. Skipping job steps."
-            exit 0
+            echo "No label selected for \"observe\", continuing without running \"observe\"."
+            echo "has_label=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_label=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Dummy Observe Evals
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           echo "Running dummy observe evals..."
           echo '{"experimentName":"dummyObserve","categories":{"observe":85}}' > eval-summary.json
 
       - name: Log Observe Evals Performance
+        if: steps.label-check.outputs.has_label == 'true'
         run: |
           experimentName=$(jq -r '.experimentName' eval-summary.json)
           echo "View results at https://www.example.com/experiments/${experimentName}"
