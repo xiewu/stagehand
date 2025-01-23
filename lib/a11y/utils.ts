@@ -2,7 +2,10 @@ import { AccessibilityNode, TreeResult, AXNode } from "../../types/context";
 import { StagehandPage } from "../StagehandPage";
 import { LogLine } from "../../types/log";
 import { CDPSession, Page, Locator } from "playwright";
-import { PlaywrightCommandMethodNotSupportedException, PlaywrightCommandException } from "@/types/playwright";
+import {
+  PlaywrightCommandMethodNotSupportedException,
+  PlaywrightCommandException,
+} from "@/types/playwright";
 
 // Parser function for str output
 export function formatSimplifiedTree(
@@ -536,4 +539,3 @@ export async function performPlaywrightMethod(
 
   await stagehandPage._waitForSettledDom(domSettleTimeoutMs);
 }
-

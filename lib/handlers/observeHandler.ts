@@ -9,7 +9,6 @@ import {
   getAccessibilityTree,
   getXPathByResolvedObjectId,
 } from "../a11y/utils";
-import fs from "fs";
 
 export class StagehandObserveHandler {
   private readonly stagehand: Stagehand;
@@ -97,8 +96,6 @@ export class StagehandObserveHandler {
     const evalResult = await this.stagehand.page.evaluate(() => {
       return window.processAllOfDom().then((result) => result);
     });
-
-    fs.writeFileSync("../output_substring.txt", evalResult.outputString);
 
     // For each element in the selector map, get its backendNodeId
     for (const [index, xpaths] of Object.entries(evalResult.selectorMap)) {
@@ -230,7 +227,7 @@ export class StagehandObserveHandler {
           selector: `xpath=${selectorMap[elementId][0]}`,
           // backendNodeId: backendNodeIdMap[elementId],
         };
-      })
+      }),
     );
     const filteredElements = elementsWithSelectors.filter(
       (element): element is NonNullable<typeof element> => element !== null,
@@ -248,7 +245,7 @@ export class StagehandObserveHandler {
         },
       },
     });
-    
+
     await this._recordObservation(instruction, filteredElements);
     return filteredElements;
   }
