@@ -318,12 +318,13 @@ export async function observe({
                   .describe(
                     "the candidate method/action to interact with the element. Select one of the available Playwright interaction methods.",
                   ),
-                arguments: z
-                  .array(
-                    z.string().describe(
+                arguments: z.array(
+                  z
+                    .string()
+                    .describe(
                       "the arguments to pass to the method. For example, for a click, the arguments are empty, but for a fill, the arguments are the value to fill in.",
-                    )
-                  )
+                    ),
+                ),
               }
             : {}),
         }),
@@ -373,12 +374,14 @@ export async function observe({
           elementId: Number(el.elementId),
           description: String(el.description),
         };
-        
-        return returnAction ? {
-          ...base,
-          method: String(el.method),
-          arguments: el.arguments,
-        } : base;
+
+        return returnAction
+          ? {
+              ...base,
+              method: String(el.method),
+              arguments: el.arguments,
+            }
+          : base;
       }) ?? [],
   } satisfies { elements: { elementId: number; description: string }[] };
 

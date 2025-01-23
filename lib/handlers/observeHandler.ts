@@ -9,6 +9,7 @@ import {
   getAccessibilityTree,
   getXPathByResolvedObjectId,
 } from "../a11y/utils";
+import fs from "fs";
 
 export class StagehandObserveHandler {
   private readonly stagehand: Stagehand;
@@ -57,8 +58,9 @@ export class StagehandObserveHandler {
     fullPage,
     llmClient,
     requestId,
-    useAccessibilityTree = false,
-    returnAction = false,
+    useAccessibilityTree,
+    returnAction,
+    visibleElements,
   }: {
     instruction: string;
     useVision: boolean;
@@ -68,6 +70,7 @@ export class StagehandObserveHandler {
     domSettleTimeoutMs?: number;
     useAccessibilityTree?: boolean;
     returnAction?: boolean;
+    visibleElements?: boolean;
   }) {
     if (!instruction) {
       instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
@@ -94,6 +97,8 @@ export class StagehandObserveHandler {
     const evalResult = await this.stagehand.page.evaluate(() => {
       return window.processAllOfDom().then((result) => result);
     });
+
+    fs.writeFileSync("../output_substring.txt", evalResult.outputString);
 
     // For each element in the selector map, get its backendNodeId
     for (const [index, xpaths] of Object.entries(evalResult.selectorMap)) {
@@ -193,6 +198,10 @@ export class StagehandObserveHandler {
             ([, value]) => value === elementId,
           )?.[0];
           if (!index || !selectorMap[index]?.[0]) {
+            // If visibleElements flag is true only return elements that are found in selectorMap
+            if (visibleElements) {
+              return null;
+            }
             // Generate xpath for the given element if not found in selectorMap
             const { object } = await this.stagehandPage.sendCDP<{
               object: { objectId: string };
@@ -206,24 +215,26 @@ export class StagehandObserveHandler {
             return {
               ...rest,
               selector: `xpath=${xpath}`,
-              backendNodeId: elementId,
+              // backendNodeId: elementId,
             };
           }
           return {
             ...rest,
             selector: `xpath=${selectorMap[index][0]}`,
-            backendNodeId: elementId,
+            // backendNodeId: elementId,
           };
         }
 
         return {
           ...rest,
           selector: `xpath=${selectorMap[elementId][0]}`,
-          backendNodeId: backendNodeIdMap[elementId],
+          // backendNodeId: backendNodeIdMap[elementId],
         };
-      }),
+      })
     );
-
+    const filteredElements = elementsWithSelectors.filter(
+      (element): element is NonNullable<typeof element> => element !== null,
+    );
     await this.stagehandPage.cleanupDomDebug();
 
     this.logger({
@@ -232,13 +243,13 @@ export class StagehandObserveHandler {
       level: 1,
       auxiliary: {
         elements: {
-          value: JSON.stringify(elementsWithSelectors),
+          value: JSON.stringify(filteredElements),
           type: "object",
         },
       },
     });
-
-    await this._recordObservation(instruction, elementsWithSelectors);
-    return elementsWithSelectors;
+    
+    await this._recordObservation(instruction, filteredElements);
+    return filteredElements;
   }
 }

@@ -470,6 +470,7 @@ export class StagehandPage {
       domSettleTimeoutMs,
       useAccessibilityTree = false,
       returnAction = false,
+      visibleElements = false,
     } = options;
 
     const requestId = Math.random().toString(36).substring(2);
@@ -515,6 +516,7 @@ export class StagehandPage {
         domSettleTimeoutMs,
         useAccessibilityTree,
         returnAction,
+        visibleElements,
       })
       .catch((e) => {
         this.stagehand.log({

@@ -1,7 +1,8 @@
 import { AccessibilityNode, TreeResult, AXNode } from "../../types/context";
 import { StagehandPage } from "../StagehandPage";
 import { LogLine } from "../../types/log";
-import { CDPSession } from "playwright";
+import { CDPSession, Page, Locator } from "playwright";
+import { PlaywrightCommandMethodNotSupportedException, PlaywrightCommandException } from "@/types/playwright";
 
 // Parser function for str output
 export function formatSimplifiedTree(
@@ -218,3 +219,321 @@ export async function getXPathByResolvedObjectId(
 
   return result.value || "";
 }
+
+export async function performPlaywrightMethod(
+  stagehandPage: StagehandPage,
+  logger: (logLine: LogLine) => void,
+  method: string,
+  args: unknown[],
+  xpath: string,
+  domSettleTimeoutMs?: number,
+) {
+  const locator = stagehandPage.page.locator(`xpath=${xpath}`).first();
+  const initialUrl = stagehandPage.page.url();
+
+  logger({
+    category: "action",
+    message: "performing playwright method",
+    level: 2,
+    auxiliary: {
+      xpath: {
+        value: xpath,
+        type: "string",
+      },
+      method: {
+        value: method,
+        type: "string",
+      },
+    },
+  });
+
+  if (method === "scrollIntoView") {
+    logger({
+      category: "action",
+      message: "scrolling element into view",
+      level: 2,
+      auxiliary: {
+        xpath: {
+          value: xpath,
+          type: "string",
+        },
+      },
+    });
+    try {
+      await locator
+        .evaluate((element: HTMLElement) => {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        })
+        .catch((e: Error) => {
+          logger({
+            category: "action",
+            message: "error scrolling element into view",
+            level: 1,
+            auxiliary: {
+              error: {
+                value: e.message,
+                type: "string",
+              },
+              trace: {
+                value: e.stack,
+                type: "string",
+              },
+              xpath: {
+                value: xpath,
+                type: "string",
+              },
+            },
+          });
+        });
+    } catch (e) {
+      logger({
+        category: "action",
+        message: "error scrolling element into view",
+        level: 1,
+        auxiliary: {
+          error: {
+            value: e.message,
+            type: "string",
+          },
+          trace: {
+            value: e.stack,
+            type: "string",
+          },
+          xpath: {
+            value: xpath,
+            type: "string",
+          },
+        },
+      });
+
+      throw new PlaywrightCommandException(e.message);
+    }
+  } else if (method === "fill" || method === "type") {
+    try {
+      await locator.fill("");
+      await locator.click();
+      const text = args[0]?.toString();
+      for (const char of text) {
+        await stagehandPage.page.keyboard.type(char, {
+          delay: Math.random() * 50 + 25,
+        });
+      }
+    } catch (e) {
+      logger({
+        category: "action",
+        message: "error filling element",
+        level: 1,
+        auxiliary: {
+          error: {
+            value: e.message,
+            type: "string",
+          },
+          trace: {
+            value: e.stack,
+            type: "string",
+          },
+          xpath: {
+            value: xpath,
+            type: "string",
+          },
+        },
+      });
+
+      throw new PlaywrightCommandException(e.message);
+    }
+  } else if (method === "press") {
+    try {
+      const key = args[0]?.toString();
+      await stagehandPage.page.keyboard.press(key);
+    } catch (e) {
+      logger({
+        category: "action",
+        message: "error pressing key",
+        level: 1,
+        auxiliary: {
+          error: {
+            value: e.message,
+            type: "string",
+          },
+          trace: {
+            value: e.stack,
+            type: "string",
+          },
+          key: {
+            value: args[0]?.toString() ?? "unknown",
+            type: "string",
+          },
+        },
+      });
+
+      throw new PlaywrightCommandException(e.message);
+    }
+  } else if (typeof locator[method as keyof typeof locator] === "function") {
+    // Log current URL before action
+    logger({
+      category: "action",
+      message: "page URL before action",
+      level: 2,
+      auxiliary: {
+        url: {
+          value: stagehandPage.page.url(),
+          type: "string",
+        },
+      },
+    });
+
+    // Perform the action
+    try {
+      await (
+        locator[method as keyof Locator] as unknown as (
+          ...args: string[]
+        ) => Promise<void>
+      )(...args.map((arg) => arg?.toString() || ""));
+    } catch (e) {
+      logger({
+        category: "action",
+        message: "error performing method",
+        level: 1,
+        auxiliary: {
+          error: {
+            value: e.message,
+            type: "string",
+          },
+          trace: {
+            value: e.stack,
+            type: "string",
+          },
+          xpath: {
+            value: xpath,
+            type: "string",
+          },
+          method: {
+            value: method,
+            type: "string",
+          },
+          args: {
+            value: JSON.stringify(args),
+            type: "object",
+          },
+        },
+      });
+
+      throw new PlaywrightCommandException(e.message);
+    }
+
+    // Handle navigation if a new page is opened
+    if (method === "click") {
+      logger({
+        category: "action",
+        message: "clicking element, checking for page navigation",
+        level: 1,
+        auxiliary: {
+          xpath: {
+            value: xpath,
+            type: "string",
+          },
+        },
+      });
+
+      // NAVIDNOTE: Should this happen before we wait for locator[method]?
+      const newOpenedTab = await Promise.race([
+        new Promise<Page | null>((resolve) => {
+          // TODO: This is a hack to get the new page
+          // We should find a better way to do this
+          stagehandPage.context.once("page", (page) => resolve(page));
+          setTimeout(() => resolve(null), 1_500);
+        }),
+      ]);
+
+      logger({
+        category: "action",
+        message: "clicked element",
+        level: 1,
+        auxiliary: {
+          newOpenedTab: {
+            value: newOpenedTab ? "opened a new tab" : "no new tabs opened",
+            type: "string",
+          },
+        },
+      });
+
+      if (newOpenedTab) {
+        logger({
+          category: "action",
+          message: "new page detected (new tab) with URL",
+          level: 1,
+          auxiliary: {
+            url: {
+              value: newOpenedTab.url(),
+              type: "string",
+            },
+          },
+        });
+        await newOpenedTab.close();
+        await stagehandPage.page.goto(newOpenedTab.url());
+        await stagehandPage.page.waitForLoadState("domcontentloaded");
+        await stagehandPage._waitForSettledDom(domSettleTimeoutMs);
+      }
+
+      await Promise.race([
+        stagehandPage.page.waitForLoadState("networkidle"),
+        new Promise((resolve) => setTimeout(resolve, 5_000)),
+      ]).catch((e) => {
+        logger({
+          category: "action",
+          message: "network idle timeout hit",
+          level: 1,
+          auxiliary: {
+            trace: {
+              value: e.stack,
+              type: "string",
+            },
+            message: {
+              value: e.message,
+              type: "string",
+            },
+          },
+        });
+      });
+
+      logger({
+        category: "action",
+        message: "finished waiting for (possible) page navigation",
+        level: 1,
+      });
+
+      if (stagehandPage.page.url() !== initialUrl) {
+        logger({
+          category: "action",
+          message: "new page detected with URL",
+          level: 1,
+          auxiliary: {
+            url: {
+              value: stagehandPage.page.url(),
+              type: "string",
+            },
+          },
+        });
+      }
+    }
+  } else {
+    logger({
+      category: "action",
+      message: "chosen method is invalid",
+      level: 1,
+      auxiliary: {
+        method: {
+          value: method,
+          type: "string",
+        },
+      },
+    });
+
+    throw new PlaywrightCommandMethodNotSupportedException(
+      `Method ${method} not supported`,
+    );
+  }
+
+  await stagehandPage._waitForSettledDom(domSettleTimeoutMs);
+}
+
