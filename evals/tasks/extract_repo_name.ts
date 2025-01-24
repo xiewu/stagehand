@@ -1,7 +1,7 @@
 import { EvalFunction } from "@/types/evals";
 import { initStagehand } from "@/evals/initStagehand";
 
-export const extract_github_commits: EvalFunction = async ({
+export const extract_repo_name: EvalFunction = async ({
   modelName,
   logger,
 }) => {
@@ -16,11 +16,11 @@ export const extract_github_commits: EvalFunction = async ({
     await stagehand.page.goto("https://github.com/facebook/react");
 
     const { extraction } = await stagehand.page.extract(
-      "extract the repo name",
+      "extract the title of the Github repository. Do not include the owner of the repository.",
     );
 
     logger.log({
-      message: "Extracted repo name",
+      message: "Extracted repo title",
       level: 1,
       auxiliary: {
         repo_name: {
