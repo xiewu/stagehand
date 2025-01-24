@@ -1,9 +1,14 @@
+import { z } from "zod";
+import zodToJsonSchema from "zod-to-json-schema";
 import {
+  ApiResponse,
   ExecuteActionParams,
   StagehandAPIConstructorParams,
   StartSessionParams,
   StartSessionResult,
 } from "../types/api";
+import { LogLine } from "../types/log";
+import { GotoOptions } from "../types/playwright";
 import {
   ActOptions,
   ActResult,
@@ -12,10 +17,6 @@ import {
   ObserveOptions,
   ObserveResult,
 } from "../types/stagehand";
-import { LogLine } from "../types/log";
-import { z } from "zod";
-import { GotoOptions } from "../types/playwright";
-import zodToJsonSchema from "zod-to-json-schema";
 
 export class StagehandAPI {
   private apiKey: string;
@@ -37,23 +38,17 @@ export class StagehandAPI {
     debugDom,
     systemPrompt,
   }: StartSessionParams): Promise<StartSessionResult> {
-    const whitelistResponse = await this.request("/verify-whitelist", {
-      method: "POST",
-    });
+    const whitelistResponse = await this.request("/healthcheck");
 
-    if (whitelistResponse.status === 400) {
+    if (whitelistResponse.status === 401) {
       throw new Error(
-        "API Key empty or missing from request headers. Ensure it has been provided.",
-      );
-    } else if (whitelistResponse.status === 401) {
-      throw new Error(
-        "API Key not whitelisted, ensure you have added your API key to the whitelist.",
+        "Unauthorized. Ensure you provided a valid API key and that it is whitelisted.",
       );
     } else if (whitelistResponse.status !== 200) {
       throw new Error(`Unknown error: ${whitelistResponse.status}`);
     }
 
-    const sessionResponse = await this.request("/start-session", {
+    const sessionResponse = await this.request("/sessions/start", {
       method: "POST",
       body: JSON.stringify({
         modelName,
@@ -63,7 +58,7 @@ export class StagehandAPI {
         systemPrompt,
       }),
       headers: {
-        "model-api-key": modelApiKey,
+        "x-model-api-key": modelApiKey,
       },
     });
 
@@ -72,10 +67,15 @@ export class StagehandAPI {
     }
 
     const sessionResponseBody =
-      (await sessionResponse.json()) as StartSessionResult;
-    this.sessionId = sessionResponseBody.sessionId;
+      (await sessionResponse.json()) as ApiResponse<StartSessionResult>;
 
-    return sessionResponseBody;
+    if (sessionResponseBody.success === false) {
+      throw new Error(sessionResponseBody.message);
+    }
+
+    this.sessionId = sessionResponseBody.data.sessionId;
+
+    return sessionResponseBody.data;
   }
 
   async act(options: ActOptions): Promise<ActResult> {
@@ -110,10 +110,13 @@ export class StagehandAPI {
   }
 
   private async execute<T>({ method, args }: ExecuteActionParams): Promise<T> {
-    const response = await this.request(`/${method}`, {
-      method: "POST",
-      body: JSON.stringify(args),
-    });
+    const response = await this.request(
+      `/sessions/${this.sessionId}/${method}`,
+      {
+        method: "POST",
+        body: JSON.stringify(args),
+      },
+    );
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -132,30 +135,8 @@ export class StagehandAPI {
 
     while (true) {
       const { value, done } = await reader.read();
-      if (done) {
-        // Process any remaining data before breaking
-        if (buffer) {
-          const lines = buffer.split("\n\n");
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            try {
-              const eventData = JSON.parse(line.slice(6));
-              if (eventData.type === "system") {
-                if (eventData.data.status === "error") {
-                  throw new Error(eventData.data.error);
-                }
-                if (eventData.data.status === "finished") {
-                  return eventData.data.result as T;
-                }
-              } else if (eventData.type === "log") {
-                console.log(eventData.data.message);
-              }
-            } catch (e) {
-              console.error("Error parsing event data:", e);
-              throw new Error("Failed to parse server response");
-            }
-          }
-        }
+
+      if (done && !buffer) {
         throw new Error("Stream ended without receiving finished event");
       }
 
@@ -165,8 +146,10 @@ export class StagehandAPI {
 
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
+
         try {
           const eventData = JSON.parse(line.slice(6));
+
           if (eventData.type === "system") {
             if (eventData.data.status === "error") {
               throw new Error(eventData.data.error);
@@ -182,19 +165,26 @@ export class StagehandAPI {
           throw new Error("Failed to parse server response");
         }
       }
+
+      if (done) break;
     }
+
+    throw new Error("Stream ended without receiving finished event");
   }
 
   private async request(
     path: string,
     options: RequestInit = {},
   ): Promise<Response> {
-    const defaultHeaders = {
-      "browserbase-api-key": this.apiKey,
-      "browserbase-project-id": this.projectId,
-      "browserbase-session-id": this.sessionId,
-      "Content-Type": "application/json",
+    const defaultHeaders: Record<string, string> = {
+      "x-bb-api-key": this.apiKey,
+      "x-bb-project-id": this.projectId,
+      "x-bb-session-id": this.sessionId,
     };
+
+    if (options.method === "POST" && options.body) {
+      defaultHeaders["Content-Type"] = "application/json";
+    }
 
     const response = await fetch(`${process.env.STAGEHAND_API_URL}${path}`, {
       ...options,
