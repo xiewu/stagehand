@@ -13,10 +13,14 @@ export const observe_github: EvalFunction = async ({
 
   const { debugUrl, sessionUrl } = initResponse;
 
-  await stagehand.page.goto("https://github.com/browserbase/stagehand/tree/main/lib");
+  await stagehand.page.goto(
+    "https://github.com/browserbase/stagehand/tree/main/lib",
+  );
 
-  const observations = await stagehand.page.observe({instruction: "find the scrollable element that repos file tree"});
-  console.log("observations", JSON.stringify(observations, null, 2));
+  const observations = await stagehand.page.observe({
+    instruction: "find the scrollable element that repos file tree",
+    useAccessibilityTree,
+  });
 
   if (observations.length === 0) {
     await stagehand.close();
