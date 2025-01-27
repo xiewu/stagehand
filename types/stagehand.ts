@@ -87,7 +87,6 @@ export interface ObserveOptions {
   modelClientOptions?: ClientOptions;
   useVision?: boolean;
   domSettleTimeoutMs?: number;
-  useAccessibilityTree?: boolean;
   returnAction?: boolean;
   visibleElements?: boolean;
 }

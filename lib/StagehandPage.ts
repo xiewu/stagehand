@@ -463,13 +463,12 @@ export class StagehandPage {
         : instructionOrOptions || {};
 
     const {
-      instruction = "Find actions that can be performed on this page.",
+      instruction,
       modelName,
       modelClientOptions,
       useVision = false,
       domSettleTimeoutMs,
-      useAccessibilityTree = false,
-      returnAction = false,
+      returnAction = true,
       visibleElements = false,
     } = options;
 
@@ -495,12 +494,8 @@ export class StagehandPage {
           value: llmClient.modelName,
           type: "string",
         },
-        useAccessibilityTree: {
-          value: useAccessibilityTree ? "true" : "false",
-          type: "boolean",
-        },
-        returnAction: {
-          value: returnAction ? "true" : "false",
+        visibleElements: {
+          value: visibleElements ? "true" : "false",
           type: "boolean",
         },
       },
@@ -511,10 +506,8 @@ export class StagehandPage {
         instruction,
         llmClient,
         useVision,
-        fullPage: false,
         requestId,
         domSettleTimeoutMs,
-        useAccessibilityTree,
         returnAction,
         visibleElements,
       })

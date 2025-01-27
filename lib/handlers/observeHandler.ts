@@ -54,20 +54,16 @@ export class StagehandObserveHandler {
   public async observe({
     instruction,
     useVision,
-    fullPage,
     llmClient,
     requestId,
-    useAccessibilityTree,
     returnAction,
     visibleElements,
   }: {
     instruction: string;
     useVision: boolean;
-    fullPage: boolean;
     llmClient: LLMClient;
     requestId: string;
     domSettleTimeoutMs?: number;
-    useAccessibilityTree?: boolean;
     returnAction?: boolean;
     visibleElements?: boolean;
   }) {
@@ -90,60 +86,56 @@ export class StagehandObserveHandler {
     let selectorMap: Record<string, string[]> = {};
     const backendNodeIdMap: Record<string, number> = {};
 
-    await this.stagehandPage.startDomDebug();
-    await this.stagehandPage.enableCDP("DOM");
-
     const evalResult = await this.stagehand.page.evaluate(() => {
       return window.processAllOfDom().then((result) => result);
     });
+    ({ outputString, selectorMap } = evalResult);
+ 
+    if (!visibleElements) {
+      await this.stagehandPage.startDomDebug();
+      await this.stagehandPage.enableCDP("DOM");
 
-    // For each element in the selector map, get its backendNodeId
-    for (const [index, xpaths] of Object.entries(evalResult.selectorMap)) {
-      try {
-        // Use the first xpath to find the element
-        const xpath = xpaths[0];
-        const { result } = await this.stagehandPage.sendCDP<{
-          result: { objectId: string };
-        }>("Runtime.evaluate", {
-          expression: `document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
-          returnByValue: false,
-        });
-
-        if (result.objectId) {
-          // Get the node details using CDP
-          const { node } = await this.stagehandPage.sendCDP<{
-            node: { backendNodeId: number };
-          }>("DOM.describeNode", {
-            objectId: result.objectId,
-            depth: -1,
-            pierce: true,
+      // For each element in the selector map, get its backendNodeId
+      for (const [index, xpaths] of Object.entries(evalResult.selectorMap)) {
+        try {
+          // Use the first xpath to find the element
+          const xpath = xpaths[0];
+          const { result } = await this.stagehandPage.sendCDP<{
+            result: { objectId: string };
+          }>("Runtime.evaluate", {
+            expression: `document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
+            returnByValue: false,
           });
 
-          if (node.backendNodeId) {
-            backendNodeIdMap[index] = node.backendNodeId;
+          if (result.objectId) {
+            // Get the node details using CDP
+            const { node } = await this.stagehandPage.sendCDP<{
+              node: { backendNodeId: number };
+            }>("DOM.describeNode", {
+              objectId: result.objectId,
+              depth: -1,
+              pierce: true,
+            });
+
+            if (node.backendNodeId) {
+              backendNodeIdMap[index] = node.backendNodeId;
+            }
           }
+        } catch (error) {
+          console.warn(
+            `Failed to get backendNodeId for element ${index}:`,
+            error,
+          );
+          continue;
         }
-      } catch (error) {
-        console.warn(
-          `Failed to get backendNodeId for element ${index}:`,
-          error,
-        );
-        continue;
       }
-    }
-
-    await this.stagehandPage.disableCDP("DOM");
-    ({ outputString, selectorMap } = evalResult);
-
-    if (useAccessibilityTree) {
+      await this.stagehandPage.disableCDP("DOM");
       const tree = await getAccessibilityTree(this.stagehandPage, this.logger);
-
       this.logger({
         category: "observation",
         message: "Getting accessibility tree data",
         level: 1,
       });
-
       outputString = tree.simplified;
     }
 
@@ -170,11 +162,11 @@ export class StagehandObserveHandler {
         );
 
         annotatedScreenshot =
-          await screenshotService.getAnnotatedScreenshot(fullPage);
+          await screenshotService.getAnnotatedScreenshot(true);
         outputString = "n/a. use the image to find the elements.";
       }
     }
-
+    
     const observationResponse = await observe({
       instruction,
       domElements: outputString,
@@ -183,14 +175,14 @@ export class StagehandObserveHandler {
       requestId,
       userProvidedInstructions: this.userProvidedInstructions,
       logger: this.logger,
-      isUsingAccessibilityTree: useAccessibilityTree,
+      isUsingAccessibilityTree: !visibleElements,
       returnAction,
     });
     const elementsWithSelectors = await Promise.all(
       observationResponse.elements.map(async (element) => {
         const { elementId, ...rest } = element;
 
-        if (useAccessibilityTree) {
+        if (!visibleElements) {
           const index = Object.entries(backendNodeIdMap).find(
             ([, value]) => value === elementId,
           )?.[0];
