@@ -299,10 +299,19 @@ export class StagehandPage {
       action,
       modelName,
       modelClientOptions,
-      useVision = "fallback",
+      useVision, // still destructure this but will not pass it on
       variables = {},
       domSettleTimeoutMs,
     } = options;
+
+    if (typeof useVision !== "undefined") {
+      this.stagehand.log({
+        category: "deprecation",
+        message:
+          "Warning: vision is not supported in this version of Stagehand",
+        level: 1,
+      });
+    }
 
     const requestId = Math.random().toString(36).substring(2);
     const llmClient: LLMClient = modelName
@@ -329,13 +338,12 @@ export class StagehandPage {
       },
     });
 
+    // `useVision` is no longer passed to the handler
     return this.actHandler
       .act({
         action,
         llmClient,
         chunksSeen: [],
-        useVision,
-        verifierUseVision: useVision !== false,
         requestId,
         variables,
         previousSelectors: [],
@@ -466,11 +474,20 @@ export class StagehandPage {
       instruction,
       modelName,
       modelClientOptions,
-      useVision = false,
+      useVision, // still destructure but will not pass it on
       domSettleTimeoutMs,
       returnAction = true,
       useAccessibilityTree = true,
     } = options;
+
+    if (typeof useVision !== "undefined") {
+      this.stagehand.log({
+        category: "deprecation",
+        message:
+          "Warning: vision is not supported in this version of Stagehand",
+        level: 1,
+      });
+    }
 
     const requestId = Math.random().toString(36).substring(2);
     const llmClient = modelName
@@ -505,7 +522,6 @@ export class StagehandPage {
       .observe({
         instruction,
         llmClient,
-        useVision,
         requestId,
         domSettleTimeoutMs,
         returnAction,

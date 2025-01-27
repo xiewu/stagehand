@@ -4,7 +4,6 @@ import { observe } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { StagehandPage } from "../StagehandPage";
 import { generateId } from "../utils";
-import { ScreenshotService } from "../vision";
 import {
   getAccessibilityTree,
   getXPathByResolvedObjectId,
@@ -14,7 +13,6 @@ export class StagehandObserveHandler {
   private readonly stagehand: Stagehand;
   private readonly logger: (logLine: LogLine) => void;
   private readonly stagehandPage: StagehandPage;
-  private readonly verbose: 0 | 1 | 2;
   private observations: {
     [key: string]: {
       result: { selector: string; description: string }[];
@@ -53,14 +51,12 @@ export class StagehandObserveHandler {
 
   public async observe({
     instruction,
-    useVision,
     llmClient,
     requestId,
     returnAction,
     useAccessibilityTree,
   }: {
     instruction: string;
-    useVision: boolean;
     llmClient: LLMClient;
     requestId: string;
     domSettleTimeoutMs?: number;
@@ -82,49 +78,10 @@ export class StagehandObserveHandler {
       },
     });
 
-    const backendNodeIdMap: Record<string, number> = {};
     let selectorMap: Record<string, string[]> = {};
     let outputString: string;
 
     if (useAccessibilityTree) {
-      // await this.stagehandPage.startDomDebug();
-      // await this.stagehandPage.enableCDP("DOM");
-
-      // // For each element in the selector map, get its backendNodeId
-      // for (const [index, xpaths] of Object.entries(evalResult.selectorMap)) {
-      //   try {
-      //     // Use the first xpath to find the element
-      //     const xpath = xpaths[0];
-      //     const { result } = await this.stagehandPage.sendCDP<{
-      //       result: { objectId: string };
-      //     }>("Runtime.evaluate", {
-      //       expression: `document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
-      //       returnByValue: false,
-      //     });
-
-      //     if (result.objectId) {
-      //       // Get the node details using CDP
-      //       const { node } = await this.stagehandPage.sendCDP<{
-      //         node: { backendNodeId: number };
-      //       }>("DOM.describeNode", {
-      //         objectId: result.objectId,
-      //         depth: -1,
-      //         pierce: true,
-      //       });
-
-      //       if (node.backendNodeId) {
-      //         backendNodeIdMap[index] = node.backendNodeId;
-      //       }
-      //     }
-      //   } catch (error) {
-      //     console.warn(
-      //       `Failed to get backendNodeId for element ${index}:`,
-      //       error,
-      //     );
-      //     continue;
-      //   }
-      // }
-      // await this.stagehandPage.disableCDP("DOM");
       const tree = await getAccessibilityTree(this.stagehandPage, this.logger);
       this.logger({
         category: "observation",
@@ -139,46 +96,17 @@ export class StagehandObserveHandler {
       ({ outputString, selectorMap } = evalResult);
     }
 
-    let annotatedScreenshot: Buffer | undefined;
-    if (useVision === true) {
-      if (!llmClient.hasVision) {
-        this.logger({
-          category: "observation",
-          message: "Model does not support vision. Skipping vision processing.",
-          level: 1,
-          auxiliary: {
-            model: {
-              value: llmClient.modelName,
-              type: "string",
-            },
-          },
-        });
-      } else {
-        const screenshotService = new ScreenshotService(
-          this.stagehand.page,
-          selectorMap,
-          this.verbose,
-          this.logger,
-        );
-
-        annotatedScreenshot =
-          await screenshotService.getAnnotatedScreenshot(true);
-        outputString = "n/a. use the image to find the elements.";
-      }
-    }
-    console.time("LLM inference");
+    // No screenshot or vision-based annotation is performed
     const observationResponse = await observe({
       instruction,
       domElements: outputString,
       llmClient,
-      image: annotatedScreenshot,
       requestId,
       userProvidedInstructions: this.userProvidedInstructions,
       logger: this.logger,
       isUsingAccessibilityTree: useAccessibilityTree,
       returnAction,
     });
-    console.timeEnd("LLM inference");
     const elementsWithSelectors = await Promise.all(
       observationResponse.elements.map(async (element) => {
         const { elementId, ...rest } = element;
