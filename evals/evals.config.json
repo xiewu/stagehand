@@ -219,6 +219,10 @@
     {
       "name": "observe_github",
       "categories": ["observe"]
+    },
+    {
+      "name": "observe_vantechjournal",
+      "categories": ["observe"]
     }
   ]
 }
