@@ -215,6 +215,10 @@
     {
       "name": "extract_zillow",
       "categories": ["text_extract"]
+    },
+    {
+      "name": "observe_github",
+      "categories": ["observe"]
     }
   ]
 }
