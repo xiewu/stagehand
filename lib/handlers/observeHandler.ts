@@ -57,7 +57,7 @@ export class StagehandObserveHandler {
     llmClient,
     requestId,
     returnAction,
-    visibleElements,
+    useAccessibilityTree,
   }: {
     instruction: string;
     useVision: boolean;
@@ -65,7 +65,7 @@ export class StagehandObserveHandler {
     requestId: string;
     domSettleTimeoutMs?: number;
     returnAction?: boolean;
-    visibleElements?: boolean;
+    useAccessibilityTree?: boolean;
   }) {
     if (!instruction) {
       instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
@@ -82,54 +82,49 @@ export class StagehandObserveHandler {
       },
     });
 
-    let outputString: string;
-    let selectorMap: Record<string, string[]> = {};
     const backendNodeIdMap: Record<string, number> = {};
+    let selectorMap: Record<string, string[]> = {};
+    let outputString: string;
 
-    const evalResult = await this.stagehand.page.evaluate(() => {
-      return window.processAllOfDom().then((result) => result);
-    });
-    ({ outputString, selectorMap } = evalResult);
- 
-    if (!visibleElements) {
-      await this.stagehandPage.startDomDebug();
-      await this.stagehandPage.enableCDP("DOM");
+    if (useAccessibilityTree) {
+      // await this.stagehandPage.startDomDebug();
+      // await this.stagehandPage.enableCDP("DOM");
 
-      // For each element in the selector map, get its backendNodeId
-      for (const [index, xpaths] of Object.entries(evalResult.selectorMap)) {
-        try {
-          // Use the first xpath to find the element
-          const xpath = xpaths[0];
-          const { result } = await this.stagehandPage.sendCDP<{
-            result: { objectId: string };
-          }>("Runtime.evaluate", {
-            expression: `document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
-            returnByValue: false,
-          });
+      // // For each element in the selector map, get its backendNodeId
+      // for (const [index, xpaths] of Object.entries(evalResult.selectorMap)) {
+      //   try {
+      //     // Use the first xpath to find the element
+      //     const xpath = xpaths[0];
+      //     const { result } = await this.stagehandPage.sendCDP<{
+      //       result: { objectId: string };
+      //     }>("Runtime.evaluate", {
+      //       expression: `document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
+      //       returnByValue: false,
+      //     });
 
-          if (result.objectId) {
-            // Get the node details using CDP
-            const { node } = await this.stagehandPage.sendCDP<{
-              node: { backendNodeId: number };
-            }>("DOM.describeNode", {
-              objectId: result.objectId,
-              depth: -1,
-              pierce: true,
-            });
+      //     if (result.objectId) {
+      //       // Get the node details using CDP
+      //       const { node } = await this.stagehandPage.sendCDP<{
+      //         node: { backendNodeId: number };
+      //       }>("DOM.describeNode", {
+      //         objectId: result.objectId,
+      //         depth: -1,
+      //         pierce: true,
+      //       });
 
-            if (node.backendNodeId) {
-              backendNodeIdMap[index] = node.backendNodeId;
-            }
-          }
-        } catch (error) {
-          console.warn(
-            `Failed to get backendNodeId for element ${index}:`,
-            error,
-          );
-          continue;
-        }
-      }
-      await this.stagehandPage.disableCDP("DOM");
+      //       if (node.backendNodeId) {
+      //         backendNodeIdMap[index] = node.backendNodeId;
+      //       }
+      //     }
+      //   } catch (error) {
+      //     console.warn(
+      //       `Failed to get backendNodeId for element ${index}:`,
+      //       error,
+      //     );
+      //     continue;
+      //   }
+      // }
+      // await this.stagehandPage.disableCDP("DOM");
       const tree = await getAccessibilityTree(this.stagehandPage, this.logger);
       this.logger({
         category: "observation",
@@ -137,6 +132,11 @@ export class StagehandObserveHandler {
         level: 1,
       });
       outputString = tree.simplified;
+    } else {
+      const evalResult = await this.stagehand.page.evaluate(() => {
+        return window.processAllOfDom().then((result) => result);
+      });
+      ({ outputString, selectorMap } = evalResult);
     }
 
     let annotatedScreenshot: Buffer | undefined;
@@ -166,7 +166,7 @@ export class StagehandObserveHandler {
         outputString = "n/a. use the image to find the elements.";
       }
     }
-    
+    console.time("LLM inference");
     const observationResponse = await observe({
       instruction,
       domElements: outputString,
@@ -175,43 +175,41 @@ export class StagehandObserveHandler {
       requestId,
       userProvidedInstructions: this.userProvidedInstructions,
       logger: this.logger,
-      isUsingAccessibilityTree: !visibleElements,
+      isUsingAccessibilityTree: useAccessibilityTree,
       returnAction,
     });
+    console.timeEnd("LLM inference");
     const elementsWithSelectors = await Promise.all(
       observationResponse.elements.map(async (element) => {
         const { elementId, ...rest } = element;
 
-        if (!visibleElements) {
-          const index = Object.entries(backendNodeIdMap).find(
-            ([, value]) => value === elementId,
-          )?.[0];
-          if (!index || !selectorMap[index]?.[0]) {
-            // If visibleElements flag is true only return elements that are found in selectorMap
-            if (visibleElements) {
-              return null;
-            }
-            // Generate xpath for the given element if not found in selectorMap
-            const { object } = await this.stagehandPage.sendCDP<{
-              object: { objectId: string };
-            }>("DOM.resolveNode", {
-              backendNodeId: elementId,
-            });
-            const xpath = await getXPathByResolvedObjectId(
-              await this.stagehandPage.getCDPClient(),
-              object.objectId,
-            );
-            return {
-              ...rest,
-              selector: `xpath=${xpath}`,
-              // backendNodeId: elementId,
-            };
-          }
+        if (useAccessibilityTree) {
+          // const index = Object.entries(backendNodeIdMap).find(
+          //   ([, value]) => value === elementId,
+          // )?.[0];
+          // if (!index || !selectorMap[index]?.[0]) {
+
+          // Generate xpath for the given element if not found in selectorMap
+          const { object } = await this.stagehandPage.sendCDP<{
+            object: { objectId: string };
+          }>("DOM.resolveNode", {
+            backendNodeId: elementId,
+          });
+          const xpath = await getXPathByResolvedObjectId(
+            await this.stagehandPage.getCDPClient(),
+            object.objectId,
+          );
           return {
             ...rest,
-            selector: `xpath=${selectorMap[index][0]}`,
+            selector: `xpath=${xpath}`,
             // backendNodeId: elementId,
           };
+          // }
+          // return {
+          //   ...rest,
+          //   selector: `xpath=${selectorMap[index][0]}`,
+          //   // backendNodeId: elementId,
+          // };
         }
 
         return {
@@ -221,24 +219,21 @@ export class StagehandObserveHandler {
         };
       }),
     );
-    const filteredElements = elementsWithSelectors.filter(
-      (element): element is NonNullable<typeof element> => element !== null,
-    );
     await this.stagehandPage.cleanupDomDebug();
 
-    this.logger({
-      category: "observation",
-      message: "found elements",
-      level: 1,
-      auxiliary: {
-        elements: {
-          value: JSON.stringify(filteredElements),
-          type: "object",
-        },
-      },
-    });
+    // this.logger({
+    //   category: "observation",
+    //   message: "found elements",
+    //   level: 1,
+    //   auxiliary: {
+    //     elements: {
+    //       value: JSON.stringify(elementsWithSelectors),
+    //       type: "object",
+    //     },
+    //   },
+    // });
 
-    await this._recordObservation(instruction, filteredElements);
-    return filteredElements;
+    await this._recordObservation(instruction, elementsWithSelectors);
+    return elementsWithSelectors;
   }
 }

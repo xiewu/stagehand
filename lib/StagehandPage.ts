@@ -469,7 +469,7 @@ export class StagehandPage {
       useVision = false,
       domSettleTimeoutMs,
       returnAction = true,
-      visibleElements = false,
+      useAccessibilityTree = true,
     } = options;
 
     const requestId = Math.random().toString(36).substring(2);
@@ -494,8 +494,8 @@ export class StagehandPage {
           value: llmClient.modelName,
           type: "string",
         },
-        visibleElements: {
-          value: visibleElements ? "true" : "false",
+        useAccessibilityTree: {
+          value: useAccessibilityTree ? "true" : "false",
           type: "boolean",
         },
       },
@@ -509,7 +509,7 @@ export class StagehandPage {
         requestId,
         domSettleTimeoutMs,
         returnAction,
-        visibleElements,
+        useAccessibilityTree,
       })
       .catch((e) => {
         this.stagehand.log({
