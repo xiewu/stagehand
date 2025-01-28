@@ -28,7 +28,7 @@ export const observe_simple_google_search: EvalFunction = async ({
   if (observation1.length > 0) {
     const action1 = observation1[0];
     await performPlaywrightMethod(
-      stagehand.stagehandPage,
+      stagehand.page,
       stagehand.logger,
       action1.method,
       action1.arguments,
@@ -46,7 +46,7 @@ export const observe_simple_google_search: EvalFunction = async ({
   if (observation2.length > 0) {
     const action2 = observation2[0];
     await performPlaywrightMethod(
-      stagehand.stagehandPage,
+      stagehand.page,
       stagehand.logger,
       action2.method,
       action2.arguments,

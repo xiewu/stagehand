@@ -31,7 +31,7 @@ export const observe_amazon_add_to_cart: EvalFunction = async ({
   if (observations1.length > 0) {
     const action1 = observations1[0];
     await performPlaywrightMethod(
-      stagehand.stagehandPage,
+      stagehand.page,
       stagehand.logger,
       action1.method,
       action1.arguments,
@@ -51,7 +51,7 @@ export const observe_amazon_add_to_cart: EvalFunction = async ({
   if (observations2.length > 0) {
     const action2 = observations2[0];
     await performPlaywrightMethod(
-      stagehand.stagehandPage,
+      stagehand.page,
       stagehand.logger,
       action2.method,
       action2.arguments,

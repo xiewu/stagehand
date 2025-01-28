@@ -224,15 +224,15 @@ export async function getXPathByResolvedObjectId(
 }
 
 export async function performPlaywrightMethod(
-  stagehandPage: StagehandPage,
+  stagehandPage: Page,
   logger: (logLine: LogLine) => void,
   method: string,
   args: unknown[],
   xpath: string,
-  domSettleTimeoutMs?: number,
+  // domSettleTimeoutMs?: number,
 ) {
-  const locator = stagehandPage.page.locator(`xpath=${xpath}`).first();
-  const initialUrl = stagehandPage.page.url();
+  const locator = stagehandPage.locator(`xpath=${xpath}`).first();
+  const initialUrl = stagehandPage.url();
 
   logger({
     category: "action",
@@ -317,7 +317,7 @@ export async function performPlaywrightMethod(
       await locator.click();
       const text = args[0]?.toString();
       for (const char of text) {
-        await stagehandPage.page.keyboard.type(char, {
+        await stagehandPage.keyboard.type(char, {
           delay: Math.random() * 50 + 25,
         });
       }
@@ -347,7 +347,7 @@ export async function performPlaywrightMethod(
   } else if (method === "press") {
     try {
       const key = args[0]?.toString();
-      await stagehandPage.page.keyboard.press(key);
+      await stagehandPage.keyboard.press(key);
     } catch (e) {
       logger({
         category: "action",
@@ -379,7 +379,7 @@ export async function performPlaywrightMethod(
       level: 2,
       auxiliary: {
         url: {
-          value: stagehandPage.page.url(),
+          value: stagehandPage.url(),
           type: "string",
         },
       },
@@ -441,10 +441,10 @@ export async function performPlaywrightMethod(
       // NAVIDNOTE: Should this happen before we wait for locator[method]?
       const newOpenedTab = await Promise.race([
         new Promise<Page | null>((resolve) => {
-          // TODO: This is a hack to get the new page
-          // We should find a better way to do this
-          stagehandPage.context.once("page", (page) => resolve(page));
-          setTimeout(() => resolve(null), 1_500);
+          Promise.resolve(stagehandPage.context()).then((context) => {
+            context.once("page", (page: Page) => resolve(page));
+            setTimeout(() => resolve(null), 1_500);
+          });
         }),
       ]);
 
@@ -473,13 +473,13 @@ export async function performPlaywrightMethod(
           },
         });
         await newOpenedTab.close();
-        await stagehandPage.page.goto(newOpenedTab.url());
-        await stagehandPage.page.waitForLoadState("domcontentloaded");
-        await stagehandPage._waitForSettledDom(domSettleTimeoutMs);
+        await stagehandPage.goto(newOpenedTab.url());
+        await stagehandPage.waitForLoadState("domcontentloaded");
+        // await stagehandPage._waitForSettledDom(domSettleTimeoutMs);
       }
 
       await Promise.race([
-        stagehandPage.page.waitForLoadState("networkidle"),
+        stagehandPage.waitForLoadState("networkidle"),
         new Promise((resolve) => setTimeout(resolve, 5_000)),
       ]).catch((e) => {
         logger({
@@ -505,14 +505,14 @@ export async function performPlaywrightMethod(
         level: 1,
       });
 
-      if (stagehandPage.page.url() !== initialUrl) {
+      if (stagehandPage.url() !== initialUrl) {
         logger({
           category: "action",
           message: "new page detected with URL",
           level: 1,
           auxiliary: {
             url: {
-              value: stagehandPage.page.url(),
+              value: stagehandPage.url(),
               type: "string",
             },
           },
@@ -537,5 +537,5 @@ export async function performPlaywrightMethod(
     );
   }
 
-  await stagehandPage._waitForSettledDom(domSettleTimeoutMs);
+  // await stagehandPage._waitForSettledDom(domSettleTimeoutMs);
 }

@@ -13,9 +13,7 @@ export const observe_vantechjournal: EvalFunction = async ({
 
   const { debugUrl, sessionUrl } = initResponse;
 
-  await stagehand.page.goto(
-    "https://vantechjournal.com/archive?page=8",
-  );
+  await stagehand.page.goto("https://vantechjournal.com/archive?page=8");
 
   const observations = await stagehand.page.observe({
     instruction: "find the button that takes us to the 11th page",
