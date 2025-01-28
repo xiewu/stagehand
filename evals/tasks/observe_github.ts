@@ -35,20 +35,29 @@ export const observe_github: EvalFunction = async ({
 
   const expectedLocator = `#repos-file-tree > div.Box-sc-g0xbh4-0.jbQqON > div > div > div > nav > ul`;
 
-  const expectedResult = await stagehand.page
-    .locator(expectedLocator)
-    .first()
-    .innerText();
+  const expectedResult = await stagehand.page.locator(expectedLocator);
 
   let foundMatch = false;
+
   for (const observation of observations) {
     try {
-      const observationResult = await stagehand.page
+      const observationLocator = stagehand.page
         .locator(observation.selector)
-        .first()
-        .innerText();
+        .first();
+      const observationHandle = await observationLocator.elementHandle();
+      const expectedHandle = await expectedResult.elementHandle();
 
-      if (observationResult === expectedResult) {
+      if (!observationHandle || !expectedHandle) {
+        // Couldn’t get handles, skip
+        continue;
+      }
+
+      const isSameNode = await observationHandle.evaluate(
+        (node, otherNode) => node === otherNode,
+        expectedHandle,
+      );
+
+      if (isSameNode) {
         foundMatch = true;
         break;
       }
