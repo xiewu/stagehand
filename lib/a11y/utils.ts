@@ -438,7 +438,6 @@ export async function performPlaywrightMethod(
         },
       });
 
-      // NAVIDNOTE: Should this happen before we wait for locator[method]?
       const newOpenedTab = await Promise.race([
         new Promise<Page | null>((resolve) => {
           Promise.resolve(stagehandPage.context()).then((context) => {

@@ -112,11 +112,6 @@ export class StagehandObserveHandler {
         const { elementId, ...rest } = element;
 
         if (useAccessibilityTree) {
-          // const index = Object.entries(backendNodeIdMap).find(
-          //   ([, value]) => value === elementId,
-          // )?.[0];
-          // if (!index || !selectorMap[index]?.[0]) {
-
           // Generate xpath for the given element if not found in selectorMap
           const { object } = await this.stagehandPage.sendCDP<{
             object: { objectId: string };
@@ -130,14 +125,9 @@ export class StagehandObserveHandler {
           return {
             ...rest,
             selector: `xpath=${xpath}`,
+            // Provisioning or future use if we want to use direct CDP
             // backendNodeId: elementId,
           };
-          // }
-          // return {
-          //   ...rest,
-          //   selector: `xpath=${selectorMap[index][0]}`,
-          //   // backendNodeId: elementId,
-          // };
         }
 
         return {
