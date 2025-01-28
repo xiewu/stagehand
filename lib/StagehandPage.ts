@@ -476,7 +476,7 @@ export class StagehandPage {
       modelClientOptions,
       useVision, // still destructure but will not pass it on
       domSettleTimeoutMs,
-      returnAction = true,
+      returnAction = false,
       onlyVisible = false,
     } = options;
 
