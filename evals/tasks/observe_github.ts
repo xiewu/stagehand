@@ -28,11 +28,22 @@ export const observe_github: EvalFunction = async ({ modelName, logger }) => {
     };
   }
 
-  const expectedLocator = `#repos-file-tree > div.Box-sc-g0xbh4-0.jbQqON > div > div > div > nav > ul`;
+  const possibleLocators = [
+    `#repos-file-tree > div.Box-sc-g0xbh4-0.jbQqON > div > div > div > nav > ul`,
+    `#repos-file-tree > div.Box-sc-g0xbh4-0.jbQqON > div > div > div > nav`,
+  ];
 
-  const expectedResult = await stagehand.page.locator(expectedLocator);
+  const possibleHandles = [];
+  for (const locatorStr of possibleLocators) {
+    const locator = stagehand.page.locator(locatorStr);
+    const handle = await locator.elementHandle();
+    if (handle) {
+      possibleHandles.push({ locatorStr, handle });
+    }
+  }
 
   let foundMatch = false;
+  let matchedLocator: string | null = null;
 
   for (const observation of observations) {
     try {
@@ -40,20 +51,23 @@ export const observe_github: EvalFunction = async ({ modelName, logger }) => {
         .locator(observation.selector)
         .first();
       const observationHandle = await observationLocator.elementHandle();
-      const expectedHandle = await expectedResult.elementHandle();
-
-      if (!observationHandle || !expectedHandle) {
-        // Couldn’t get handles, skip
+      if (!observationHandle) {
         continue;
       }
 
-      const isSameNode = await observationHandle.evaluate(
-        (node, otherNode) => node === otherNode,
-        expectedHandle,
-      );
+      for (const { locatorStr, handle: candidateHandle } of possibleHandles) {
+        const isSameNode = await observationHandle.evaluate(
+          (node, otherNode) => node === otherNode,
+          candidateHandle,
+        );
+        if (isSameNode) {
+          foundMatch = true;
+          matchedLocator = locatorStr;
+          break;
+        }
+      }
 
-      if (isSameNode) {
-        foundMatch = true;
+      if (foundMatch) {
         break;
       }
     } catch (error) {
@@ -69,7 +83,7 @@ export const observe_github: EvalFunction = async ({ modelName, logger }) => {
 
   return {
     _success: foundMatch,
-    expected: expectedResult,
+    matchedLocator,
     observations,
     debugUrl,
     sessionUrl,
