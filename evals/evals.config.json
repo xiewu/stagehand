@@ -231,6 +231,10 @@
     {
       "name": "observe_simple_google_search",
       "categories": ["observe"]
+    },
+    {
+      "name": "observe_yc_startup",
+      "categories": ["observe"]
     }
   ]
 }
