@@ -477,7 +477,7 @@ export class StagehandPage {
       useVision, // still destructure but will not pass it on
       domSettleTimeoutMs,
       returnAction = true,
-      useAccessibilityTree = true,
+      onlyVisible = false,
     } = options;
 
     if (typeof useVision !== "undefined") {
@@ -511,8 +511,8 @@ export class StagehandPage {
           value: llmClient.modelName,
           type: "string",
         },
-        useAccessibilityTree: {
-          value: useAccessibilityTree ? "true" : "false",
+        onlyVisible: {
+          value: onlyVisible ? "true" : "false",
           type: "boolean",
         },
       },
@@ -525,7 +525,7 @@ export class StagehandPage {
         requestId,
         domSettleTimeoutMs,
         returnAction,
-        useAccessibilityTree,
+        onlyVisible,
       })
       .catch((e) => {
         this.stagehand.log({

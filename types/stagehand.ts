@@ -90,7 +90,7 @@ export interface ObserveOptions {
   useVision?: boolean;
   domSettleTimeoutMs?: number;
   returnAction?: boolean;
-  useAccessibilityTree?: boolean;
+  onlyVisible?: boolean;
 }
 
 export interface ObserveResult {

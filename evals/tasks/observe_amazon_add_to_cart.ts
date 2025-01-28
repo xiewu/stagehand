@@ -21,7 +21,7 @@ export const observe_amazon_add_to_cart: EvalFunction = async ({
 
   const observations1 = await stagehand.page.observe({
     instruction: "Find and click the 'Add to Cart' button",
-    useAccessibilityTree: true,
+    onlyVisible: false,
     returnAction: true,
   });
 
@@ -43,7 +43,7 @@ export const observe_amazon_add_to_cart: EvalFunction = async ({
 
   const observations2 = await stagehand.page.observe({
     instruction: "Find and click the 'Proceed to checkout' button",
-    useAccessibilityTree: true,
+    onlyVisible: false,
     returnAction: true,
   });
 

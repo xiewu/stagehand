@@ -54,14 +54,14 @@ export class StagehandObserveHandler {
     llmClient,
     requestId,
     returnAction,
-    useAccessibilityTree,
+    onlyVisible,
   }: {
     instruction: string;
     llmClient: LLMClient;
     requestId: string;
     domSettleTimeoutMs?: number;
     returnAction?: boolean;
-    useAccessibilityTree?: boolean;
+    onlyVisible?: boolean;
   }) {
     if (!instruction) {
       instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
@@ -80,7 +80,7 @@ export class StagehandObserveHandler {
 
     let selectorMap: Record<string, string[]> = {};
     let outputString: string;
-
+    const useAccessibilityTree = !onlyVisible;
     if (useAccessibilityTree) {
       const tree = await getAccessibilityTree(this.stagehandPage, this.logger);
       this.logger({
@@ -149,17 +149,17 @@ export class StagehandObserveHandler {
     );
     await this.stagehandPage.cleanupDomDebug();
 
-    // this.logger({
-    //   category: "observation",
-    //   message: "found elements",
-    //   level: 1,
-    //   auxiliary: {
-    //     elements: {
-    //       value: JSON.stringify(elementsWithSelectors),
-    //       type: "object",
-    //     },
-    //   },
-    // });
+    this.logger({
+      category: "observation",
+      message: "found elements",
+      level: 1,
+      auxiliary: {
+        elements: {
+          value: JSON.stringify(elementsWithSelectors),
+          type: "object",
+        },
+      },
+    });
 
     await this._recordObservation(instruction, elementsWithSelectors);
     return elementsWithSelectors;

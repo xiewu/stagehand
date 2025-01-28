@@ -1,11 +1,7 @@
 import { initStagehand } from "@/evals/initStagehand";
 import { EvalFunction } from "@/types/evals";
 
-export const ionwave_observe: EvalFunction = async ({
-  modelName,
-  logger,
-  useAccessibilityTree,
-}) => {
+export const ionwave_observe: EvalFunction = async ({ modelName, logger }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
@@ -15,7 +11,7 @@ export const ionwave_observe: EvalFunction = async ({
 
   await stagehand.page.goto("https://elpasotexas.ionwave.net/Login.aspx");
 
-  const observations = await stagehand.page.observe({ useAccessibilityTree });
+  const observations = await stagehand.page.observe({ onlyVisible: true });
 
   if (observations.length === 0) {
     await stagehand.close();

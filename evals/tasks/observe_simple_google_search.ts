@@ -20,7 +20,7 @@ export const observe_simple_google_search: EvalFunction = async ({
   // });
   const observation1 = await stagehand.page.observe({
     instruction: "Find the search bar and enter 'OpenAI'",
-    useAccessibilityTree: true,
+    onlyVisible: false,
     returnAction: true,
   });
   console.log(observation1);
@@ -38,7 +38,7 @@ export const observe_simple_google_search: EvalFunction = async ({
   await stagehand.page.waitForTimeout(5000);
   const observation2 = await stagehand.page.observe({
     instruction: "Click the search button in the suggestions dropdown",
-    useAccessibilityTree: true,
+    onlyVisible: false,
     returnAction: true,
   });
   console.log(observation2);
