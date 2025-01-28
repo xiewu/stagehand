@@ -4,7 +4,6 @@ import { EvalFunction } from "@/types/evals";
 export const observe_yc_startup: EvalFunction = async ({
   modelName,
   logger,
-  useAccessibilityTree,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
@@ -19,7 +18,6 @@ export const observe_yc_startup: EvalFunction = async ({
   const observations = await stagehand.page.observe({
     instruction:
       "Find the container element that holds links to each of the startup companies. The companies each have a name, a description, and a link to their website.",
-    useAccessibilityTree,
   });
 
   console.log("observations", JSON.stringify(observations, null, 2));

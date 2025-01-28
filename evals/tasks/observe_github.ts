@@ -1,11 +1,7 @@
 import { initStagehand } from "@/evals/initStagehand";
 import { EvalFunction } from "@/types/evals";
 
-export const observe_github: EvalFunction = async ({
-  modelName,
-  logger,
-  useAccessibilityTree,
-}) => {
+export const observe_github: EvalFunction = async ({ modelName, logger }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
@@ -19,7 +15,6 @@ export const observe_github: EvalFunction = async ({
 
   const observations = await stagehand.page.observe({
     instruction: "find the scrollable element that holds the repos file tree",
-    useAccessibilityTree,
   });
 
   if (observations.length === 0) {

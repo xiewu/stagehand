@@ -4,7 +4,6 @@ import { EvalFunction } from "@/types/evals";
 export const observe_vantechjournal: EvalFunction = async ({
   modelName,
   logger,
-  useAccessibilityTree,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
@@ -17,7 +16,6 @@ export const observe_vantechjournal: EvalFunction = async ({
 
   const observations = await stagehand.page.observe({
     instruction: "find the button that takes us to the 11th page",
-    useAccessibilityTree,
   });
 
   if (observations.length === 0) {
