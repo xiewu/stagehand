@@ -387,6 +387,10 @@ export class Stagehand {
     this.userProvidedInstructions = systemPrompt;
     this.usingAPI = useAPI ?? false;
     this.modelName = modelName ?? DEFAULT_MODEL_NAME;
+
+    if (this.usingAPI && env === "LOCAL") {
+      throw new Error("API mode can only be used with BROWSERBASE environment");
+    }
   }
 
   public get logger(): (logLine: LogLine) => void {
