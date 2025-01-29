@@ -177,32 +177,33 @@ export async function getAccessibilityTree(
 
 // This function is wrapped into a string and sent as a CDP command
 // It is not meant to be actually executed here
-function getNodePath(node: Element) {
-  const parts = [];
-  let current = node;
-
-  while (current && current.parentNode) {
-    if (current.nodeType === Node.ELEMENT_NODE) {
-      let tagName = current.tagName.toLowerCase();
-      const sameTagSiblings = Array.from(current.parentNode.children).filter(
-        (child) => child.tagName === current.tagName,
-      );
-
-      if (sameTagSiblings.length > 1) {
-        let index = 1;
-        for (const sibling of sameTagSiblings) {
-          if (sibling === current) break;
-          index++;
-        }
-        tagName += "[" + index + "]";
+function getNodePath(el: Element) {
+  if (!el || el.nodeType !== Node.ELEMENT_NODE) return "";
+  const pathSegments = [];
+  let current = el;
+  while (current && current.nodeType === Node.ELEMENT_NODE) {
+    const tagName = current.nodeName.toLowerCase();
+    let index = 1;
+    let sibling = current.previousSibling;
+    while (sibling) {
+      if (
+        sibling.nodeType === Node.ELEMENT_NODE &&
+        sibling.nodeName.toLowerCase() === tagName
+      ) {
+        index++;
       }
-
-      parts.unshift(tagName);
+      sibling = sibling.previousSibling;
     }
+    const segment = index > 1 ? tagName + "[" + index + "]" : tagName;
+    pathSegments.unshift(segment);
     current = current.parentNode as Element;
+    if (!current || !current.parentNode) break;
+    if (current.nodeName.toLowerCase() === "html") {
+      pathSegments.unshift("html");
+      break;
+    }
   }
-
-  return "/" + parts.join("/");
+  return "/" + pathSegments.join("/");
 }
 
 const functionString = getNodePath.toString();
