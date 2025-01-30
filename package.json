@@ -1,6 +1,6 @@
 {
   "name": "@browserbasehq/stagehand",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "description": "An AI web browsing framework focused on simplicity and extensibility.",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -13,6 +13,7 @@
     "external-client": "npm run build-dom-scripts && tsx examples/external_client.ts",
     "instructions": "npm run build-dom-scripts && tsx examples/instructions.ts",
     "ai-sdk-client": "npm run build-dom-scripts && tsx examples/ai_sdk_example.ts",
+    "actionable_observe_example": "npm run build-dom-scripts && tsx examples/actionable_observe_example.ts",
     "format": "prettier --write .",
     "prettier": "prettier --check .",
     "prettier:fix": "prettier --write .",
@@ -75,7 +76,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
     "@browserbasehq/sdk": "^2.0.0",
-    "sharp": "^0.33.5",
     "ws": "^8.18.0",
     "zod-to-json-schema": "^3.23.5"
   },

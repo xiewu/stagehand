@@ -2,11 +2,7 @@ import { z } from "zod";
 import { ActCommandParams, ActCommandResult } from "../types/act";
 import { VerifyActCompletionParams } from "../types/inference";
 import { LogLine } from "../types/log";
-import {
-  AnnotatedScreenshotText,
-  ChatMessage,
-  LLMClient,
-} from "./llm/LLMClient";
+import { ChatMessage, LLMClient } from "./llm/LLMClient";
 import {
   actTools,
   buildActSystemPrompt,
@@ -27,7 +23,6 @@ export async function verifyActCompletion({
   goal,
   steps,
   llmClient,
-  screenshot,
   domElements,
   logger,
   requestId,
@@ -48,12 +43,6 @@ export async function verifyActCompletion({
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
-      image: screenshot
-        ? {
-            buffer: screenshot,
-            description: "This is a screenshot of the whole visible page.",
-          }
-        : undefined,
       response_model: {
         name: "Verification",
         schema: verificationSchema,
@@ -99,7 +88,6 @@ export async function act({
   domElements,
   steps,
   llmClient,
-  screenshot,
   retries = 0,
   logger,
   requestId,
@@ -120,9 +108,6 @@ export async function act({
       presence_penalty: 0,
       tool_choice: "auto" as const,
       tools: actTools,
-      image: screenshot
-        ? { buffer: screenshot, description: AnnotatedScreenshotText }
-        : undefined,
       requestId,
     },
     logger,
@@ -282,20 +267,20 @@ export async function observe({
   instruction,
   domElements,
   llmClient,
-  image,
   requestId,
   isUsingAccessibilityTree,
   userProvidedInstructions,
   logger,
+  returnAction = false,
 }: {
   instruction: string;
   domElements: string;
   llmClient: LLMClient;
-  image?: Buffer;
   requestId: string;
   userProvidedInstructions?: string;
   logger: (message: LogLine) => void;
   isUsingAccessibilityTree?: boolean;
+  returnAction?: boolean;
 }) {
   const observeSchema = z.object({
     elements: z
@@ -309,6 +294,22 @@ export async function observe({
                 ? "a description of the accessible element and its purpose"
                 : "a description of the element and what it is relevant for",
             ),
+          ...(returnAction
+            ? {
+                method: z
+                  .string()
+                  .describe(
+                    "the candidate method/action to interact with the element. Select one of the available Playwright interaction methods.",
+                  ),
+                arguments: z.array(
+                  z
+                    .string()
+                    .describe(
+                      "the arguments to pass to the method. For example, for a click, the arguments are empty, but for a fill, the arguments are the value to fill in.",
+                    ),
+                ),
+              }
+            : {}),
         }),
       )
       .describe(
@@ -334,9 +335,6 @@ export async function observe({
             isUsingAccessibilityTree,
           ),
         ],
-        image: image
-          ? { buffer: image, description: AnnotatedScreenshotText }
-          : undefined,
         response_model: {
           schema: observeSchema,
           name: "Observation",
@@ -351,10 +349,20 @@ export async function observe({
     });
   const parsedResponse = {
     elements:
-      observationResponse.elements?.map((el) => ({
-        elementId: Number(el.elementId),
-        description: String(el.description),
-      })) ?? [],
+      observationResponse.elements?.map((el) => {
+        const base = {
+          elementId: Number(el.elementId),
+          description: String(el.description),
+        };
+
+        return returnAction
+          ? {
+              ...base,
+              method: String(el.method),
+              arguments: el.arguments,
+            }
+          : base;
+      }) ?? [],
   } satisfies { elements: { elementId: number; description: string }[] };
 
   return parsedResponse;

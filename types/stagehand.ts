@@ -63,7 +63,8 @@ export interface ActOptions {
   action: string;
   modelName?: AvailableModel;
   modelClientOptions?: ClientOptions;
-  useVision?: "fallback" | boolean;
+  /** @deprecated Vision is not supported in this version of Stagehand. */
+  useVision?: boolean;
   variables?: Record<string, string>;
   domSettleTimeoutMs?: number;
 }
@@ -89,12 +90,18 @@ export interface ObserveOptions {
   instruction?: string;
   modelName?: AvailableModel;
   modelClientOptions?: ClientOptions;
+  /** @deprecated Vision is not supported in this version of Stagehand. */
   useVision?: boolean;
   domSettleTimeoutMs?: number;
-  useAccessibilityTree?: boolean;
+  returnAction?: boolean;
+  onlyVisible?: boolean;
 }
 
 export interface ObserveResult {
   selector: string;
   description: string;
+  backendNodeId?: number;
+  //TODO: review name
+  method?: string;
+  arguments?: string[];
 }
