@@ -235,6 +235,10 @@
     {
       "name": "observe_yc_startup",
       "categories": ["observe"]
+    },
+    {
+      "name": "observe_taxes",
+      "categories": ["observe"]
     }
   ]
 }

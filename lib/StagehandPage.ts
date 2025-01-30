@@ -325,7 +325,7 @@ export class StagehandPage {
       action,
       modelName,
       modelClientOptions,
-      useVision,
+      useVision, // still destructure this but will not pass it on
       variables = {},
       domSettleTimeoutMs,
     } = actionOrOptions;
@@ -502,7 +502,7 @@ export class StagehandPage {
       modelClientOptions,
       useVision, // still destructure but will not pass it on
       domSettleTimeoutMs,
-      returnAction = true,
+      returnAction = false,
       onlyVisible = false,
     } = options;
 

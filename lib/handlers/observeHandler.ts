@@ -82,6 +82,7 @@ export class StagehandObserveHandler {
     let outputString: string;
     const useAccessibilityTree = !onlyVisible;
     if (useAccessibilityTree) {
+      await this.stagehandPage._waitForSettledDom();
       const tree = await getAccessibilityTree(this.stagehandPage, this.logger);
       this.logger({
         category: "observation",

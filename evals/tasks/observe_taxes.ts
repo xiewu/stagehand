@@ -1,10 +1,7 @@
-import { initStagehand } from "@/evals/initStagehand";
 import { EvalFunction } from "@/types/evals";
+import { initStagehand } from "@/evals/initStagehand";
 
-export const observe_vantechjournal: EvalFunction = async ({
-  modelName,
-  logger,
-}) => {
+export const observe_taxes: EvalFunction = async ({ modelName, logger }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
@@ -12,11 +9,10 @@ export const observe_vantechjournal: EvalFunction = async ({
 
   const { debugUrl, sessionUrl } = initResponse;
 
-  await stagehand.page.goto("https://vantechjournal.com/archive?page=8");
-  await stagehand.page.waitForTimeout(1000);
+  await stagehand.page.goto("https://file.1040.com/estimate/");
 
   const observations = await stagehand.page.observe({
-    instruction: "find the button that takes us to the 11th page",
+    instruction: "Find all the form elements under the 'Income' section",
   });
 
   if (observations.length === 0) {
@@ -28,33 +24,33 @@ export const observe_vantechjournal: EvalFunction = async ({
       sessionUrl,
       logs: logger.getLogs(),
     };
+  } else if (observations.length < 13) {
+    await stagehand.close();
+    return {
+      _success: false,
+      observations,
+      debugUrl,
+      sessionUrl,
+      logs: logger.getLogs(),
+    };
   }
 
-  const expectedLocator = `a.rounded-lg:nth-child(8)`;
+  const expectedLocator = `#tpWages`;
 
-  const expectedResult = await stagehand.page.locator(expectedLocator);
+  const expectedResult = await stagehand.page
+    .locator(expectedLocator)
+    .first()
+    .innerText();
 
   let foundMatch = false;
-
   for (const observation of observations) {
     try {
-      const observationLocator = stagehand.page
+      const observationResult = await stagehand.page
         .locator(observation.selector)
-        .first();
-      const observationHandle = await observationLocator.elementHandle();
-      const expectedHandle = await expectedResult.elementHandle();
+        .first()
+        .innerText();
 
-      if (!observationHandle || !expectedHandle) {
-        // Couldn’t get handles, skip
-        continue;
-      }
-
-      const isSameNode = await observationHandle.evaluate(
-        (node, otherNode) => node === otherNode,
-        expectedHandle,
-      );
-
-      if (isSameNode) {
+      if (observationResult === expectedResult) {
         foundMatch = true;
         break;
       }
