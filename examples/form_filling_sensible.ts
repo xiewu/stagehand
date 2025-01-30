@@ -1,16 +1,18 @@
 import { Stagehand } from "@/dist";
 import StagehandConfig from "@/stagehand.config";
+import chalk from "chalk";
 
 async function formFillingSensible() {
   const stagehand = new Stagehand({
     ...StagehandConfig,
     // Uncomment the following lines to run locally or use a different model
-    // env: "LOCAL",
-    // modelName: "gpt-4o-mini",
+    env: "LOCAL",
+    modelName: "gpt-4o-mini",
   });
   await stagehand.init();
 
-  // Block manifest worker to prevent PWA installation popup
+  // Block manifest worker to prevent PWA installation popup.
+  // This is necessary because the website prompts the user to install the PWA and prevents form filling.
   await stagehand.page.route("**/manifest.json", (route) => route.abort());
 
   // Go to the website and wait for it to load
@@ -26,8 +28,12 @@ async function formFillingSensible() {
     returnAction: true,
   });
 
-  // Uncomment the following line to see the stagehand candidate suggestions (initial)
-  // console.log(observed);
+  // Uncomment the following snippet to see the stagehand candidate suggestions (initial)
+  console.log(
+    `${chalk.green("Observe:")} Form fields found:\n${observed
+      .map((r) => `${chalk.yellow(r.description)} -> ${chalk.gray(r.selector)}`)
+      .join("\n")}`,
+  );
 
   // Create a mapping of 1+ keywords in the form fields to standardize field names
   const mapping = (description: string): string | null => {
@@ -65,7 +71,14 @@ async function formFillingSensible() {
     return candidate;
   });
   // List of sensible-data candidates
-  console.log(updatedFields);
+  console.log(
+    `\n${chalk.green("Sensible Data form inputs:")} Form fields to be filled:\n${updatedFields
+      .map(
+        (r) =>
+          `${chalk.yellow(r.description)} -> ${chalk.blue(r.arguments?.[0] || "no value")}`,
+      )
+      .join("\n")}`,
+  );
 
   // Fill all the form fields with the sensible candidates
   for (const candidate of updatedFields) {
