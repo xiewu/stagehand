@@ -379,11 +379,17 @@ Return an array of elements that match the instruction if they exist, otherwise 
 export function buildObserveUserMessage(
   instruction: string,
   domElements: string,
+  scrollableElemNodes: string,
   isUsingAccessibilityTree = false,
 ): ChatMessage {
+  const scrollableSection =
+    isUsingAccessibilityTree && scrollableElemNodes.trim().length
+      ? `Here are some scrollable elements:\n${scrollableElemNodes}\n\n`
+      : "";
+
   return {
     role: "user",
-    content: `instruction: ${instruction}
-${isUsingAccessibilityTree ? "Accessibility Tree" : "DOM"}: ${domElements}`,
+    content: `instruction: ${instruction}\n
+${scrollableSection}${isUsingAccessibilityTree ? "Accessibility Tree" : "DOM"}:\n${domElements}`,
   };
 }
