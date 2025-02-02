@@ -266,6 +266,7 @@ export async function extract({
 export async function observe({
   instruction,
   domElements,
+  scrollableElemNodes,
   llmClient,
   requestId,
   isUsingAccessibilityTree,
@@ -275,6 +276,7 @@ export async function observe({
 }: {
   instruction: string;
   domElements: string;
+  scrollableElemNodes?: string;
   llmClient: LLMClient;
   requestId: string;
   userProvidedInstructions?: string;
@@ -332,6 +334,7 @@ export async function observe({
           buildObserveUserMessage(
             instruction,
             domElements,
+            scrollableElemNodes,
             isUsingAccessibilityTree,
           ),
         ],
