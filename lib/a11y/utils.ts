@@ -1,7 +1,7 @@
 import { AccessibilityNode, TreeResult, AXNode } from "../../types/context";
 import { StagehandPage } from "../StagehandPage";
 import { LogLine } from "../../types/log";
-import { CDPSession, Page, Locator } from "playwright";
+import { CDPSession, Page, Locator, ElementHandle } from "playwright";
 import {
   PlaywrightCommandMethodNotSupportedException,
   PlaywrightCommandException,
@@ -125,13 +125,14 @@ export function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
   return {
     tree: finalTree,
     simplified: simplifiedFormat,
+    backendNodeMap: nodeMap,
   };
 }
 
 export async function getAccessibilityTree(
   page: StagehandPage,
   logger: (logLine: LogLine) => void,
-) {
+): Promise<TreeResult> {
   await page.enableCDP("Accessibility");
 
   try {
@@ -222,6 +223,148 @@ export async function getXPathByResolvedObjectId(
   });
 
   return result.value || "";
+}
+
+/**
+ * Extracts all scrollable elements on the page by calling
+ * `window.getScrollableElements()` in the browser context.
+ *
+ * @param stagehandPage - The StagehandPage instance to run page-level commands.
+ * @returns An array of ElementHandles for all scrollable elements found.
+ */
+async function extractScrollableElements(
+  stagehandPage: StagehandPage,
+): Promise<ElementHandle<Element>[]> {
+  const scrollableElementsHandle = await stagehandPage.page.evaluateHandle(
+    () => {
+      return window.getScrollableElements();
+    },
+  );
+
+  const properties = await scrollableElementsHandle.getProperties();
+  const scrollableElements: ElementHandle<Element>[] = [];
+
+  for (const prop of properties.values()) {
+    const elementHandle = prop.asElement();
+    if (elementHandle) {
+      scrollableElements.push(elementHandle);
+    }
+  }
+
+  return scrollableElements;
+}
+
+/**
+ * Accepts an array of scrollable ElementHandles and resolves each one
+ * **directly** to an accessibility node ID (AX nodeId) by:
+ *   1. Generating XPaths for the element.
+ *   2. Using the first XPath to `document.evaluate` it in CDP (Runtime.evaluate).
+ *   3. Calling `Accessibility.getPartialAXTree({ objectId })` to retrieve the AX node info.
+ *
+ * @param stagehandPage - The StagehandPage instance to run CDP commands.
+ * @param elements - An array of scrollable ElementHandles to process.
+ * @returns An array of AX node IDs for each element (skips any that fail).
+ */
+async function getAxNodeIdsForElements(
+  stagehandPage: StagehandPage,
+  elements: ElementHandle<Element>[],
+): Promise<string[]> {
+  const axIds = await Promise.all(
+    elements.map(async (el) => {
+      // 1. Generate all possible XPaths for the element
+      const xpaths: string[] = await el.evaluate((node) => {
+        return window.generateXPathsForElement(node);
+      });
+
+      // If we have no valid XPath, skip this element
+      if (!xpaths || !xpaths.length) {
+        return null;
+      }
+
+      // Use the first XPath
+      const xpath = xpaths[0];
+
+      // 2. Evaluate the XPath to get an objectId via CDP
+      const evalResponse = await stagehandPage.sendCDP<{
+        result: { objectId: string };
+      }>("Runtime.evaluate", {
+        expression: `document.evaluate(${JSON.stringify(
+          xpath,
+        )}, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue`,
+        returnByValue: false,
+      });
+
+      if (!evalResponse?.result?.objectId) {
+        return null;
+      }
+
+      // 3. Call Accessibility.getPartialAXTree with the objectId
+      const partialAxResponse = await stagehandPage.sendCDP<{
+        nodes: AXNode[];
+      }>("Accessibility.getPartialAXTree", {
+        objectId: evalResponse.result.objectId,
+        fetchRelatives: false,
+      });
+
+      // The first node is typically the AX node for our element
+      const axNode = partialAxResponse?.nodes?.[0];
+      return axNode?.nodeId || null;
+    }),
+  );
+
+  // Filter out null results
+  return axIds.filter((id): id is string => id !== null);
+}
+
+/**
+ * Formats a single AX node into a compact one-line representation.
+ * Example: "[1234] generic: MyNodeName"
+ *
+ * @param axNode - The accessibility node to format.
+ * @returns A string with ID, role, and optional name.
+ */
+function formatSingleNode(axNode: AccessibilityNode): string {
+  return `[${axNode.nodeId}] ${axNode.role}${axNode.name ? `: ${axNode.name}` : ""}`;
+}
+
+/**
+ * Retrieves the accessibility-node representations of all scrollable elements on the page,
+ * using a direct approach (CDP's Accessibility domain) to get each element's AX node ID.
+ *
+ * Steps:
+ *   1. Calls a page-level function to get a list of scrollable elements (ElementHandles).
+ *   2. Resolves each element directly to its AX node ID via `getAxNodeIdsForElements`.
+ *   3. Looks up each AX nodeId in `backendNodeMap`, which is keyed by AX node IDs.
+ *   4. Formats each node into a single-line string (no recursion).
+ *   5. Joins all strings with newlines.
+ *
+ * @param stagehandPage - An instance of StagehandPage to run CDP commands.
+ * @param backendNodeMap - A map of AX node IDs to AccessibilityNodes for the current page.
+ * @returns A joined string containing the AX representation of each scrollable element.
+ */
+export async function getScrollableElementsAXNodes(
+  stagehandPage: StagehandPage,
+  backendNodeMap: Map<string, AccessibilityNode>,
+): Promise<string> {
+  // 1. Extract scrollable elements as ElementHandles
+  const scrollableElements = await extractScrollableElements(stagehandPage);
+
+  // 2. Convert those ElementHandles directly to AX node IDs
+  const scrollableAxIds = await getAxNodeIdsForElements(
+    stagehandPage,
+    scrollableElements,
+  );
+
+  // 3 & 4. For each AX nodeId, look up the node in backendNodeMap and format a single-line string
+  const scrollableAXNodesArray = scrollableAxIds.map((axId) => {
+    const axNode = backendNodeMap.get(axId);
+    return axNode
+      ? formatSingleNode(axNode)
+      : `Unknown AX node for nodeId: [${axId}]`;
+  });
+
+  // 5. Return the combined output
+  return scrollableAXNodesArray.join("\n");
 }
 
 export async function performPlaywrightMethod(

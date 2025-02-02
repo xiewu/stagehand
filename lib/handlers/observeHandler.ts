@@ -7,6 +7,7 @@ import { generateId } from "../utils";
 import {
   getAccessibilityTree,
   getXPathByResolvedObjectId,
+  getScrollableElementsAXNodes,
 } from "../a11y/utils";
 
 export class StagehandObserveHandler {
@@ -79,7 +80,8 @@ export class StagehandObserveHandler {
     });
 
     let selectorMap: Record<string, string[]> = {};
-    let outputString: string;
+    let outputString: string = "";
+    let scrollableElemNodes: string = ""; // Will hold AX data for scrollable elements.
     const useAccessibilityTree = !onlyVisible;
     if (useAccessibilityTree) {
       await this.stagehandPage._waitForSettledDom();
@@ -90,6 +92,12 @@ export class StagehandObserveHandler {
         level: 1,
       });
       outputString = tree.simplified;
+
+      // Retrieve any scrollable elements
+      scrollableElemNodes = await getScrollableElementsAXNodes(
+        this.stagehandPage,
+        tree.backendNodeMap,
+      );
     } else {
       const evalResult = await this.stagehand.page.evaluate(() => {
         return window.processAllOfDom().then((result) => result);
@@ -101,6 +109,7 @@ export class StagehandObserveHandler {
     const observationResponse = await observe({
       instruction,
       domElements: outputString,
+      scrollableElemNodes, // Passed as a string containing the computed accessibility node representations.
       llmClient,
       requestId,
       userProvidedInstructions: this.userProvidedInstructions,
