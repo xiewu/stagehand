@@ -16,10 +16,11 @@ export type AccessibilityNode = {
   children?: AccessibilityNode[];
   childIds?: string[];
   parentId?: string;
-  nodeId?: string;
+  nodeId: string;
 };
 
 export interface TreeResult {
   tree: AccessibilityNode[];
   simplified: string;
+  backendNodeMap: Map<string, AccessibilityNode>;
 }
