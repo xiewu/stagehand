@@ -21,7 +21,7 @@
       <img alt="MIT License" src="https://stagehand.dev/api/assets/license?mode=light" />
     </picture>
   </a>
-  <a href="https://staeghand.dev/slack">
+  <a href="https://stagehand.dev/slack">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://stagehand.dev/api/assets/slack?mode=dark" />
       <img alt="Slack Community" src="https://stagehand.dev/api/assets/slack?mode=light" />
