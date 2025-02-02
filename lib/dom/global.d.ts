@@ -36,5 +36,7 @@ declare global {
       width: number;
       height: number;
     }>;
+    getScrollableElements: (topN?: number) => HTMLElement[];
+    generateXPathsForElement: (element: ChildNode) => Promise<string[]>;
   }
 }
