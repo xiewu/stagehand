@@ -180,6 +180,8 @@ export class StagehandAPI {
       "x-bb-api-key": this.apiKey,
       "x-bb-project-id": this.projectId,
       "x-bb-session-id": this.sessionId,
+      // we want real-time logs, so we stream the response
+      "x-streamed-response": "true",
     };
 
     if (options.method === "POST" && options.body) {
