@@ -94,6 +94,9 @@ export function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
       ...(hasValidName && { name: node.name }), // Only include name if it exists and isn't empty
       ...(node.description && { description: node.description }),
       ...(node.value && { value: node.value }),
+      ...(node.backendDOMNodeId !== undefined && {
+        backendDOMNodeId: node.backendDOMNodeId,
+      }),
     });
   });
 
@@ -150,6 +153,7 @@ export async function getAccessibilityTree(
       description: node.description?.value,
       value: node.value?.value,
       nodeId: node.nodeId,
+      backendDOMNodeId: node.backendDOMNodeId,
       parentId: node.parentId,
       childIds: node.childIds,
     }));
