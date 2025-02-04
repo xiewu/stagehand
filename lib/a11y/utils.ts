@@ -26,9 +26,10 @@ export function formatSimplifiedTree(
 }
 
 /**
- * Helper function to remove or collapse unnecessary structural nodes:
+ * Helper function to remove or collapse unnecessary structural nodes
+ * Handles three cases:
  * 1. Removes generic/none nodes with no children
- * 2. Collapses generic/none nodes with a single child
+ * 2. Collapses generic/none nodes with single child
  * 3. Keeps generic/none nodes with multiple children but cleans their subtrees
  */
 function cleanStructuralNodes(
@@ -36,7 +37,6 @@ function cleanStructuralNodes(
 ): AccessibilityNode | null {
   // Base case: leaf node
   if (!node.children) {
-    // Remove if role is generic/none
     return node.role === "generic" || node.role === "none" ? null : node;
   }
 
@@ -48,13 +48,13 @@ function cleanStructuralNodes(
   // Handle generic/none nodes specially
   if (node.role === "generic" || node.role === "none") {
     if (cleanedChildren.length === 1) {
-      // Collapse single-child generic/none nodes
+      // Collapse single-child generic nodes
       return cleanedChildren[0];
     } else if (cleanedChildren.length > 1) {
-      // Keep generic/none nodes with multiple children
+      // Keep generic nodes with multiple children
       return { ...node, children: cleanedChildren };
     }
-    // Remove generic/none node with no children
+    // Remove generic nodes with no children
     return null;
   }
 
@@ -67,12 +67,15 @@ function cleanStructuralNodes(
 /**
  * Builds a hierarchical tree structure from a flat array of accessibility nodes.
  * The function processes nodes in multiple passes to create a clean, meaningful tree.
+ * @param nodes - Flat array of accessibility nodes from the CDP
+ * @returns Object containing both the tree structure and a simplified string representation
  */
 export function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
   // Map to store processed nodes for quick lookup
   const nodeMap = new Map<string, AccessibilityNode>();
 
-  // --- First pass: Create nodes that are meaningful (and skip negative IDs) ---
+  // First pass: Create nodes that are meaningful
+  // We only keep nodes that either have a name or children to avoid cluttering the tree
   nodes.forEach((node) => {
     // Skip node if its ID is negative (e.g., "-1000002014")
     const nodeIdValue = parseInt(node.nodeId, 10);
@@ -85,7 +88,7 @@ export function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
     const isInteractive =
       node.role !== "none" &&
       node.role !== "generic" &&
-      node.role !== "InlineTextBox"; // Add other interactive roles here as needed
+      node.role !== "InlineTextBox"; //add other interactive roles here
 
     // Include nodes that are either named, have children, or are interactive
     if (!hasValidName && !hasChildren && !isInteractive) {
@@ -96,7 +99,7 @@ export function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
     nodeMap.set(node.nodeId, {
       role: node.role,
       nodeId: node.nodeId,
-      ...(hasValidName && { name: node.name }),
+      ...(hasValidName && { name: node.name }), // Only include name if it exists and isn't empty
       ...(node.description && { description: node.description }),
       ...(node.value && { value: node.value }),
       ...(node.backendDOMNodeId !== undefined && {
@@ -127,7 +130,7 @@ export function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
     .filter((node) => !node.parentId && nodeMap.has(node.nodeId)) // Get root nodes
     .map((node) => nodeMap.get(node.nodeId))
     .filter(Boolean)
-    .map((node) => cleanStructuralNodes(node!))
+    .map((node) => cleanStructuralNodes(node))
     .filter(Boolean) as AccessibilityNode[];
 
   // Generate a simplified string representation of the tree
@@ -258,7 +261,6 @@ export async function getAccessibilityTree(
       childIds: node.childIds,
       xpath: node.xpath,
     }));
-
     // Transform into hierarchical structure
     const hierarchicalTree = buildHierarchicalTree(sources);
 
