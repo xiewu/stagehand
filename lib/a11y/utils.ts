@@ -13,7 +13,7 @@ export function formatSimplifiedTree(
   level = 0,
 ): string {
   const indent = "  ".repeat(level);
-  let result = `${indent}[${node.nodeId}] [${node.backendDOMNodeId}] ${node.role}${
+  let result = `${indent}[${node.nodeId}] ${node.role}${
     node.name ? `: ${node.name}` : ""
   }\n`;
 
@@ -102,6 +102,7 @@ export function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
       ...(node.backendDOMNodeId !== undefined && {
         backendDOMNodeId: node.backendDOMNodeId,
       }),
+      ...(node.xpath && { xpath: node.xpath }),
     });
   });
 
@@ -146,7 +147,7 @@ export function buildHierarchicalTree(nodes: AccessibilityNode[]): TreeResult {
 export async function getAccessibilityTree(
   page: StagehandPage,
   logger: (logLine: LogLine) => void,
-) {
+): Promise<TreeResult> {
   await page.enableCDP("Accessibility");
 
   try {
@@ -155,7 +156,97 @@ export async function getAccessibilityTree(
       "Accessibility.getFullAXTree",
     );
 
-    // Extract specific sources (including backendDOMNodeId)
+    // For each node with a backendDOMNodeId, resolve it
+    for (const node of nodes) {
+      // Convert the AX role to a plain string (since .value is optional)
+      const role = node.role?.value;
+
+      if (node.backendDOMNodeId !== undefined) {
+        try {
+          // 1) Resolve the node to a Runtime object
+          const { object } = await page.sendCDP<{
+            object: { objectId?: string };
+          }>("DOM.resolveNode", {
+            backendNodeId: node.backendDOMNodeId,
+          });
+
+          if (object && object.objectId) {
+            // 2) If valid, fetch the XPath (optional)
+            try {
+              const xpath = await getXPathByResolvedObjectId(
+                await page.getCDPClient(),
+                object.objectId,
+              );
+              node.xpath = xpath;
+            } catch (xpathError) {
+              logger({
+                category: "observation",
+                message: `Error fetching XPath for node ${node.backendDOMNodeId}`,
+                level: 2,
+                auxiliary: {
+                  error: {
+                    value: xpathError.message,
+                    type: "string",
+                  },
+                },
+              });
+            }
+
+            // 3) If role is 'generic' or 'none' (or name is missing),
+            //    we call a function on the element to get its tagName.
+            if (role === "generic" || role === "none") {
+              try {
+                const { result } = await page.sendCDP<{
+                  result: { type: string; value?: string };
+                }>("Runtime.callFunctionOn", {
+                  objectId: object.objectId,
+                  functionDeclaration: `
+                    function() {
+                      // "this" is the DOM element. Return its tagName in lowercase
+                      return this.tagName ? this.tagName.toLowerCase() : "";
+                    }
+                  `,
+                  returnByValue: true,
+                });
+
+                // If we got a tagName, store it in node.name
+                if (result?.value) {
+                  // Overwrite node.role, so it won't be "generic" or empty
+                  node.role = { value: result.value };
+                }
+              } catch (tagNameError) {
+                // If we can't resolve the tagName, log and skip
+                logger({
+                  category: "observation",
+                  message: `Could not fetch tagName for node ${node.backendDOMNodeId}`,
+                  level: 2,
+                  auxiliary: {
+                    error: {
+                      value: tagNameError.message,
+                      type: "string",
+                    },
+                  },
+                });
+              }
+            }
+          }
+        } catch (resolveError) {
+          logger({
+            category: "observation",
+            message: `Could not resolve DOM node ID ${node.backendDOMNodeId}`,
+            level: 2,
+            auxiliary: {
+              error: {
+                value: resolveError.message,
+                type: "string",
+              },
+            },
+          });
+        }
+      }
+    }
+
+    // Now build the final hierarchical structure (including updated .name if replaced by tagName)
     const sources = nodes.map((node) => ({
       role: node.role?.value,
       name: node.name?.value,
@@ -165,6 +256,7 @@ export async function getAccessibilityTree(
       backendDOMNodeId: node.backendDOMNodeId,
       parentId: node.parentId,
       childIds: node.childIds,
+      xpath: node.xpath,
     }));
 
     // Transform into hierarchical structure
