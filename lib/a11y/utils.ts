@@ -58,7 +58,7 @@ function cleanStructuralNodes(
     return null;
   }
 
-  // For non-generic nodes, keep them if they still have children
+  // For non-generic nodes, keep them if they have children after cleaning
   return cleanedChildren.length > 0
     ? { ...node, children: cleanedChildren }
     : node;
