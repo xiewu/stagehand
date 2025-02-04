@@ -159,6 +159,9 @@ export async function getAccessibilityTree(
   await page.enableCDP("Accessibility");
 
   try {
+    // Identify which elements are scrollable and get their backendNodeIds
+    const scrollableBackendIds = await findScrollableElementIds(page);
+
     // Fetch the full accessibility tree from Chrome DevTools Protocol
     const { nodes } = await page.sendCDP<{ nodes: AXNode[] }>(
       "Accessibility.getFullAXTree",
@@ -179,7 +182,7 @@ export async function getAccessibilityTree(
           });
 
           if (object && object.objectId) {
-            // 2) If valid, fetch the XPath (optional)
+            // 2) If valid, fetch the XPath
             try {
               const xpath = await getXPathByResolvedObjectId(
                 await page.getCDPClient(),
@@ -251,6 +254,16 @@ export async function getAccessibilityTree(
             },
           });
         }
+      }
+
+      if (
+        node.backendDOMNodeId &&
+        scrollableBackendIds.has(node.backendDOMNodeId)
+      ) {
+        // If this node's ID is in scrollableBackendIds,
+        // We'll 'label' it by prepending 'Scrollable, ' to the role
+        const existingRole = node.role?.value || "unknown";
+        node.role = { value: `Scrollable, ${existingRole}` };
       }
     }
 
@@ -358,6 +371,69 @@ export async function getXPathByResolvedObjectId(
   });
 
   return result.value || "";
+}
+
+/**
+ * `findScrollableElementIds` is a function that identifies elements in
+ * the browser that are deemed "scrollable". At a high level, it does the
+ * following:
+ * - Calls the browser-side `window.getScrollableElementXpaths()` function,
+ *   which returns a list of XPaths for scrollable containers.
+ * - Iterates over the returned list of XPaths, locating each element in the DOM
+ *   using `stagehandPage.sendCDP(...)`
+ *     - During each iteration, we call `Runtime.evaluate` to run `document.evaluate(...)`
+ *       with each XPath, obtaining a `RemoteObject` reference if it exists.
+ *     - Then, for each valid object reference, we call `DOM.describeNode` to retrieve
+ *       the element’s `backendNodeId`.
+ * - Collects all resulting `backendNodeId`s in a Set and returns them.
+ *
+ * @param stagehandPage - A StagehandPage instance with built-in CDP helpers.
+ * @returns A Promise that resolves to a Set of unique `backendNodeId`s corresponding
+ *          to scrollable elements in the DOM.
+ */
+export async function findScrollableElementIds(
+  stagehandPage: StagehandPage,
+): Promise<Set<number>> {
+  // get the xpaths of the scrollable elements
+  const xpaths = await stagehandPage.page.evaluate(() => {
+    return window.getScrollableElementXpaths();
+  });
+
+  const scrollableBackendIds = new Set<number>();
+
+  for (const xpath of xpaths) {
+    if (!xpath) continue;
+
+    // evaluate the XPath in the stagehandPage
+    const { result } = await stagehandPage.sendCDP<{
+      result?: { objectId?: string };
+    }>("Runtime.evaluate", {
+      expression: `
+        (function() {
+          const res = document.evaluate(${JSON.stringify(
+            xpath,
+          )}, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+          return res.singleNodeValue;
+        })();
+      `,
+      returnByValue: false,
+    });
+
+    // if we have an objectId, call DOM.describeNode to get backendNodeId
+    if (result?.objectId) {
+      const { node } = await stagehandPage.sendCDP<{
+        node?: { backendNodeId?: number };
+      }>("DOM.describeNode", {
+        objectId: result.objectId,
+      });
+
+      if (node?.backendNodeId) {
+        scrollableBackendIds.add(node.backendNodeId);
+      }
+    }
+  }
+
+  return scrollableBackendIds;
 }
 
 export async function performPlaywrightMethod(
