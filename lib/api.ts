@@ -63,6 +63,7 @@ export class StagehandAPI {
     });
 
     if (sessionResponse.status !== 200) {
+      console.log(await sessionResponse.text());
       throw new Error(`Unknown error: ${sessionResponse.status}`);
     }
 
@@ -109,14 +110,28 @@ export class StagehandAPI {
     });
   }
 
-  private async execute<T>({ method, args }: ExecuteActionParams): Promise<T> {
-    const response = await this.request(
-      `/sessions/${this.sessionId}/${method}`,
-      {
-        method: "POST",
-        body: JSON.stringify(args),
+  async end(): Promise<void> {
+    return this.execute<void>({
+      method: "end",
+      params: {
+        sessionId: this.sessionId,
       },
-    );
+    });
+  }
+
+  private async execute<T>({
+    method,
+    args,
+    params,
+  }: ExecuteActionParams): Promise<T> {
+    const urlParams = new URLSearchParams(params as Record<string, string>);
+    const queryString = urlParams.toString();
+    const url = `/sessions/${this.sessionId}/${method}${queryString ? `?${queryString}` : ""}`;
+
+    const response = await this.request(url, {
+      method: "POST",
+      body: JSON.stringify(args),
+    });
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -137,7 +152,7 @@ export class StagehandAPI {
       const { value, done } = await reader.read();
 
       if (done && !buffer) {
-        throw new Error("Stream ended without receiving finished event");
+        return null;
       }
 
       buffer += decoder.decode(value, { stream: true });
@@ -168,8 +183,6 @@ export class StagehandAPI {
 
       if (done) break;
     }
-
-    throw new Error("Stream ended without receiving finished event");
   }
 
   private async request(

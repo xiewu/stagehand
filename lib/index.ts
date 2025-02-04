@@ -331,6 +331,7 @@ export class Stagehand {
   private userProvidedInstructions?: string;
   private usingAPI: boolean;
   private modelName: AvailableModel;
+  private apiClient: StagehandAPI | undefined;
 
   constructor(
     {
@@ -436,16 +437,14 @@ export class Stagehand {
       );
     }
 
-    let api: StagehandAPI | undefined;
-
     if (this.usingAPI) {
-      api = new StagehandAPI({
+      this.apiClient = new StagehandAPI({
         apiKey: this.apiKey,
         projectId: this.projectId,
         logger: this.logger,
       });
 
-      const { sessionId } = await api.init({
+      const { sessionId } = await this.apiClient.init({
         modelName: this.modelName,
         modelApiKey:
           LLMProvider.getModelProvider(this.modelName) === "openai"
@@ -489,7 +488,7 @@ export class Stagehand {
       this.stagehandContext,
       this.llmClient,
       this.userProvidedInstructions,
-      api,
+      this.apiClient,
     ).init();
 
     // Set the browser to headless mode if specified
@@ -645,6 +644,10 @@ export class Stagehand {
 
   async close(): Promise<void> {
     await this.context.close();
+
+    if (this.apiClient) {
+      await this.apiClient.end();
+    }
 
     if (this.contextPath) {
       try {
