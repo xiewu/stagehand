@@ -108,7 +108,7 @@ export class StagehandObserveHandler {
       isUsingAccessibilityTree: useAccessibilityTree,
       returnAction,
     });
-    
+
     const elementsWithSelectors = await Promise.all(
       observationResponse.elements.map(async (element) => {
         const { elementId, ...rest } = element;
