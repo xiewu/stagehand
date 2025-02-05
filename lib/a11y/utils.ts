@@ -31,18 +31,50 @@ export function formatSimplifiedTree(
  * 1. Removes generic/none nodes with no children
  * 2. Collapses generic/none nodes with single child
  * 3. Keeps generic/none nodes with multiple children but cleans their subtrees
+ *    and attempts to resolve their role to a DOM tag name
  */
 async function cleanStructuralNodes(
   node: AccessibilityNode,
   page?: StagehandPage,
   logger?: (logLine: LogLine) => void,
 ): Promise<AccessibilityNode | null> {
-  // Filter out nodes with negative IDs
+  // 1) Filter out nodes with negative IDs
   if (node.nodeId && parseInt(node.nodeId) < 0) {
     return null;
   }
 
-  // If we have a backendDOMNodeId and the node is generic/none, try to get its tagName
+  // 2) Base case: if no children exist, this is effectively a leaf.
+  //    If it's "generic" or "none", we remove it; otherwise, keep it.
+  if (!node.children || node.children.length === 0) {
+    return node.role === "generic" || node.role === "none" ? null : node;
+  }
+
+  // 3) Recursively clean children
+  const cleanedChildrenPromises = node.children.map((child) =>
+    cleanStructuralNodes(child, page, logger),
+  );
+  const resolvedChildren = await Promise.all(cleanedChildrenPromises);
+  const cleanedChildren = resolvedChildren.filter(
+    (child): child is AccessibilityNode => child !== null,
+  );
+
+  // 4) **Prune** "generic" or "none" nodes first,
+  //    before resolving them to their tag names.
+  if (node.role === "generic" || node.role === "none") {
+    if (cleanedChildren.length === 1) {
+      // Collapse single-child structural node
+      return cleanedChildren[0];
+    } else if (cleanedChildren.length === 0) {
+      // Remove empty structural node
+      return null;
+    }
+    // If we have multiple children, we keep this node as a container.
+    // We'll update role below if needed.
+  }
+
+  // 5) If we still have a "generic"/"none" node after pruning
+  //    (i.e., because it had multiple children), now we try
+  //    to resolve and replace its role with the DOM tag name.
   if (
     page &&
     logger &&
@@ -50,7 +82,6 @@ async function cleanStructuralNodes(
     (node.role === "generic" || node.role === "none")
   ) {
     try {
-      // 1) Resolve the node to a Runtime object
       const { object } = await page.sendCDP<{
         object: { objectId?: string };
       }>("DOM.resolveNode", {
@@ -105,34 +136,8 @@ async function cleanStructuralNodes(
     }
   }
 
-  // Base case: leaf node
-  if (!node.children) {
-    return node.role === "generic" || node.role === "none" ? null : node;
-  }
-
-  // Recursively clean children
-  const cleanedChildrenPromises = node.children.map((child) =>
-    cleanStructuralNodes(child, page, logger),
-  );
-  const resolvedChildren = await Promise.all(cleanedChildrenPromises);
-  const cleanedChildren = resolvedChildren.filter(
-    (child): child is AccessibilityNode => child !== null,
-  );
-
-  // Handle generic/none nodes specially
-  if (node.role === "generic" || node.role === "none") {
-    if (cleanedChildren.length === 1) {
-      // Collapse single-child generic nodes
-      return cleanedChildren[0];
-    } else if (cleanedChildren.length > 1) {
-      // Keep generic nodes with multiple children
-      return { ...node, children: cleanedChildren };
-    }
-    // Remove generic nodes with no children
-    return null;
-  }
-
-  // For non-generic nodes, keep them if they have children after cleaning
+  // 6) Return the updated node.
+  //    If it has children, update them; otherwise keep it as-is.
   return cleanedChildren.length > 0
     ? { ...node, children: cleanedChildren }
     : node;
