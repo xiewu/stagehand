@@ -188,7 +188,6 @@ export async function buildHierarchicalTree(
       ...(node.backendDOMNodeId !== undefined && {
         backendDOMNodeId: node.backendDOMNodeId,
       }),
-      ...(node.xpath && { xpath: node.xpath }),
     });
   });
 
@@ -259,7 +258,6 @@ export async function getAccessibilityTree(
         backendDOMNodeId: node.backendDOMNodeId,
         parentId: node.parentId,
         childIds: node.childIds,
-        xpath: node.xpath,
       })),
       page,
       logger,
