@@ -10,7 +10,7 @@ export const observe_github: EvalFunction = async ({ modelName, logger }) => {
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
-    "https://github.com/facebook/react/tree/main/packages",
+    "https://github.com/numpy/numpy/tree/main/numpy",
   );
 
   const observations = await stagehand.page.observe({
