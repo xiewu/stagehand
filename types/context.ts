@@ -7,7 +7,6 @@ export interface AXNode {
   backendDOMNodeId?: number;
   parentId?: string;
   childIds?: string[];
-  xpath?: string;
 }
 
 export type AccessibilityNode = {
@@ -20,7 +19,6 @@ export type AccessibilityNode = {
   parentId?: string;
   nodeId?: string;
   backendDOMNodeId?: number;
-  xpath?: string;
 };
 
 export interface TreeResult {
