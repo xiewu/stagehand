@@ -399,7 +399,6 @@ jobs:
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: npm run build
 
-      # 1. Run text_extract category with textExtract first
       - name: Run text_extract Evals (textExtract)
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: npm run evals category text_extract -- --extract-method=textExtract
@@ -408,7 +407,6 @@ jobs:
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: mv eval-summary.json eval-summary-text_extract-text.json
 
-      # 2. Log text_extract Evals Performance
       - name: Log text_extract Evals Performance
         if: needs.determine-evals.outputs.run-text-extract == 'true'
         run: |
