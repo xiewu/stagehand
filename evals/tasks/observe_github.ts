@@ -9,9 +9,7 @@ export const observe_github: EvalFunction = async ({ modelName, logger }) => {
 
   const { debugUrl, sessionUrl } = initResponse;
 
-  await stagehand.page.goto(
-    "https://github.com/numpy/numpy/tree/main/numpy",
-  );
+  await stagehand.page.goto("https://github.com/numpy/numpy/tree/main/numpy");
 
   const observations = await stagehand.page.observe({
     instruction: "find the scrollable element that holds the repos file tree.",
