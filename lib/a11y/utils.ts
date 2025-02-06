@@ -269,8 +269,6 @@ export async function getAccessibilityTree(
       level: 1,
     });
 
-    // fs.writeFileSync("../hybrid_tree.txt", hierarchicalTree.simplified);
-
     return hierarchicalTree;
   } catch (error) {
     logger({
@@ -368,7 +366,6 @@ export async function performPlaywrightMethod(
   method: string,
   args: unknown[],
   xpath: string,
-  // domSettleTimeoutMs?: number,
 ) {
   const locator = stagehandPage.locator(`xpath=${xpath}`).first();
   const initialUrl = stagehandPage.url();
@@ -613,7 +610,6 @@ export async function performPlaywrightMethod(
         await newOpenedTab.close();
         await stagehandPage.goto(newOpenedTab.url());
         await stagehandPage.waitForLoadState("domcontentloaded");
-        // await stagehandPage._waitForSettledDom(domSettleTimeoutMs);
       }
 
       await Promise.race([
@@ -674,6 +670,4 @@ export async function performPlaywrightMethod(
       `Method ${method} not supported`,
     );
   }
-
-  // await stagehandPage._waitForSettledDom(domSettleTimeoutMs);
 }
