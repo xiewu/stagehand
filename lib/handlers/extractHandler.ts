@@ -5,7 +5,7 @@ import { extract } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { formatText } from "../utils";
 import { StagehandPage } from "../StagehandPage";
-import { Stagehand } from "../index";
+import { ObserveResult, Stagehand } from "../index";
 
 const PROXIMITY_THRESHOLD = 15;
 
@@ -116,6 +116,7 @@ export class StagehandExtractHandler {
     requestId,
     domSettleTimeoutMs,
     useTextExtract = false,
+    observation,
   }: {
     instruction: string;
     schema: T;
@@ -125,6 +126,7 @@ export class StagehandExtractHandler {
     requestId?: string;
     domSettleTimeoutMs?: number;
     useTextExtract?: boolean;
+    observation?: ObserveResult;
   }): Promise<z.infer<T>> {
     if (useTextExtract) {
       return this.textExtract({
@@ -134,6 +136,7 @@ export class StagehandExtractHandler {
         llmClient,
         requestId,
         domSettleTimeoutMs,
+        observation,
       });
     } else {
       return this.domExtract({
@@ -155,6 +158,7 @@ export class StagehandExtractHandler {
     llmClient,
     requestId,
     domSettleTimeoutMs,
+    observation,
   }: {
     instruction: string;
     schema: T;
@@ -162,6 +166,7 @@ export class StagehandExtractHandler {
     llmClient: LLMClient;
     requestId?: string;
     domSettleTimeoutMs?: number;
+    observation?: ObserveResult;
   }): Promise<z.infer<T>> {
     this.logger({
       category: "extraction",

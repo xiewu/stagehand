@@ -429,8 +429,8 @@ export class StagehandPage {
       useTextExtract,
     } = options;
 
-    // Throw a NotImplementedError ONLY if the user passed in `observeResult`
-    // and `useTextExtract` is set to false
+    // Throw a NotImplementedError if the user passed in an `ObserveResult`
+    // and `useTextExtract` is false
     if (observeResult && useTextExtract !== true) {
       throw new Error(
         "NotImplementedError: Passing an ObserveResult into extract is only supported when `useTextExtract: true`.",
@@ -470,6 +470,7 @@ export class StagehandPage {
         requestId,
         domSettleTimeoutMs,
         useTextExtract,
+        observation: observeResult,
       })
       .catch((e) => {
         this.stagehand.log({
