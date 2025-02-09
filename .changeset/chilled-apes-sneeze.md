@@ -2,4 +2,4 @@
 "@browserbasehq/stagehand": patch
 ---
 
-improve handling of radio button clicks
+create a11y + dom hybrid input for observe
