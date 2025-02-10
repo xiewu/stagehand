@@ -643,10 +643,11 @@ export class Stagehand {
   }
 
   async close(): Promise<void> {
-    await this.context.close();
-
     if (this.apiClient) {
       await this.apiClient.end();
+      return;
+    } else {
+      await this.context.close();
     }
 
     if (this.contextPath) {

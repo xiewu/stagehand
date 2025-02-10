@@ -113,9 +113,6 @@ export class StagehandAPI {
   async end(): Promise<void> {
     return this.execute<void>({
       method: "end",
-      params: {
-        sessionId: this.sessionId,
-      },
     });
   }
 
@@ -194,7 +191,7 @@ export class StagehandAPI {
       "x-bb-project-id": this.projectId,
       "x-bb-session-id": this.sessionId,
       // we want real-time logs, so we stream the response
-      "x-streamed-response": "true",
+      "x-stream-response": "true",
     };
 
     if (options.method === "POST" && options.body) {
