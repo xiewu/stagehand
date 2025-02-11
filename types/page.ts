@@ -21,6 +21,10 @@ export interface Page extends Omit<PlaywrightPage, "on"> {
   act(action: string): Promise<ActResult>;
   act(options: ActOptions): Promise<ActResult>;
   act(observation: ObserveResult): Promise<ActResult>;
+  act(
+    observation: ObserveResult,
+    options?: { selfHeal?: boolean },
+  ): Promise<ActResult>;
 
   extract(
     instruction: string,
