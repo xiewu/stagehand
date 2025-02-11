@@ -6,6 +6,8 @@ import { LLMClient } from "../llm/LLMClient";
 import { formatText } from "../utils";
 import { StagehandPage } from "../StagehandPage";
 import { ObserveResult, Stagehand } from "../index";
+import { ExtractionTarget } from "@/types/handler";
+import fs from "fs";
 
 const PROXIMITY_THRESHOLD = 15;
 
@@ -184,130 +186,49 @@ export class StagehandExtractHandler {
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
     await this.stagehandPage.startDomDebug();
 
-    // **2:** Store the original DOM before any mutations
+    // **2:** Determine the extraction target (page or element)
+    const extractionTarget = this.getExtractionTarget(observation);
+
+    // **3:** Store the original target element before any mutations
     // we need to store the original DOM here because calling createTextBoundingBoxes()
     // will mutate the DOM by adding spans around every word
-    const originalDOM = await this.stagehandPage.page.evaluate(() =>
-      window.storeDOM(),
+    const storedTarget = await this.storeTarget(extractionTarget);
+
+    // 4) Process the target element
+    const { selectorMap } = await this.processTarget(extractionTarget);
+
+    // 5) Create bounding boxes in the chosen target
+    await this.createTextBoundingBoxesTarget(extractionTarget);
+
+    // 6) Get the width/height for the chosen target
+    const {
+      width,
+      height,
+      offsetLeft = 0,
+      offsetTop = 0,
+    } = await this.getTargetDimensions(extractionTarget);
+
+    // 7) Collect bounding boxes from the candidate elements,
+    //    passing offsets so we can subtract them later
+    const allAnnotations = await this.collectAllAnnotations(
+      selectorMap,
+      width,
+      height,
+      offsetLeft,
+      offsetTop,
     );
 
-    // **3:** Process the DOM to generate a selector map of candidate elements
-    const { selectorMap }: { selectorMap: Record<number, string[]> } =
-      await this.stagehand.page.evaluate(() => window.processAllOfDom());
+    // 8) Deduplicate
+    const deduplicatedAnnotations = this.deduplicateAnnotations(allAnnotations);
 
-    this.logger({
-      category: "extraction",
-      message: `received output from processAllOfDom. selectorMap has ${Object.keys(selectorMap).length} entries`,
-      level: 1,
-    });
+    // 9) Restore the DOM or the element
+    await this.restoreTarget(extractionTarget, storedTarget);
 
-    // **4:** Create text bounding boxes around every word in the webpage
-    // calling createTextBoundingBoxes() will create a span around every word on the
-    // webpage. The bounding boxes of these spans will be used to determine their
-    // positions in the text rendered webpage
-    await this.stagehand.page.evaluate(() => window.createTextBoundingBoxes());
-    const pageWidth = await this.stagehand.page.evaluate(
-      () => window.innerWidth,
-    );
-    const pageHeight = await this.stagehand.page.evaluate(
-      () => window.innerHeight,
-    );
+    // 10) Format the deduplicated annotations
+    const formattedText = formatText(deduplicatedAnnotations, width);
+    fs.writeFileSync("formattedText.txt", formattedText);
 
-    // **5:** Collect all text annotations (with positions and dimensions) from the candidate elements
-    // allAnnotations will store all the TextAnnotations BEFORE deduplication
-    const allAnnotations: TextAnnotation[] = [];
-
-    // here we will loop through all the xpaths in the selectorMap,
-    // and get the bounding boxes for each one. These are xpaths to "candidate elements"
-    for (const xpaths of Object.values(selectorMap)) {
-      const xpath = xpaths[0];
-
-      // boundingBoxes is an array because there may be multiple bounding boxes within a single element
-      // (since each bounding box is around a single word)
-      const boundingBoxes: Array<{
-        text: string;
-        left: number;
-        top: number;
-        width: number;
-        height: number;
-      }> = await this.stagehandPage.page.evaluate(
-        (xpath) => window.getElementBoundingBoxes(xpath),
-        xpath,
-      );
-
-      for (const box of boundingBoxes) {
-        const bottom_left = {
-          x: box.left,
-          y: box.top + box.height,
-        };
-        const bottom_left_normalized = {
-          x: box.left / pageWidth,
-          y: (box.top + box.height) / pageHeight,
-        };
-
-        const annotation: TextAnnotation = {
-          text: box.text,
-          bottom_left,
-          bottom_left_normalized,
-          width: box.width,
-          height: box.height,
-        };
-        if (annotation.text.length > 0) {
-          allAnnotations.push(annotation);
-        }
-      }
-    }
-
-    // **6:** Group annotations by text and deduplicate them based on proximity
-    const annotationsGroupedByText = new Map<string, TextAnnotation[]>();
-
-    for (const annotation of allAnnotations) {
-      if (!annotationsGroupedByText.has(annotation.text)) {
-        annotationsGroupedByText.set(annotation.text, []);
-      }
-      annotationsGroupedByText.get(annotation.text)!.push(annotation);
-    }
-
-    const deduplicatedTextAnnotations: TextAnnotation[] = [];
-
-    // here, we deduplicate annotations per text group
-    for (const [text, annotations] of annotationsGroupedByText.entries()) {
-      for (const annotation of annotations) {
-        // check if this annotation is close to any existing deduplicated annotation
-        const isDuplicate = deduplicatedTextAnnotations.some(
-          (existingAnnotation) => {
-            if (existingAnnotation.text !== text) return false;
-
-            const dx =
-              existingAnnotation.bottom_left.x - annotation.bottom_left.x;
-            const dy =
-              existingAnnotation.bottom_left.y - annotation.bottom_left.y;
-            const distance = Math.hypot(dx, dy);
-            // the annotation is a duplicate if it has the same text and its bottom_left
-            // position is within the PROXIMITY_THRESHOLD of an existing annotation.
-            // we calculate the Euclidean distance between the two bottom_left points,
-            // and if the distance is less than PROXIMITY_THRESHOLD,
-            // the annotation is considered a duplicate.
-            return distance < PROXIMITY_THRESHOLD;
-          },
-        );
-
-        if (!isDuplicate) {
-          deduplicatedTextAnnotations.push(annotation);
-        }
-      }
-    }
-
-    // **7:** Restore the original DOM after mutations
-    await this.stagehandPage.page.evaluate(
-      (dom) => window.restoreDOM(dom),
-      originalDOM,
-    );
-
-    // **8:** Format the deduplicated annotations into a text representation
-    const formattedText = formatText(deduplicatedTextAnnotations, pageWidth);
-
-    // **9:** Pass the formatted text to an LLM for extraction according to the given instruction and schema
+    // 11) Pass the formatted text to the LLM
     const extractionResponse = await extract({
       instruction,
       previouslyExtractedContent: content,
@@ -325,9 +246,11 @@ export class StagehandExtractHandler {
       metadata: { completed },
       ...output
     } = extractionResponse;
+
+    // Clean up debug
     await this.stagehandPage.cleanupDomDebug();
 
-    // **10:** Handle the extraction response and log the results
+    // Handle results
     this.logger({
       category: "extraction",
       message: "received extraction response",
@@ -510,6 +433,255 @@ export class StagehandExtractHandler {
         llmClient,
         domSettleTimeoutMs,
       });
+    }
+  }
+
+  /**
+   * Based on whether we have an `observation` with an xpath, decide
+   * if we’ll extract from the page or from a single element.
+   */
+  private getExtractionTarget(observation?: ObserveResult): ExtractionTarget {
+    if (observation?.selector) {
+      const xpath = observation.selector.replace(/^xpath=/, "");
+      return { scope: "element", xpath: xpath };
+    }
+    return { scope: "page" };
+  }
+
+  private async processTarget(
+    target: ExtractionTarget,
+  ): Promise<{ selectorMap: Record<number, string[]> }> {
+    if (target.scope === "page") {
+      return this.stagehand.page.evaluate(() => window.processAllOfDom());
+    } else {
+      // pass the xpath to processAllOfDom
+      return this.stagehand.page.evaluate((xp) => {
+        return window.processAllOfDom(xp);
+      }, target.xpath);
+    }
+  }
+
+  private async createTextBoundingBoxesTarget(
+    target: ExtractionTarget,
+  ): Promise<void> {
+    if (target.scope === "page") {
+      await this.stagehand.page.evaluate(() =>
+        window.createTextBoundingBoxes(),
+      );
+    } else {
+      await this.stagehand.page.evaluate((xp) => {
+        return window.createTextBoundingBoxes(xp);
+      }, target.xpath);
+    }
+  }
+
+  private async getTargetDimensions(target: ExtractionTarget): Promise<{
+    width: number;
+    height: number;
+    offsetLeft?: number;
+    offsetTop?: number;
+  }> {
+    if (target.scope === "page") {
+      // Page scope
+      const { innerWidth, innerHeight } = await this.stagehand.page.evaluate(
+        () => {
+          console.log("taking the width of the page from inside the browser");
+          return {
+            innerWidth: window.innerWidth,
+            innerHeight: window.innerHeight,
+          };
+        },
+      );
+
+      console.log("[Node] Window width: ", innerWidth);
+      console.log("[Node] Window height: ", innerHeight);
+
+      // For page scope, offsetLeft/offsetTop are zero or undefined
+      return { width: innerWidth, height: innerHeight };
+    } else {
+      // Element scope
+      const { elemWidth, elemHeight, offsetLeft, offsetTop, logs } =
+        await this.stagehand.page.evaluate((xp) => {
+          const el = document.evaluate(
+            xp,
+            document,
+            null,
+            XPathResult.FIRST_ORDERED_NODE_TYPE,
+            null,
+          ).singleNodeValue as HTMLElement | null;
+
+          const logs: string[] = [];
+
+          if (!el) {
+            logs.push(
+              "No element found, default to window.innerWidth & innerHeight",
+            );
+            return {
+              elemWidth: window.innerWidth,
+              elemHeight: window.innerHeight,
+              offsetLeft: 0,
+              offsetTop: 0,
+              logs,
+            };
+          }
+
+          const rect = el.getBoundingClientRect();
+          logs.push(
+            `Found element. width=${rect.width}, height=${rect.height}`,
+          );
+          logs.push(`Window width (in browser) = ${window.innerWidth}`);
+
+          // Also log in the browser console for debugging
+          console.log("[Browser] Found element at xpath =>", xp);
+          console.log("[Browser] rect =>", rect);
+
+          return {
+            elemWidth: rect.width,
+            elemHeight: rect.height,
+            // We'll return the rect's left/top for local coordinate calculations
+            offsetLeft: rect.left,
+            offsetTop: rect.top,
+            logs,
+          };
+        }, target.xpath);
+
+      // Log the returned messages in Node
+      logs.forEach((msg) => console.log("[Node] " + msg));
+      console.log("[Node] final element width =>", elemWidth);
+      console.log(
+        "[Node] offsetLeft =>",
+        offsetLeft,
+        " offsetTop =>",
+        offsetTop,
+      );
+
+      return {
+        width: elemWidth,
+        height: elemHeight,
+        offsetLeft,
+        offsetTop,
+      };
+    }
+  }
+
+  private async collectAllAnnotations(
+    selectorMap: Record<number, string[]>,
+    containerWidth: number,
+    containerHeight: number,
+    offsetLeft: number,
+    offsetTop: number,
+  ): Promise<TextAnnotation[]> {
+    const allAnnotations: TextAnnotation[] = [];
+
+    // Loop over the candidate XPaths
+    for (const xpaths of Object.values(selectorMap)) {
+      const xpath = xpaths[0];
+
+      // Evaluate in the browser to get bounding boxes
+      const boundingBoxes: Array<{
+        text: string;
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+      }> = await this.stagehandPage.page.evaluate(
+        (xp) => window.getElementBoundingBoxes(xp),
+        xpath,
+      );
+
+      for (const box of boundingBoxes) {
+        // 1. Subtract container offsets to get local coordinates
+        const localLeft = box.left - offsetLeft;
+        const localTop = box.top - offsetTop;
+
+        // 2. bottom_left is local x, plus local y + height
+        //    so the baseline is at the bottom edge of the box
+        const bottom_left = { x: localLeft, y: localTop + box.height };
+
+        // 3. Normalize by dividing local positions by container width/height
+        const bottom_left_normalized = {
+          x: localLeft / containerWidth,
+          y: (localTop + box.height) / containerHeight,
+        };
+
+        if (box.text.trim().length > 0) {
+          allAnnotations.push({
+            text: box.text,
+            bottom_left,
+            bottom_left_normalized,
+            width: box.width,
+            height: box.height,
+          });
+        }
+      }
+    }
+
+    return allAnnotations;
+  }
+
+  private deduplicateAnnotations(
+    allAnnotations: TextAnnotation[],
+  ): TextAnnotation[] {
+    const annotationsGroupedByText = new Map<string, TextAnnotation[]>();
+    for (const ann of allAnnotations) {
+      if (!annotationsGroupedByText.has(ann.text)) {
+        annotationsGroupedByText.set(ann.text, []);
+      }
+      annotationsGroupedByText.get(ann.text)!.push(ann);
+    }
+
+    const deduplicated: TextAnnotation[] = [];
+    for (const [text, group] of annotationsGroupedByText) {
+      for (const ann of group) {
+        const isDuplicate = deduplicated.some((existing) => {
+          if (existing.text !== text) return false;
+          const dx = existing.bottom_left.x - ann.bottom_left.x;
+          const dy = existing.bottom_left.y - ann.bottom_left.y;
+          const distance = Math.hypot(dx, dy);
+          return distance < PROXIMITY_THRESHOLD;
+        });
+        if (!isDuplicate) {
+          deduplicated.push(ann);
+        }
+      }
+    }
+
+    return deduplicated;
+  }
+
+  private async storeTarget(target: ExtractionTarget): Promise<string> {
+    // We call `storeDOM` in the browser context:
+    if (target.scope === "page") {
+      return await this.stagehandPage.page.evaluate(() => {
+        // No XPath passed -> store entire DOM
+        return window.storeDOM();
+      });
+    } else {
+      return await this.stagehandPage.page.evaluate((xp) => {
+        // Pass in the xpath -> store element
+        return window.storeDOM(xp);
+      }, target.xpath);
+    }
+  }
+
+  private async restoreTarget(
+    target: ExtractionTarget,
+    storedHTML: string,
+  ): Promise<void> {
+    // We call `restoreDOM` in the browser context:
+    if (target.scope === "page") {
+      return await this.stagehandPage.page.evaluate((html) => {
+        // No XPath passed -> restore entire DOM
+        window.restoreDOM(html);
+      }, storedHTML);
+    } else {
+      return await this.stagehandPage.page.evaluate(
+        ({ xp, dom }) => {
+          // Pass in the xpath -> restore element
+          window.restoreDOM(dom, xp);
+        },
+        { xp: target.xpath, dom: storedHTML },
+      );
     }
   }
 }
