@@ -89,10 +89,17 @@ export interface ObserveOptions {
   /** @deprecated Vision is not supported in this version of Stagehand. */
   useVision?: boolean;
   domSettleTimeoutMs?: number;
+  returnAction?: boolean;
+  onlyVisible?: boolean;
+  /** @deprecated `useAccessibilityTree` is now deprecated. Use `onlyVisible` instead. */
   useAccessibilityTree?: boolean;
+  drawOverlay?: boolean;
 }
 
 export interface ObserveResult {
   selector: string;
   description: string;
+  backendNodeId?: number;
+  method?: string;
+  arguments?: string[];
 }

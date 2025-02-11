@@ -13,35 +13,12 @@ import { AISdkClient } from "./external_clients/aisdk";
 import { LangchainClient } from "./external_clients/langchain";
 
 async function example() {
-
-  // const stagehand = new Stagehand({
-  //   ...StagehandConfig,
-  //   llmClient: new AISdkClient({
-  //     model: {
-  //       modelId: "gpt-4o",
-  //     },
-  //   }),
-  // });
   const stagehand = new Stagehand({
     ...StagehandConfig,
-    llmClient: new LangchainClient({
-      model: {
-        modelId: "gpt-4o",
-      },
-    }),
+    modelName: "o3-mini",
   });
-  console.log(stagehand.llmClient);
-  
   await stagehand.init();
-  
-
-  await stagehand.page.goto("https://arxiv.org/search/");
-
-  await stagehand.page.act(
-    "search for papers about web agents with multimodal models",
-  );
-
-  await stagehand.close();
+  await stagehand.page.goto("https://www.google.com");
 }
 
 (async () => {

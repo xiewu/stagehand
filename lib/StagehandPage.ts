@@ -17,6 +17,7 @@ import {
 import { z } from "zod";
 import { StagehandExtractHandler } from "./handlers/extractHandler";
 import { StagehandObserveHandler } from "./handlers/observeHandler";
+import { clearOverlays } from "./utils";
 
 export class StagehandPage {
   private stagehand: Stagehand;
@@ -285,15 +286,43 @@ export class StagehandPage {
     }
   }
 
-  async act(actionOrOptions: string | ActOptions): Promise<ActResult> {
+  async act(
+    actionOrOptions: string | ActOptions | ObserveResult,
+  ): Promise<ActResult> {
     if (!this.actHandler) {
       throw new Error("Act handler not initialized");
     }
 
-    const options: ActOptions =
-      typeof actionOrOptions === "string"
-        ? { action: actionOrOptions }
-        : actionOrOptions;
+    await clearOverlays(this.page);
+
+    // If actionOrOptions is an ObserveResult, we call actFromObserveResult.
+    // We need to ensure there is both a selector and a method in the ObserveResult.
+    if (typeof actionOrOptions === "object" && actionOrOptions !== null) {
+      // If it has selector AND method => treat as ObserveResult
+      if ("selector" in actionOrOptions && "method" in actionOrOptions) {
+        const observeResult = actionOrOptions as ObserveResult;
+        // validate observeResult.method, etc.
+        return this.actHandler.actFromObserveResult(observeResult);
+      } else {
+        // If it's an object but no selector/method,
+        // check that it’s truly ActOptions (i.e., has an `action` field).
+        if (!("action" in actionOrOptions)) {
+          throw new Error(
+            "Invalid argument. Valid arguments are: a string, an ActOptions object, " +
+              "or an ObserveResult WITH 'selector' and 'method' fields.",
+          );
+        }
+      }
+    } else if (typeof actionOrOptions === "string") {
+      // Convert string to ActOptions
+      actionOrOptions = { action: actionOrOptions };
+    } else {
+      throw new Error(
+        "Invalid argument: you may have called act with an empty ObserveResult.\n" +
+          "Valid arguments are: a string, an ActOptions object, or an ObserveResult " +
+          "WITH 'selector' and 'method' fields.",
+      );
+    }
 
     const {
       action,
@@ -302,7 +331,7 @@ export class StagehandPage {
       useVision, // still destructure this but will not pass it on
       variables = {},
       domSettleTimeoutMs,
-    } = options;
+    } = actionOrOptions;
 
     if (typeof useVision !== "undefined") {
       this.stagehand.log({
@@ -381,6 +410,8 @@ export class StagehandPage {
     if (!this.extractHandler) {
       throw new Error("Extract handler not initialized");
     }
+
+    await clearOverlays(this.page);
 
     const options: ExtractOptions<T> =
       typeof instructionOrOptions === "string"
@@ -465,19 +496,39 @@ export class StagehandPage {
       throw new Error("Observe handler not initialized");
     }
 
+    await clearOverlays(this.page);
+
     const options: ObserveOptions =
       typeof instructionOrOptions === "string"
         ? { instruction: instructionOrOptions }
         : instructionOrOptions || {};
 
     const {
-      instruction = "Find actions that can be performed on this page.",
+      instruction,
       modelName,
       modelClientOptions,
       useVision, // still destructure but will not pass it on
       domSettleTimeoutMs,
-      useAccessibilityTree = false,
+      returnAction = false,
+      onlyVisible = false,
+      useAccessibilityTree,
+      drawOverlay,
     } = options;
+
+    if (useAccessibilityTree !== undefined) {
+      this.stagehand.log({
+        category: "deprecation",
+        message:
+          "useAccessibilityTree is deprecated.\n" +
+          "  To use accessibility tree as context:\n" +
+          "    1. Set onlyVisible to false (default)\n" +
+          "    2. Don't declare useAccessibilityTree",
+        level: 1,
+      });
+      throw new Error(
+        "useAccessibilityTree is deprecated. Use onlyVisible instead.",
+      );
+    }
 
     if (typeof useVision !== "undefined") {
       this.stagehand.log({
@@ -510,8 +561,8 @@ export class StagehandPage {
           value: llmClient.modelName,
           type: "string",
         },
-        useAccessibilityTree: {
-          value: useAccessibilityTree ? "true" : "false",
+        onlyVisible: {
+          value: onlyVisible ? "true" : "false",
           type: "boolean",
         },
       },
@@ -523,7 +574,9 @@ export class StagehandPage {
         llmClient,
         requestId,
         domSettleTimeoutMs,
-        useAccessibilityTree,
+        returnAction,
+        onlyVisible,
+        drawOverlay,
       })
       .catch((e) => {
         this.stagehand.log({
