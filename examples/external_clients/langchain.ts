@@ -23,14 +23,16 @@ export class LangchainClient extends LLMClient {
     const messages = options.messages.map(msg => {
       if (Array.isArray(msg.content)) {
         // Handle multimodal content
-        const content = msg.content.map(part => {
-          if ("text" in part) {
-            return part.text;
-          } else if ("image_url" in part) {
-            return `[Image: ${part.image_url.url}]`;
-          }
-          return "";
-        }).join("\n");
+        const content = msg.content
+          .map((part) => {
+            if ("text" in part) {
+              return part.text;
+            } else if ("image_url" in part) {
+              return `[Image: ${part.image_url.url}]`;
+            }
+            return "";
+          })
+          .join("\n");
         
         return {
           role: msg.role,
@@ -55,22 +57,33 @@ export class LangchainClient extends LLMClient {
 
     const response = await this.model.invoke(messages);
 
+    // Normalize tool calls to match expected format
+    let toolCalls = [];
+    if ((response as any).tool_calls) {
+      toolCalls = (response as any).tool_calls.map((tc: any) => ({
+        function: {
+          name: tc.name,
+          arguments: JSON.stringify(tc.args),
+        },
+      }));
+    }
+
     // Convert LangChain response format to match expected format
     const formattedResponse = {
-      id: (response as AIMessage).id,
+      id: (response as any).id,
       choices: [{
         message: {
           role: "assistant",
-          content: (response as AIMessage).content,
-          tool_calls: (response as AIMessage).tool_calls
+          content: (response as any).content,
+          tool_calls: toolCalls,
         },
-        finish_reason: (response as AIMessage).response_metadata?.finish_reason
+        finish_reason: (response as any).response_metadata?.finish_reason,
       }],
       usage: {
-        prompt_tokens: (response as AIMessage).usage_metadata?.input_tokens,
-        completion_tokens: (response as AIMessage).usage_metadata?.output_tokens,
-        total_tokens: (response as AIMessage).usage_metadata?.total_tokens
-      }
+        prompt_tokens: (response as any).usage_metadata?.input_tokens,
+        completion_tokens: (response as any).usage_metadata?.output_tokens,
+        total_tokens: (response as any).usage_metadata?.total_tokens,
+      },
     };
 
     return formattedResponse as T;
