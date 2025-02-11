@@ -288,6 +288,7 @@ export class StagehandPage {
 
   async act(
     actionOrOptions: string | ActOptions | ObserveResult,
+    selfHeal: boolean = true,
   ): Promise<ActResult> {
     if (!this.actHandler) {
       throw new Error("Act handler not initialized");
@@ -302,7 +303,7 @@ export class StagehandPage {
       if ("selector" in actionOrOptions && "method" in actionOrOptions) {
         const observeResult = actionOrOptions as ObserveResult;
         // validate observeResult.method, etc.
-        return this.actHandler.actFromObserveResult(observeResult);
+        return this.actHandler.actFromObserveResult(observeResult, selfHeal);
       } else {
         // If it's an object but no selector/method,
         // check that it’s truly ActOptions (i.e., has an `action` field).
@@ -509,7 +510,7 @@ export class StagehandPage {
       modelClientOptions,
       useVision, // still destructure but will not pass it on
       domSettleTimeoutMs,
-      returnAction = false,
+      returnAction = true,
       onlyVisible = false,
       useAccessibilityTree,
       drawOverlay,

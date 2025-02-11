@@ -63,6 +63,7 @@ export class StagehandActHandler {
    */
   public async actFromObserveResult(
     observe: ObserveResult,
+    selfHeal: boolean,
   ): Promise<{ success: boolean; message: string; action: string }> {
     this.logger({
       category: "action",
@@ -90,6 +91,23 @@ export class StagehandActHandler {
         action: observe.description || `ObserveResult action (${method})`,
       };
     } catch (err) {
+      if (!selfHeal) {
+        this.logger({
+          category: "action",
+          message: "Error performing act from an ObserveResult",
+          level: 1,
+          auxiliary: {
+            error: { value: err.message, type: "string" },
+            trace: { value: err.stack, type: "string" },
+          },
+        });
+        return {
+          success: false,
+          message: `Failed to perform act: ${err.message}`,
+          action: observe.description || `ObserveResult action (${method})`,
+        };
+      }
+      // We will try to use regular act on a failed ObserveResult-act if selfHeal is true
       this.logger({
         category: "action",
         message:
@@ -102,6 +120,7 @@ export class StagehandActHandler {
         },
       });
       try {
+        // Remove redundancy from method-description
         const actCommand = observe.description
           .toLowerCase()
           .startsWith(method.toLowerCase())
@@ -109,6 +128,7 @@ export class StagehandActHandler {
           : method
             ? `${method} ${observe.description}`
             : observe.description;
+        // Call act with the ObserveResult description
         await this.stagehandPage.act(actCommand);
       } catch (err) {
         this.logger({
