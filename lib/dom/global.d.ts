@@ -11,11 +11,7 @@ declare global {
       chunk: number;
       chunks: number[];
     }>;
-    processAllOfDom: () => Promise<{
-      outputString: string;
-      selectorMap: Record<number, string[]>;
-    }>;
-    processElements: (chunk: number) => Promise<{
+    processAllOfDom: (xpath?: string) => Promise<{
       outputString: string;
       selectorMap: Record<number, string[]>;
     }>;
@@ -26,9 +22,9 @@ declare global {
     __playwright?: unknown;
     __pw_manual?: unknown;
     __PW_inspect?: unknown;
-    storeDOM: () => string;
-    restoreDOM: (storedDOM: string) => void;
-    createTextBoundingBoxes: () => void;
+    storeDOM: (xpath?: string) => string;
+    restoreDOM: (storedDOM: string, xpath?: string) => void;
+    createTextBoundingBoxes: (xpath?: string) => void;
     getElementBoundingBoxes: (xpath: string) => Array<{
       text: string;
       top: number;
