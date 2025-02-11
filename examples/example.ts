@@ -5,7 +5,6 @@
  * npx create-browser-app@latest my-browser-app
  */
 
-
 import { Stagehand } from "../lib/index";
 import StagehandConfig from "../stagehand.config";
 import { OllamaClient } from "./external_clients/ollama";
@@ -14,7 +13,6 @@ import { LangchainClient } from "./external_clients/langchain";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 async function example() {
-
   // below is ollama config - works
   // const stagehand = new Stagehand({
   //   ...StagehandConfig,
@@ -52,16 +50,17 @@ async function example() {
   // const stagehand = new Stagehand(config);
 
   console.log(stagehand.llmClient);
-  
+
   await stagehand.init();
-  
+
   await stagehand.page.goto("https://arxiv.org/search/");
 
   // await stagehand.page.act("click the search bar");
 
   const observed = await stagehand.page.observe({
     // instruction: "find all the dropdowns on this page",
-    instruction: "find the search bar with placeholder 'search term...' and fill it with the word 'hello'",
+    instruction:
+      "find the search bar with placeholder 'search term...' and fill it with the word 'hello'",
     onlyVisible: false,
     returnAction: true,
     // drawOverlay: true
@@ -75,14 +74,13 @@ async function example() {
   const headlines = await stagehand.page.extract({
     instruction: "Extract only 3 stories from the Hacker News homepage.",
     schema: z.object({
-      stories: z
-        .array(
-          z.object({
-            title: z.string(),
-            url: z.string(),
-            points: z.number(),
-          }),
-        )
+      stories: z.array(
+        z.object({
+          title: z.string(),
+          url: z.string(),
+          points: z.number(),
+        }),
+      ),
     }),
   });
   console.log(headlines.stories);

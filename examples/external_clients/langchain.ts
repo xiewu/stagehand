@@ -1,6 +1,10 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatCompletion } from "openai/resources/chat/completions";
-import { CreateChatCompletionOptions, LLMClient, AvailableModel } from "../../lib/llm/LLMClient";
+import {
+  CreateChatCompletionOptions,
+  LLMClient,
+  AvailableModel,
+} from "../../lib/llm/LLMClient";
 import { AIMessage } from "@langchain/core/messages";
 import { z } from "zod";
 
@@ -21,7 +25,7 @@ export class LangchainClient extends LLMClient {
     options,
   }: CreateChatCompletionOptions): Promise<T> {
     // Convert messages to LangChain format
-    const messages = options.messages.map(msg => {
+    const messages = options.messages.map((msg) => {
       if (Array.isArray(msg.content)) {
         // Handle multimodal content
         const content = msg.content
@@ -34,10 +38,10 @@ export class LangchainClient extends LLMClient {
             return "";
           })
           .join("\n");
-        
+
         return {
           role: msg.role,
-          content: content
+          content: content,
         };
       }
       return msg;
@@ -45,20 +49,22 @@ export class LangchainClient extends LLMClient {
 
     // Handle tools if present
     if (options.tools?.length) {
-      const tools = options.tools.map(tool => ({
+      const tools = options.tools.map((tool) => ({
         type: "function" as const,
         function: {
           name: tool.name,
           description: tool.description,
-          parameters: tool.parameters
-        }
+          parameters: tool.parameters,
+        },
       }));
       this.model = this.model.bind({ tools });
     }
 
     let response;
     if (options.response_model) {
-      const structuredModel = this.model.withStructuredOutput(options.response_model.schema);
+      const structuredModel = this.model.withStructuredOutput(
+        options.response_model.schema,
+      );
       response = await structuredModel.invoke(messages);
       console.log("response", response);
       return response as T;
@@ -81,14 +87,16 @@ export class LangchainClient extends LLMClient {
     // Convert LangChain response format to match expected format
     const formattedResponse = {
       id: (response as any).id,
-      choices: [{
-        message: {
-          role: "assistant",
-          content: (response as any).content,
-          tool_calls: toolCalls,
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content: (response as any).content,
+            tool_calls: toolCalls,
+          },
+          finish_reason: (response as any).response_metadata?.finish_reason,
         },
-        finish_reason: (response as any).response_metadata?.finish_reason,
-      }],
+      ],
       usage: {
         prompt_tokens: (response as any).usage_metadata?.input_tokens,
         completion_tokens: (response as any).usage_metadata?.output_tokens,
