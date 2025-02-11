@@ -36,9 +36,6 @@ async function example() {
     onlyVisible: false,
     returnAction: true,
   });
-
-  // the restore action
-  
   console.log(observed);
 
   await stagehand.page.act(observed[0]);

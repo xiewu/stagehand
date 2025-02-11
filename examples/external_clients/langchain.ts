@@ -83,6 +83,7 @@ export class LangchainClient extends LLMClient {
             function: {
               name: "output",
               description: "Output the structured data",
+              // this is the schema of the response, zodToJsonSchema converts the zod schema to a json schema
               parameters: zodToJsonSchema(options.response_model.schema),
             },
           },
