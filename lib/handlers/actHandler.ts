@@ -92,7 +92,7 @@ export class StagehandActHandler {
     } catch (err) {
       this.logger({
         category: "action",
-        message: "Error performing act from an ObserveResult",
+        message: "Error performing act from an ObserveResult. Trying again with regular act method",
         level: 1,
         auxiliary: {
           error: { value: err.message, type: "string" },
@@ -100,11 +100,26 @@ export class StagehandActHandler {
           observeResult: { value: JSON.stringify(observe), type: "object" },
         },
       });
-      return {
-        success: false,
-        message: `Failed to perform act: ${err.message}`,
-        action: observe.description || `ObserveResult action (${method})`,
-      };
+      try {
+        const actCommand = observe.description.toLowerCase().startsWith(method.toLowerCase()) 
+        ? observe.description
+        : method 
+          ? `${method} ${observe.description}`
+          : observe.description
+        await this.stagehandPage.act(actCommand);
+      } catch (e) {
+        this.logger({
+          category: "action",
+          message: "Error performing act from an ObserveResult",
+          level: 1,
+        });
+        return {
+          success: false,
+          message: `Failed to perform act: ${err.message}`,
+          action: observe.description || `ObserveResult action (${method})`,
+        };
+      }
+
     }
   }
 
