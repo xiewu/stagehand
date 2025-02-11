@@ -32,6 +32,8 @@ async function example() {
     returnAction: true,
   });
 
+  await stagehand.page.waitForTimeout(1000);
+  
   await stagehand.page.act(observed[0]);
 
   await stagehand.page.waitForTimeout(1000);
@@ -40,7 +42,13 @@ async function example() {
 
   await stagehand.page.waitForTimeout(1000);
 
-  await stagehand.page.act("Click the first arxiv article");
+  const firstArticle = await stagehand.page.observe({
+    instruction: "find the first arxiv article in the search results",
+    onlyVisible: false,
+    returnAction: true,
+  });
+
+  await stagehand.page.act(firstArticle[0]);
 
   const headlines = await stagehand.page.extract({
     instruction: "Extract the title and abstract of the arxiv article.",
