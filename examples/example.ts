@@ -5,64 +5,16 @@
  * npx create-browser-app@latest my-browser-app
  */
 
-import { Stagehand } from "../lib/index";
-import StagehandConfig from "../stagehand.config";
-import { LangchainClient } from "./external_clients/langchain";
-import { z } from "zod";
+import { Stagehand } from "@/dist";
+import StagehandConfig from "@/stagehand.config";
 
 async function example() {
   const stagehand = new Stagehand({
-    env: "LOCAL",
-    debugDom: true,
-    enableCaching: false,
-    llmClient: new LangchainClient({
-      modelName: StagehandConfig.modelName,
-      apiKey: StagehandConfig.modelClientOptions.apiKey,
-    }),
+    ...StagehandConfig,
+    modelName: "o3-mini",
   });
-
-  console.log(
-    "stagehand.llmProvider.getClient(StagehandConfig.modelName)",
-    stagehand.llmProvider.getClient(StagehandConfig.modelName),
-  );
-
   await stagehand.init();
-
-  await stagehand.page.goto("https://arxiv.org/search/");
-
-  const observed = await stagehand.page.observe({
-    instruction:
-      "find the search bar with placeholder 'search term...' and fill it with the word 'hello'",
-    onlyVisible: false,
-    returnAction: true,
-  });
-  console.log(observed);
-
-  await stagehand.page.act(observed[0]);
-
-  await stagehand.page.waitForTimeout(1000);
-
-  await stagehand.page.goto("https://news.ycombinator.com");
-
-  const headlines = await stagehand.page.extract({
-    instruction: "Extract only 3 stories from the Hacker News homepage.",
-    schema: z.object({
-      stories: z.array(
-        z.object({
-          title: z.string(),
-          url: z.string(),
-          points: z.number(),
-        }),
-      ),
-    }),
-  });
-  console.log(headlines.stories);
-
-  await stagehand.page.act("click the first story");
-
-  await new Promise((resolve) => setTimeout(resolve, 10000));
-
-  await stagehand.close();
+  await stagehand.page.goto("https://www.google.com");
 }
 
 (async () => {

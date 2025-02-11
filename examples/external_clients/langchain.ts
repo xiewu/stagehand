@@ -59,16 +59,16 @@ export class LangchainClient extends LLMClient {
 
     // Handle tools if present
     if (options.tools?.length) {
-      const tools = options.tools.map((tool) => ({
-        type: "function" as const,
-        function: {
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.parameters,
-        },
-      }));
-      // this.model = this.model.bind({ tools });
-      this.model = this.model.bindTools(tools) as ChatOpenAI;
+      this.model = this.model.bind({
+        tools: options.tools.map((tool) => ({
+          type: "function" as const,
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.parameters,
+          },
+        })),
+      }) as ChatOpenAI;
     }
 
     let response;
