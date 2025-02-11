@@ -3,10 +3,20 @@ import { ChatCompletion } from "openai/resources/chat/completions";
 import {
   CreateChatCompletionOptions,
   LLMClient,
-  AvailableModel,
 } from "../../lib/llm/LLMClient";
-import { AIMessage } from "@langchain/core/messages";
-import { z } from "zod";
+import {
+  HumanMessage,
+  AIMessage,
+  SystemMessage,
+} from "@langchain/core/messages";
+import type { AvailableModel } from "../../types/model";
+import { StructuredOutputParser } from "@langchain/core/output_parsers";
+import { zodToJsonSchema } from "zod-to-json-schema";
+
+interface ToolCall {
+  name: string;
+  args: Record<string, unknown>;
+}
 
 export class LangchainClient extends LLMClient {
   public type = "langchain" as const;
@@ -57,50 +67,148 @@ export class LangchainClient extends LLMClient {
           parameters: tool.parameters,
         },
       }));
-      this.model = this.model.bind({ tools });
+      // this.model = this.model.bind({ tools });
+      this.model = this.model.bindTools(tools) as ChatOpenAI;
     }
 
     let response;
     if (options.response_model) {
-      const structuredModel = this.model.withStructuredOutput(
+      const parser = StructuredOutputParser.fromZodSchema(
         options.response_model.schema,
       );
-      response = await structuredModel.invoke(messages);
-      console.log("response", response);
+      const structuredModel = this.model.bind({
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "output",
+              description: "Output the structured data",
+              parameters: zodToJsonSchema(options.response_model.schema),
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "output" } },
+      });
+      const langchainMessages = messages.map((msg) => {
+        const content = typeof msg.content === "string" ? msg.content : "";
+        switch (msg.role) {
+          case "user":
+            return new HumanMessage(content);
+          case "assistant":
+            return new AIMessage(content);
+          case "system":
+            return new SystemMessage(content);
+          default:
+            return new HumanMessage(content);
+        }
+      });
+      response = await structuredModel.invoke(langchainMessages);
+
+      // Extract the tool calls result from the response
+      const toolCalls = response.additional_kwargs?.tool_calls;
+      if (
+        toolCalls?.[0]?.function?.name === "output" &&
+        toolCalls[0]?.function?.arguments
+      ) {
+        try {
+          return JSON.parse(toolCalls[0].function.arguments) as T;
+        } catch (e) {
+          console.error(
+            "Failed to parse tool call arguments:",
+            toolCalls[0].function.arguments,
+          );
+          throw e;
+        }
+      }
+
+      // If no valid tool call, try to parse the content
+      if (typeof response.content === "string") {
+        try {
+          return JSON.parse(response.content) as T;
+        } catch (e) {
+          console.error("Failed to parse content:", response.content);
+          throw e;
+        }
+      }
+
       return response as T;
     } else {
-      response = await this.model.invoke(messages);
+      const langchainMessages = messages.map((msg) => {
+        const content = typeof msg.content === "string" ? msg.content : "";
+        switch (msg.role) {
+          case "user":
+            return new HumanMessage(content);
+          case "assistant":
+            return new AIMessage(content);
+          case "system":
+            return new SystemMessage(content);
+          default:
+            return new HumanMessage(content);
+        }
+      });
+      response = await this.model.invoke(langchainMessages);
       console.log("response", response);
     }
 
     // Normalize tool calls to match expected format
-    let toolCalls = [];
-    if ((response as any).tool_calls) {
-      toolCalls = (response as any).tool_calls.map((tc: any) => ({
-        function: {
-          name: tc.name,
-          arguments: JSON.stringify(tc.args),
-        },
-      }));
+    let toolCalls: { function: { name: string; arguments: string } }[] = [];
+    if ((response as { tool_calls: ToolCall[] }).tool_calls) {
+      toolCalls = (response as { tool_calls: ToolCall[] }).tool_calls.map(
+        (tc: ToolCall) => ({
+          function: {
+            name: tc.name,
+            arguments: JSON.stringify(tc.args),
+          },
+        }),
+      );
     }
 
     // Convert LangChain response format to match expected format
     const formattedResponse = {
-      id: (response as any).id,
+      id: (response as { id: string }).id,
       choices: [
         {
           message: {
             role: "assistant",
-            content: (response as any).content,
+            content: (response as { content: string }).content,
             tool_calls: toolCalls,
           },
-          finish_reason: (response as any).response_metadata?.finish_reason,
+          finish_reason:
+            (
+              response as unknown as {
+                response_metadata: { finish_reason: string };
+              }
+            ).response_metadata?.finish_reason ?? "stop",
         },
       ],
       usage: {
-        prompt_tokens: (response as any).usage_metadata?.input_tokens,
-        completion_tokens: (response as any).usage_metadata?.output_tokens,
-        total_tokens: (response as any).usage_metadata?.total_tokens,
+        prompt_tokens: (
+          response as {
+            usage_metadata: {
+              input_tokens: number;
+              output_tokens: number;
+              total_tokens: number;
+            };
+          }
+        ).usage_metadata?.input_tokens,
+        completion_tokens: (
+          response as {
+            usage_metadata: {
+              input_tokens: number;
+              output_tokens: number;
+              total_tokens: number;
+            };
+          }
+        ).usage_metadata?.output_tokens,
+        total_tokens: (
+          response as {
+            usage_metadata: {
+              input_tokens: number;
+              output_tokens: number;
+              total_tokens: number;
+            };
+          }
+        ).usage_metadata?.total_tokens,
       },
     };
     console.log("formattedResponse", formattedResponse.choices[0].message);
