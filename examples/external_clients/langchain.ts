@@ -2,6 +2,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { ChatCompletion } from "openai/resources/chat/completions";
 import { CreateChatCompletionOptions, LLMClient, AvailableModel } from "../../lib/llm/LLMClient";
 import { AIMessage } from "@langchain/core/messages";
+import { z } from "zod";
 
 export class LangchainClient extends LLMClient {
   public type = "langchain" as const;
@@ -12,7 +13,7 @@ export class LangchainClient extends LLMClient {
     this.model = new ChatOpenAI({
       modelName: modelName,
       openAIApiKey: apiKey,
-      temperature: 0
+      temperature: 0,
     });
   }
 
@@ -55,7 +56,16 @@ export class LangchainClient extends LLMClient {
       this.model = this.model.bind({ tools });
     }
 
-    const response = await this.model.invoke(messages);
+    let response;
+    if (options.response_model) {
+      const structuredModel = this.model.withStructuredOutput(options.response_model.schema);
+      response = await structuredModel.invoke(messages);
+      console.log("response", response);
+      return response as T;
+    } else {
+      response = await this.model.invoke(messages);
+      console.log("response", response);
+    }
 
     // Normalize tool calls to match expected format
     let toolCalls = [];
@@ -85,6 +95,7 @@ export class LangchainClient extends LLMClient {
         total_tokens: (response as any).usage_metadata?.total_tokens,
       },
     };
+    console.log("formattedResponse", formattedResponse.choices[0].message);
 
     return formattedResponse as T;
   }

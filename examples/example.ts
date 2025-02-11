@@ -57,25 +57,37 @@ async function example() {
   
   await stagehand.page.goto("https://arxiv.org/search/");
 
-  await stagehand.page.act(
-    "search for papers about web agents with multimodal models",
-  );
-  // await stagehand.page.goto("https://news.ycombinator.com");
+  // await stagehand.page.act("click the search bar");
 
-  // const headlines = await stagehand.page.extract({
-  //   instruction: "Extract only 3 stories from the Hacker News homepage.",
-  //   schema: z.object({
-  //     stories: z
-  //       .array(
-  //         z.object({
-  //           title: z.string(),
-  //           url: z.string(),
-  //           points: z.number(),
-  //         }),
-  //       )
-  //       .length(3),
-  //   }),
-  // });
+  const observed = await stagehand.page.observe({
+    // instruction: "find all the dropdowns on this page",
+    instruction: "find the search bar with placeholder 'search term...' and fill it with the word 'hello'",
+    onlyVisible: false,
+    returnAction: true,
+    // drawOverlay: true
+  });
+  console.log(observed);
+  await stagehand.page.act(observed[0]);
+  await stagehand.page.waitForTimeout(1000);
+  // await stagehand.page.act("click the search bar");
+  await stagehand.page.goto("https://news.ycombinator.com");
+
+  const headlines = await stagehand.page.extract({
+    instruction: "Extract only 3 stories from the Hacker News homepage.",
+    schema: z.object({
+      stories: z
+        .array(
+          z.object({
+            title: z.string(),
+            url: z.string(),
+            points: z.number(),
+          }),
+        )
+    }),
+  });
+  console.log(headlines.stories);
+
+  await stagehand.page.act("click the first story");
 
   // console.log(headlines);
 
@@ -83,6 +95,7 @@ async function example() {
   //   instruction: "what is the top story on the page?",
   // });
   // console.log(observations);
+  await new Promise((resolve) => setTimeout(resolve, 10000));
 
   await stagehand.close();
 }
