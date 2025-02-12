@@ -7,7 +7,6 @@ import { formatText } from "../utils";
 import { StagehandPage } from "../StagehandPage";
 import { ObserveResult, Stagehand } from "../index";
 import { ExtractionTarget } from "@/types/handler";
-import fs from "fs";
 
 const PROXIMITY_THRESHOLD = 15;
 
@@ -226,7 +225,6 @@ export class StagehandExtractHandler {
 
     // 10) Format the deduplicated annotations
     const formattedText = formatText(deduplicatedAnnotations, width);
-    fs.writeFileSync("formattedText.txt", formattedText);
 
     // 11) Pass the formatted text to the LLM
     const extractionResponse = await extract({
@@ -492,9 +490,6 @@ export class StagehandExtractHandler {
           };
         },
       );
-
-      console.log("[Node] Window width: ", innerWidth);
-      console.log("[Node] Window height: ", innerHeight);
 
       // For page scope, offsetLeft/offsetTop are zero or undefined
       return { width: innerWidth, height: innerHeight };
