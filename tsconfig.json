@@ -18,5 +18,5 @@
     "typeRoots": ["./node_modules/@types", "./types"]
   },
   "exclude": ["node_modules", "dist", ".eslintrc.cjs"],
-  "include": ["src/**/*", "types/**/*.d.ts", "examples/**/*"]
+  "include": ["src/**/*", "types/**/*.d.ts", "examples/**/*", "lib/**/*"]
 }

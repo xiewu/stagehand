@@ -105,7 +105,8 @@ export class LangchainClient extends LLMClient {
       console.log("response", response);
 
       // Extract the tool calls result from the response
-      const toolCalls = (response as LangChainResponse).additional_kwargs?.tool_calls;
+      const toolCalls = (response as LangChainResponse).additional_kwargs
+        ?.tool_calls;
       if (
         toolCalls?.[0]?.function?.name === "output" &&
         toolCalls[0]?.function?.arguments
@@ -130,7 +131,6 @@ export class LangchainClient extends LLMClient {
           throw e;
         }
       }
-      
       return response as T;
     } else {
       const langchainMessages = messages.map((msg) => {

@@ -16,11 +16,11 @@ async function example() {
 
   await stagehand.init();
 
-  await stagehand.page.goto("https://arxiv.org/search/");
+  await stagehand.page.goto("https://docs.stagehand.dev/get_started/introduction");
 
   const observed = await stagehand.page.observe({
     instruction:
-      "find the search bar with placeholder 'search term...' and fill it with the word 'hello'",
+      "find the search bar with placeholder 'Search or ask...' and click it",
     onlyVisible: false,
     returnAction: true,
   });
@@ -29,25 +29,19 @@ async function example() {
 
   await stagehand.page.act(observed[0]);
 
-  await stagehand.page.waitForTimeout(1000);
-
-  await stagehand.page.act("Click the search button");
+  await stagehand.page.act("Fill the search bar with the word 'Langchain'");
 
   await stagehand.page.waitForTimeout(1000);
 
-  const firstArticle = await stagehand.page.observe({
-    instruction: "find the first arxiv article in the search results",
-    onlyVisible: false,
-    returnAction: true,
-  });
+  await stagehand.page.act("Click the second option in the dropdown");
 
-  await stagehand.page.act(firstArticle[0]);
+  await stagehand.page.waitForTimeout(1000);
 
   const headlines = await stagehand.page.extract({
-    instruction: "Extract the title and abstract of the arxiv article.",
+    instruction: "Extract the title, and the whole section on Using LangGraph Agents.",
     schema: z.object({
       title: z.string(),
-      abstract: z.string(),
+      summary: z.string(),
     }),
   });
 
