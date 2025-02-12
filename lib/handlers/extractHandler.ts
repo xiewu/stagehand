@@ -483,7 +483,6 @@ export class StagehandExtractHandler {
       // Page scope
       const { innerWidth, innerHeight } = await this.stagehand.page.evaluate(
         () => {
-          console.log("taking the width of the page from inside the browser");
           return {
             innerWidth: window.innerWidth,
             innerHeight: window.innerHeight,
@@ -495,7 +494,7 @@ export class StagehandExtractHandler {
       return { width: innerWidth, height: innerHeight };
     } else {
       // Element scope
-      const { elemWidth, elemHeight, offsetLeft, offsetTop, logs } =
+      const { elemWidth, elemHeight, offsetLeft, offsetTop } =
         await this.stagehand.page.evaluate((xp) => {
           const el = document.evaluate(
             xp,
@@ -505,30 +504,16 @@ export class StagehandExtractHandler {
             null,
           ).singleNodeValue as HTMLElement | null;
 
-          const logs: string[] = [];
-
           if (!el) {
-            logs.push(
-              "No element found, default to window.innerWidth & innerHeight",
-            );
             return {
               elemWidth: window.innerWidth,
               elemHeight: window.innerHeight,
               offsetLeft: 0,
               offsetTop: 0,
-              logs,
             };
           }
 
           const rect = el.getBoundingClientRect();
-          logs.push(
-            `Found element. width=${rect.width}, height=${rect.height}`,
-          );
-          logs.push(`Window width (in browser) = ${window.innerWidth}`);
-
-          // Also log in the browser console for debugging
-          console.log("[Browser] Found element at xpath =>", xp);
-          console.log("[Browser] rect =>", rect);
 
           return {
             elemWidth: rect.width,
@@ -536,19 +521,8 @@ export class StagehandExtractHandler {
             // We'll return the rect's left/top for local coordinate calculations
             offsetLeft: rect.left,
             offsetTop: rect.top,
-            logs,
           };
         }, target.xpath);
-
-      // Log the returned messages in Node
-      logs.forEach((msg) => console.log("[Node] " + msg));
-      console.log("[Node] final element width =>", elemWidth);
-      console.log(
-        "[Node] offsetLeft =>",
-        offsetLeft,
-        " offsetTop =>",
-        offsetTop,
-      );
 
       return {
         width: elemWidth,
