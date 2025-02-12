@@ -29,6 +29,7 @@ export class StagehandActHandler {
     [key: string]: { result: string; action: string };
   };
   private readonly userProvidedInstructions?: string;
+  private readonly selfHeal: boolean;
 
   constructor({
     verbose,
@@ -37,6 +38,7 @@ export class StagehandActHandler {
     logger,
     stagehandPage,
     userProvidedInstructions,
+    selfHeal,
   }: {
     verbose: 0 | 1 | 2;
     llmProvider: LLMProvider;
@@ -46,6 +48,7 @@ export class StagehandActHandler {
     stagehandPage: StagehandPage;
     stagehandContext: StagehandContext;
     userProvidedInstructions?: string;
+    selfHeal: boolean;
   }) {
     this.verbose = verbose;
     this.llmProvider = llmProvider;
@@ -55,6 +58,7 @@ export class StagehandActHandler {
     this.actions = {};
     this.stagehandPage = stagehandPage;
     this.userProvidedInstructions = userProvidedInstructions;
+    this.selfHeal = selfHeal;
   }
 
   /**
@@ -63,7 +67,6 @@ export class StagehandActHandler {
    */
   public async actFromObserveResult(
     observe: ObserveResult,
-    selfHeal: boolean,
   ): Promise<{ success: boolean; message: string; action: string }> {
     this.logger({
       category: "action",
@@ -91,7 +94,7 @@ export class StagehandActHandler {
         action: observe.description || `ObserveResult action (${method})`,
       };
     } catch (err) {
-      if (!selfHeal) {
+      if (!this.selfHeal) {
         this.logger({
           category: "action",
           message: "Error performing act from an ObserveResult",
@@ -410,7 +413,7 @@ export class StagehandActHandler {
         const clickArg = args.length ? args[0] : undefined;
 
         if (isRadio) {
-          // if it’s a radio button, try to find a label to click
+          // if it's a radio button, try to find a label to click
           const inputId = await locator.evaluate((el) => el.id);
           let labelLocator;
 
@@ -421,7 +424,7 @@ export class StagehandActHandler {
             );
           }
           if (!labelLocator || (await labelLocator.count()) < 1) {
-            // if no label was found or the label doesn’t exist, check if
+            // if no label was found or the label doesn't exist, check if
             // there is an ancestor <label>
             labelLocator = this.stagehandPage.page
               .locator(`xpath=${xpath}/ancestor::label`)

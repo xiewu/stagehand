@@ -71,6 +71,7 @@ export class StagehandPage {
         stagehandContext: this.intContext,
         llmClient: llmClient,
         userProvidedInstructions,
+        selfHeal: this.stagehand.selfHeal,
       });
       this.extractHandler = new StagehandExtractHandler({
         stagehand: this.stagehand,
@@ -109,11 +110,8 @@ export class StagehandPage {
 
         if (this.llmClient) {
           if (prop === "act") {
-            return async (
-              optionsOrObserve: ActOptions | ObserveResult,
-              options?: { selfHeal?: boolean },
-            ) => {
-              return this.act(optionsOrObserve, options);
+            return async (options: ActOptions) => {
+              return this.act(options);
             };
           }
           if (prop === "extract") {
@@ -291,7 +289,6 @@ export class StagehandPage {
 
   async act(
     actionOrOptions: string | ActOptions | ObserveResult,
-    options?: { selfHeal?: boolean },
   ): Promise<ActResult> {
     if (!this.actHandler) {
       throw new Error("Act handler not initialized");
@@ -306,10 +303,7 @@ export class StagehandPage {
       if ("selector" in actionOrOptions && "method" in actionOrOptions) {
         const observeResult = actionOrOptions as ObserveResult;
         // validate observeResult.method, etc.
-        return this.actHandler.actFromObserveResult(
-          observeResult,
-          options?.selfHeal ?? true,
-        );
+        return this.actHandler.actFromObserveResult(observeResult);
       } else {
         // If it's an object but no selector/method,
         // check that it's truly ActOptions (i.e., has an `action` field).
