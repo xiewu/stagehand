@@ -619,15 +619,12 @@ export class StagehandExtractHandler {
   }
 
   private async storeTarget(target: ExtractionTarget): Promise<string> {
-    // We call `storeDOM` in the browser context:
     if (target.scope === "page") {
       return await this.stagehandPage.page.evaluate(() => {
-        // No XPath passed -> store entire DOM
         return window.storeDOM();
       });
     } else {
       return await this.stagehandPage.page.evaluate((xp) => {
-        // Pass in the xpath -> store element
         return window.storeDOM(xp);
       }, target.xpath);
     }
@@ -637,16 +634,13 @@ export class StagehandExtractHandler {
     target: ExtractionTarget,
     storedHTML: string,
   ): Promise<void> {
-    // We call `restoreDOM` in the browser context:
     if (target.scope === "page") {
       return await this.stagehandPage.page.evaluate((html) => {
-        // No XPath passed -> restore entire DOM
         window.restoreDOM(html);
       }, storedHTML);
     } else {
       return await this.stagehandPage.page.evaluate(
         ({ xp, dom }) => {
-          // Pass in the xpath -> restore element
           window.restoreDOM(dom, xp);
         },
         { xp: target.xpath, dom: storedHTML },
