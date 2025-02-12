@@ -25,6 +25,5 @@ const StagehandConfig: ConstructorParams = {
   modelClientOptions: {
     apiKey: process.env.OPENAI_API_KEY,
   } /* Configuration options for the model client */,
-  useAPI: true,
 };
 export default StagehandConfig;
