@@ -1,10 +1,37 @@
+import { GlobalPageContainer } from "./GlobalPageContainer";
+
 export async function debugDom() {
   window.chunkNumber = 0;
 
-  const { selectorMap: multiSelectorMap } = await window.processElements(
-    window.chunkNumber,
+  // 1) Build a container for the entire page
+  const container = new GlobalPageContainer();
+
+  // 2) Determine chunk size (e.g. container’s viewport height)
+  const chunkSize = container.getViewportHeight();
+
+  // 3) If we only want one chunk,
+  //    define startOffset = chunkNumber * chunkSize,
+  //    and set endOffset = startOffset => exactly 1 iteration
+  const startOffset = window.chunkNumber * chunkSize;
+  const endOffset = startOffset;
+
+  // 4) BFS with collectAllDomChunks for exactly 1 chunk
+  const singleChunks = await container.collectDomChunks(
+    startOffset,
+    endOffset,
+    chunkSize,
+    undefined, // BFS entire doc
   );
 
+  // We expect exactly 1 chunk
+  const [singleChunk] = singleChunks;
+  if (!singleChunk) {
+    console.warn("No chunk was returned. Possibly empty doc?");
+    return;
+  }
+
+  // 5) Extract the multiSelectorMap and convert to old single‐string format
+  const multiSelectorMap = singleChunk.selectorMap;
   const selectorMap = multiSelectorMapToSelectorMap(multiSelectorMap);
 
   drawChunk(selectorMap);
