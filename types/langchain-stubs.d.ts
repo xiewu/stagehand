@@ -8,8 +8,8 @@ declare module "@langchain/openai" {
       openAIApiKey: string;
       temperature?: number;
     });
-    bind(params: any): ChatOpenAI;
-    invoke(messages: any[]): Promise<any>;
+    bind(params: unknown): ChatOpenAI;
+    invoke(messages: unknown[]): Promise<unknown>;
   }
 }
 
@@ -27,6 +27,6 @@ declare module "@langchain/core/messages" {
 
 declare module "@langchain/core/output_parsers" {
   export class StructuredOutputParser {
-    static fromZodSchema(schema: any): StructuredOutputParser;
+    static fromZodSchema(schema: unknown): StructuredOutputParser;
   }
 }
