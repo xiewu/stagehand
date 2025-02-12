@@ -73,9 +73,7 @@ export class LangchainClient extends LLMClient {
 
     let response;
     if (options.response_model) {
-      const parser = StructuredOutputParser.fromZodSchema(
-        options.response_model.schema,
-      );
+      StructuredOutputParser.fromZodSchema(options.response_model.schema);
       const structuredModel = this.model.bind({
         tools: [
           {
