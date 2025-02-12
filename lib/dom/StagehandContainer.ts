@@ -17,6 +17,7 @@ export interface StagehandContainer {
     startOffset: number,
     endOffset: number,
     chunkSize: number,
+    scrollBackToTop: boolean,
     candidateContainer?: HTMLElement,
   ): Promise<DomChunk[]>;
 }

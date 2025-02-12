@@ -61,6 +61,7 @@ export class GlobalPageContainer implements StagehandContainer {
     startOffset: number,
     endOffset: number,
     chunkSize: number,
+    scrollBackToTop: boolean = true,
     candidateContainer?: HTMLElement,
   ): Promise<DomChunk[]> {
     const chunks: DomChunk[] = [];
@@ -87,7 +88,9 @@ export class GlobalPageContainer implements StagehandContainer {
       index += Object.keys(selectorMap).length;
     }
 
-    await this.scrollTo(0);
+    if (scrollBackToTop) {
+      await this.scrollTo(0);
+    }
 
     return chunks;
   }

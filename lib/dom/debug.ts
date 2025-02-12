@@ -20,6 +20,7 @@ export async function debugDom() {
     startOffset,
     endOffset,
     chunkSize,
+    false, // Don't scroll back to top
     undefined, // BFS entire doc
   );
 

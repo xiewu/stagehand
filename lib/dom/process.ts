@@ -121,6 +121,7 @@ export async function processDom(chunksSeen: number[]) {
     startOffset,
     endOffset,
     chunkSize,
+    false, // scrollBackToTop
     undefined, // BFS entire doc
   );
 
@@ -205,6 +206,7 @@ export async function processAllOfDom(xpath?: string) {
           startOffset, // startOffset
           startOffset, // endOffset => same as start => 1 chunk
           1, // chunkSize=1 => doesn't matter, because start==end means exactly 1 iteration
+          true,
           candidateElementContainer,
         );
 
@@ -242,6 +244,7 @@ export async function processAllOfDom(xpath?: string) {
     startOffset,
     maxScroll,
     chunkSize,
+    true,
     candidateElementContainer ?? undefined,
   );
 
