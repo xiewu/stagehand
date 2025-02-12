@@ -14,7 +14,9 @@
       "@/*": ["./*"]
     },
     "skipLibCheck": true,
-    "declaration": true
+    "declaration": true,
+    "typeRoots": ["./node_modules/@types", "./types"]
   },
-  "exclude": ["node_modules", "dist", ".eslintrc.cjs"]
+  "exclude": ["node_modules", "dist", ".eslintrc.cjs"],
+  "include": ["src/**/*", "types/**/*.d.ts", "examples/**/*"]
 }

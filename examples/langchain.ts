@@ -26,7 +26,7 @@ async function example() {
   });
 
   await stagehand.page.waitForTimeout(1000);
-
+  
   await stagehand.page.act(observed[0]);
 
   await stagehand.page.waitForTimeout(1000);
