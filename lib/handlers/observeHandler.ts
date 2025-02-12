@@ -3,7 +3,7 @@ import { Stagehand } from "../index";
 import { observe } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { StagehandPage } from "../StagehandPage";
-import { generateId } from "../utils";
+import { generateId, drawObserveOverlay } from "../utils";
 import {
   getAccessibilityTree,
   getXPathByResolvedObjectId,
@@ -55,6 +55,7 @@ export class StagehandObserveHandler {
     requestId,
     returnAction,
     onlyVisible,
+    drawOverlay,
   }: {
     instruction: string;
     llmClient: LLMClient;
@@ -62,10 +63,12 @@ export class StagehandObserveHandler {
     domSettleTimeoutMs?: number;
     returnAction?: boolean;
     onlyVisible?: boolean;
+    drawOverlay?: boolean;
   }) {
     if (!instruction) {
       instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
     }
+
     this.logger({
       category: "observation",
       message: "starting observation",
@@ -114,15 +117,44 @@ export class StagehandObserveHandler {
 
         if (useAccessibilityTree) {
           // Generate xpath for the given element if not found in selectorMap
+          this.logger({
+            category: "observation",
+            message: "Getting xpath for element",
+            level: 1,
+            auxiliary: {
+              elementId: {
+                value: elementId.toString(),
+                type: "string",
+              },
+            },
+          });
+
+          const args = { backendNodeId: elementId };
           const { object } = await this.stagehandPage.sendCDP<{
             object: { objectId: string };
-          }>("DOM.resolveNode", {
-            backendNodeId: elementId,
-          });
+          }>("DOM.resolveNode", args);
+
+          if (!object || !object.objectId) {
+            this.logger({
+              category: "observation",
+              message: `Invalid object ID returned for element: ${elementId}`,
+              level: 1,
+            });
+          }
+
           const xpath = await getXPathByResolvedObjectId(
             await this.stagehandPage.getCDPClient(),
             object.objectId,
           );
+
+          if (!xpath || xpath === "") {
+            this.logger({
+              category: "observation",
+              message: `Empty xpath returned for element: ${elementId}`,
+              level: 1,
+            });
+          }
+
           return {
             ...rest,
             selector: `xpath=${xpath}`,
@@ -151,6 +183,10 @@ export class StagehandObserveHandler {
         },
       },
     });
+
+    if (drawOverlay) {
+      await drawObserveOverlay(this.stagehandPage.page, elementsWithSelectors);
+    }
 
     await this._recordObservation(instruction, elementsWithSelectors);
     return elementsWithSelectors;
