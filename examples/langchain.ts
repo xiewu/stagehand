@@ -16,7 +16,9 @@ async function example() {
 
   await stagehand.init();
 
-  await stagehand.page.goto("https://docs.stagehand.dev/get_started/introduction");
+  await stagehand.page.goto(
+    "https://docs.stagehand.dev/get_started/introduction",
+  );
 
   const observed = await stagehand.page.observe({
     instruction:
@@ -38,7 +40,8 @@ async function example() {
   await stagehand.page.waitForTimeout(1000);
 
   const headlines = await stagehand.page.extract({
-    instruction: "Extract the title, and the whole section on Using LangGraph Agents.",
+    instruction:
+      "Extract the title, and the whole section on Using LangGraph Agents.",
     schema: z.object({
       title: z.string(),
       summary: z.string(),
