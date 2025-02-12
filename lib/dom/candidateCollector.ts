@@ -35,7 +35,6 @@ export async function collectCandidateElements(
     let shouldAdd = false;
 
     if (node && isElementNode(node)) {
-
       for (let i = node.childNodes.length - 1; i >= 0; i--) {
         DOMQueue.push(node.childNodes[i]);
       }
