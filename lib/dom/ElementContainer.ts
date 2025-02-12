@@ -69,7 +69,6 @@ export class ElementContainer implements StagehandContainer {
 
     for (let current = startOffset; current <= finalEnd; current += chunkSize) {
       await this.scrollTo(current);
-      console.log("scroll loop entered ");
 
       const rootCandidate = candidateContainer || this.el;
       const { outputString, selectorMap } = await collectCandidateElements(
