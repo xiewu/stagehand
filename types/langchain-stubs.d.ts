@@ -1,15 +1,19 @@
-// This file provides stub types for the LangChain modules 
+// This file provides stub types for the LangChain modules
 // so that our example can compile without having them installed.
 
-declare module '@langchain/openai' {
+declare module "@langchain/openai" {
   export class ChatOpenAI {
-    constructor(args: { modelName: string; openAIApiKey: string; temperature?: number });
+    constructor(args: {
+      modelName: string;
+      openAIApiKey: string;
+      temperature?: number;
+    });
     bind(params: any): ChatOpenAI;
     invoke(messages: any[]): Promise<any>;
   }
 }
 
-declare module '@langchain/core/messages' {
+declare module "@langchain/core/messages" {
   export class HumanMessage {
     constructor(content: string);
   }
@@ -21,8 +25,8 @@ declare module '@langchain/core/messages' {
   }
 }
 
-declare module '@langchain/core/output_parsers' {
+declare module "@langchain/core/output_parsers" {
   export class StructuredOutputParser {
     static fromZodSchema(schema: any): StructuredOutputParser;
   }
-} 
+}
