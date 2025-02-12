@@ -3,7 +3,7 @@ import type {
   BrowserContext as PlaywrightContext,
   CDPSession,
 } from "@playwright/test";
-import { LLMClient } from "./llm/LLMClient";
+import { LLMClient } from "../types/llm";
 import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
 import { StagehandActHandler } from "./handlers/actHandler";
 import { StagehandContext } from "./StagehandContext";

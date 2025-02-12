@@ -1,4 +1,4 @@
-import { LLMClient } from "../lib/llm/LLMClient";
+import { LLMClient } from "./llm";
 import { LLMProvider } from "../lib/llm/LLMProvider";
 
 export interface VerifyActCompletionParams {

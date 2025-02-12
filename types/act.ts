@@ -1,4 +1,4 @@
-import { LLMClient } from "../lib/llm/LLMClient";
+import { LLMClient } from "./llm";
 
 // WARNING: This is NOT to be confused with the ActParams type used in `page.act()`.
 // This is the type for the parameters passed to the `act` command in `inference.ts`.

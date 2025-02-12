@@ -13,7 +13,7 @@ import {
   CreateChatCompletionOptions,
   LLMClient,
   LLMResponse,
-} from "./LLMClient";
+} from "../../types/llm";
 
 export class AnthropicClient extends LLMClient {
   public type = "anthropic" as const;

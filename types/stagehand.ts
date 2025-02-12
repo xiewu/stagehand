@@ -4,7 +4,7 @@ import { z } from "zod";
 import { LLMProvider } from "../lib/llm/LLMProvider";
 import { LogLine } from "./log";
 import { AvailableModel, ClientOptions } from "./model";
-import { LLMClient } from "../lib/llm/LLMClient";
+import { LLMClient } from "./llm";
 
 export interface ConstructorParams {
   env: "LOCAL" | "BROWSERBASE";

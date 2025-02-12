@@ -1,5 +1,5 @@
 import { LLMTool } from "../types/llm";
-import { ChatMessage } from "./llm/LLMClient";
+import { ChatMessage } from "../types/llm";
 
 // act
 const actSystemPrompt = `

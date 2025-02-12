@@ -20,7 +20,7 @@ import {
   CreateChatCompletionOptions,
   LLMClient,
   LLMResponse,
-} from "./LLMClient";
+} from "../../types/llm";
 
 export class OpenAIClient extends LLMClient {
   public type = "openai" as const;

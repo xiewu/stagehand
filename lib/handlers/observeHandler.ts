@@ -1,7 +1,7 @@
 import { LogLine } from "../../types/log";
 import { Stagehand } from "../index";
 import { observe } from "../inference";
-import { LLMClient } from "../llm/LLMClient";
+import { LLMClient } from "../../types/llm";
 import { StagehandPage } from "../StagehandPage";
 import { generateId, drawObserveOverlay } from "../utils";
 import {

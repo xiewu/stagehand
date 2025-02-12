@@ -6,7 +6,7 @@ import {
 } from "../../types/playwright";
 import { ActionCache } from "../cache/ActionCache";
 import { act, fillInVariables, verifyActCompletion } from "../inference";
-import { LLMClient } from "../llm/LLMClient";
+import { LLMClient } from "../../types/llm";
 import { LLMProvider } from "../llm/LLMProvider";
 import { StagehandContext } from "../StagehandContext";
 import { StagehandPage } from "../StagehandPage";

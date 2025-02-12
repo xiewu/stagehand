@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ActCommandParams, ActCommandResult } from "../types/act";
 import { VerifyActCompletionParams } from "../types/inference";
 import { LogLine } from "../types/log";
-import { ChatMessage, LLMClient } from "./llm/LLMClient";
+import { ChatMessage, LLMClient } from "../types/llm";
 import {
   actTools,
   buildActSystemPrompt,

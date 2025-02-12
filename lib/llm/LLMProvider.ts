@@ -6,7 +6,7 @@ import {
 } from "../../types/model";
 import { LLMCache } from "../cache/LLMCache";
 import { AnthropicClient } from "./AnthropicClient";
-import { LLMClient } from "./LLMClient";
+import { LLMClient } from "../../types/llm";
 import { OpenAIClient } from "./OpenAIClient";
 
 export class LLMProvider {

@@ -24,7 +24,7 @@ import {
   ObserveResult,
 } from "../types/stagehand";
 import { scriptContent } from "./dom/build/scriptContent";
-import { LLMClient } from "./llm/LLMClient";
+import { LLMClient } from "../types/llm";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString } from "./utils";
 import { StagehandPage } from "./StagehandPage";
@@ -626,4 +626,4 @@ export * from "../types/model";
 export * from "../types/playwright";
 export * from "../types/stagehand";
 export * from "../types/page";
-export * from "./llm/LLMClient";
+export * from "../types/llm";

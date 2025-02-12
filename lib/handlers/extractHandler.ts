@@ -2,7 +2,7 @@ import { z } from "zod";
 import { LogLine } from "../../types/log";
 import { TextAnnotation } from "../../types/textannotation";
 import { extract } from "../inference";
-import { LLMClient } from "../llm/LLMClient";
+import { LLMClient } from "../../types/llm";
 import { formatText } from "../utils";
 import { StagehandPage } from "../StagehandPage";
 import { Stagehand } from "../index";
