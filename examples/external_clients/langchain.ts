@@ -1,4 +1,4 @@
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatOpenAI, LangChainResponse } from "@langchain/openai";
 import { ChatCompletion } from "openai/resources/chat/completions";
 import {
   CreateChatCompletionOptions,
@@ -102,9 +102,10 @@ export class LangchainClient extends LLMClient {
         }
       });
       response = await structuredModel.invoke(langchainMessages);
+      console.log("response", response);
 
       // Extract the tool calls result from the response
-      const toolCalls = response.additional_kwargs?.tool_calls;
+      const toolCalls = (response as LangChainResponse).additional_kwargs?.tool_calls;
       if (
         toolCalls?.[0]?.function?.name === "output" &&
         toolCalls[0]?.function?.arguments
@@ -121,15 +122,15 @@ export class LangchainClient extends LLMClient {
       }
 
       // If no valid tool call, try to parse the content
-      if (typeof response.content === "string") {
+      if (typeof response === "string") {
         try {
-          return JSON.parse(response.content) as T;
+          return JSON.parse(response) as T;
         } catch (e) {
-          console.error("Failed to parse content:", response.content);
+          console.error("Failed to parse content:", response);
           throw e;
         }
       }
-
+      
       return response as T;
     } else {
       const langchainMessages = messages.map((msg) => {

@@ -2,6 +2,18 @@
 // so that our example can compile without having them installed.
 
 declare module "@langchain/openai" {
+  interface LangChainResponse {
+    content?: string;
+    additional_kwargs?: {
+      tool_calls?: Array<{
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }>;
+    };
+  }
+
   export class ChatOpenAI {
     constructor(args: {
       modelName: string;
@@ -9,7 +21,7 @@ declare module "@langchain/openai" {
       temperature?: number;
     });
     bind(params: unknown): ChatOpenAI;
-    invoke(messages: unknown[]): Promise<unknown>;
+    invoke(messages: unknown[]): Promise<LangChainResponse>;
   }
 }
 
