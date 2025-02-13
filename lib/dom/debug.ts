@@ -1,4 +1,5 @@
 import { GlobalPageContainer } from "./GlobalPageContainer";
+import { getNodeFromXpath } from "./utils";
 
 export async function debugDom() {
   window.chunkNumber = 0;
@@ -53,13 +54,7 @@ function drawChunk(selectorMap: Record<number, string>) {
   if (!window.showChunks) return;
   cleanupMarkers();
   Object.values(selectorMap).forEach((selector) => {
-    const element = document.evaluate(
-      selector as string,
-      document,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null,
-    ).singleNodeValue as Element;
+    const element = getNodeFromXpath(selector) as Element;
 
     if (element) {
       let rect;

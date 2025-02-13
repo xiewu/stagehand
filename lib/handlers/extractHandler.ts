@@ -526,13 +526,7 @@ export class StagehandExtractHandler {
     // If targetXpath is present, get element-specific dimensions
     const { elemWidth, elemHeight, offsetLeft, offsetTop } =
       await this.stagehand.page.evaluate((xp) => {
-        const el = document.evaluate(
-          xp,
-          document,
-          null,
-          XPathResult.FIRST_ORDERED_NODE_TYPE,
-          null,
-        ).singleNodeValue as HTMLElement | null;
+        const el = window.getNodeFromXpath(xp) as HTMLElement | null;
 
         if (!el) {
           return {

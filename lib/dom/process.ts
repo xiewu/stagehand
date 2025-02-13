@@ -1,5 +1,9 @@
 import { generateXPathsForElement as generateXPaths } from "./xpathUtils";
-import { calculateViewportHeight, canElementScroll } from "./utils";
+import {
+  calculateViewportHeight,
+  canElementScroll,
+  getNodeFromXpath,
+} from "./utils";
 import { createStagehandContainer } from "./containerFactory";
 import { StagehandContainer } from "./StagehandContainer";
 import { GlobalPageContainer } from "@/lib/dom/GlobalPageContainer";
@@ -160,13 +164,7 @@ export async function processAllOfDom(xpath?: string) {
 
   if (xpath) {
     // 1) Find the element
-    const node = document.evaluate(
-      xpath,
-      document,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null,
-    ).singleNodeValue as HTMLElement | null;
+    const node = getNodeFromXpath(xpath) as HTMLElement | null;
 
     if (node) {
       candidateElementContainer = node;
@@ -279,13 +277,7 @@ export function storeDOM(xpath?: string): string {
     console.log("DOM state stored (root).");
     return originalDOM.outerHTML;
   } else {
-    const node = document.evaluate(
-      xpath,
-      document,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null,
-    ).singleNodeValue as HTMLElement | null;
+    const node = getNodeFromXpath(xpath) as HTMLElement | null;
 
     if (!node) {
       console.error(
@@ -315,13 +307,7 @@ export function restoreDOM(storedDOM: string, xpath?: string): void {
     document.body.innerHTML = storedDOM;
     console.log("DOM restored (root).");
   } else {
-    const node = document.evaluate(
-      xpath,
-      document,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null,
-    ).singleNodeValue as HTMLElement | null;
+    const node = getNodeFromXpath(xpath) as HTMLElement | null;
 
     if (!node) {
       console.error(
@@ -425,13 +411,7 @@ export function createTextBoundingBoxes(xpath?: string): void {
       }
     });
   } else {
-    const node = document.evaluate(
-      xpath,
-      document,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null,
-    ).singleNodeValue as HTMLElement | null;
+    const node = getNodeFromXpath(xpath) as HTMLElement | null;
 
     if (!node) {
       console.warn(
@@ -451,13 +431,7 @@ export function getElementBoundingBoxes(xpath: string): Array<{
   width: number;
   height: number;
 }> {
-  const element = document.evaluate(
-    xpath,
-    document,
-    null,
-    XPathResult.FIRST_ORDERED_NODE_TYPE,
-    null,
-  ).singleNodeValue as HTMLElement;
+  const element = getNodeFromXpath(xpath) as HTMLElement;
 
   if (!element) return [];
 
@@ -547,6 +521,7 @@ window.createTextBoundingBoxes = createTextBoundingBoxes;
 window.getElementBoundingBoxes = getElementBoundingBoxes;
 window.createStagehandContainer = createStagehandContainer;
 window.getScrollableElementXpaths = getScrollableElementXpaths;
+window.getNodeFromXpath = getNodeFromXpath;
 
 async function pickChunk(chunksSeen: Array<number>) {
   const viewportHeight = calculateViewportHeight();
