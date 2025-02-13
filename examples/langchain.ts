@@ -109,12 +109,44 @@ async function example() {
   await stagehand.page.waitForTimeout(1000);
 
   // Submit Button
-  const observation9 = await stagehand.page.observe({
-    instruction:
-      "Find the submit button with value 'Submit →'. The button may be disabled initially, but ignore that. Look for an input element of type 'submit' with class 'button is-form w-button'",
-    returnAction: true,
-  });
-  console.log(observation9);
+  // const observation9 = await stagehand.page.observe({
+  //   instruction:
+  //     "Find the submit button with value 'Submit →' that has class 'button is-form w-button'",
+  //   returnAction: true,
+  // });
+  // console.log(observation9);
+
+  // if (observation9.length > 0) {
+  //   const locator = stagehand.page.locator(observation9[0].selector).first();
+
+  //   try {
+  //     // First ensure all form fields are properly filled
+  //     await stagehand.page.waitForFunction(
+  //       () => {
+  //         const form = document.querySelector("form");
+  //         return (
+  //           form &&
+  //           Array.from(form.elements).every(
+  //             (el) => !(el as HTMLInputElement).validity.valueMissing,
+  //           )
+  //         );
+  //       },
+  //       { timeout: 10000 },
+  //     );
+
+  //     // Then wait for button to be enabled
+  //     await locator.waitFor({
+  //       state: "visible",
+  //       timeout: 10000,
+  //     });
+
+  //     // Click using page.click() which handles disabled state better
+  //     await stagehand.page.click(observation9[0].selector);
+  //   } catch (error) {
+  //     console.log("Error clicking submit button:", error);
+  //   }
+  // }
+  await stagehand.page.keyboard.press("Enter");
 
   await stagehand.page.waitForTimeout(5000);
 
