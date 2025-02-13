@@ -332,6 +332,7 @@ export class Stagehand {
   private usingAPI: boolean;
   private modelName: AvailableModel;
   private apiClient: StagehandAPI | undefined;
+  public readonly selfHeal: boolean;
 
   constructor(
     {
@@ -352,6 +353,7 @@ export class Stagehand {
       modelClientOptions,
       systemPrompt,
       useAPI,
+      selfHeal = true,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
@@ -392,6 +394,7 @@ export class Stagehand {
     if (this.usingAPI && env === "LOCAL") {
       throw new Error("API mode can only be used with BROWSERBASE environment");
     }
+    this.selfHeal = selfHeal;
   }
 
   public get logger(): (logLine: LogLine) => void {

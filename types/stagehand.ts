@@ -30,6 +30,7 @@ export interface ConstructorParams {
    * Offload Stagehand method calls to the Stagehand API.
    */
   useAPI?: boolean;
+  selfHeal?: boolean;
 }
 
 export interface InitOptions {
