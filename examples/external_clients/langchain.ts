@@ -1,218 +1,73 @@
-import { ChatOpenAI, LangChainResponse } from "@langchain/openai";
-import { ChatCompletion } from "openai/resources/chat/completions";
-import {
-  CreateChatCompletionOptions,
-  LLMClient,
-} from "../../lib/llm/LLMClient";
-import {
-  HumanMessage,
-  AIMessage,
-  SystemMessage,
-} from "@langchain/core/messages";
-import type { AvailableModel } from "../../types/model";
-import { StructuredOutputParser } from "@langchain/core/output_parsers";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { ChatGeneration } from "@langchain/core/outputs";
+import { CreateChatCompletionOptions, LLMClient, AvailableModel } from "@/dist";
 import { zodToJsonSchema } from "zod-to-json-schema";
-
-interface ToolCall {
-  name: string;
-  args: Record<string, unknown>;
-}
+import {
+	AIMessage,
+	BaseMessageLike,
+	HumanMessage,
+	SystemMessage,
+} from "@langchain/core/messages";
 
 export class LangchainClient extends LLMClient {
-  public type = "langchain" as const;
-  private model: ChatOpenAI;
+	public type = "langchainClient" as const;
+	private model: BaseChatModel;
 
-  constructor({ modelName, apiKey }: { modelName: string; apiKey: string }) {
-    super(modelName as AvailableModel);
-    this.model = new ChatOpenAI({
-      modelName: modelName,
-      openAIApiKey: apiKey,
-      temperature: 0,
-    });
-  }
+	constructor(model: BaseChatModel) {
+		super(model.name as AvailableModel);
+		this.model = model;
+	}
 
-  async createChatCompletion<T = ChatCompletion>({
-    options,
-  }: CreateChatCompletionOptions): Promise<T> {
-    // Convert messages to LangChain format
-    const messages = options.messages.map((msg) => {
-      if (Array.isArray(msg.content)) {
-        // Handle multimodal content
-        const content = msg.content
-          .map((part) => {
-            if ("text" in part) {
-              return part.text;
-            } else if ("image_url" in part) {
-              return `[Image: ${part.image_url.url}]`;
-            }
-            return "";
-          })
-          .join("\n");
+	async createChatCompletion<T = ChatGeneration>({
+		options,
+	}: CreateChatCompletionOptions): Promise<T> {
+		const formattedMessages: BaseMessageLike[] = options.messages.map(
+			(message) => {
+				if (Array.isArray(message.content)) {
+					if (message.role === "system") {
+						return new SystemMessage(
+							message.content
+								.map((c) => ("text" in c ? c.text : ""))
+								.join("\n"),
+						);
+					}
 
-        return {
-          role: msg.role,
-          content: content,
-        };
-      }
-      return msg;
-    });
+					const content = message.content.map((content) =>
+						"image_url" in content
+							? { type: "image", image: content.image_url.url }
+							: { type: "text", text: content.text },
+					);
 
-    // Handle tools if present
-    if (options.tools?.length) {
-      this.model = this.model.bind({
-        tools: options.tools.map((tool) => ({
-          type: "function" as const,
-          function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.parameters,
-          },
-        })),
-      }) as ChatOpenAI;
-    }
+					if (message.role === "user") return new HumanMessage({ content });
 
-    let response;
-    if (options.response_model) {
-      StructuredOutputParser.fromZodSchema(options.response_model.schema);
-      const structuredModel = this.model.bind({
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "output",
-              description: "Output the structured data",
-              // this is the schema of the response, zodToJsonSchema converts the zod schema to a json schema
-              parameters: zodToJsonSchema(options.response_model.schema),
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "output" } },
-      });
-      const langchainMessages = messages.map((msg) => {
-        const content = typeof msg.content === "string" ? msg.content : "";
-        switch (msg.role) {
-          case "user":
-            return new HumanMessage(content);
-          case "assistant":
-            return new AIMessage(content);
-          case "system":
-            return new SystemMessage(content);
-          default:
-            return new HumanMessage(content);
-        }
-      });
-      response = await structuredModel.invoke(langchainMessages);
-      console.log("response", response);
+					const textOnlyParts = content.map((part) => ({
+						type: "text" as const,
+						text: part.type === "image" ? "[Image]" : part.text,
+					}));
 
-      // Extract the tool calls result from the response
-      const toolCalls = (response as LangChainResponse).additional_kwargs
-        ?.tool_calls;
-      if (
-        toolCalls?.[0]?.function?.name === "output" &&
-        toolCalls[0]?.function?.arguments
-      ) {
-        try {
-          return JSON.parse(toolCalls[0].function.arguments) as T;
-        } catch (e) {
-          console.error(
-            "Failed to parse tool call arguments:",
-            toolCalls[0].function.arguments,
-          );
-          throw e;
-        }
-      }
+					return new AIMessage({ content: textOnlyParts });
+				}
 
-      // If no valid tool call, try to parse the content
-      if (typeof response === "string") {
-        try {
-          return JSON.parse(response) as T;
-        } catch (e) {
-          console.error("Failed to parse content:", response);
-          throw e;
-        }
-      }
-      return response as T;
-    } else {
-      const langchainMessages = messages.map((msg) => {
-        const content = typeof msg.content === "string" ? msg.content : "";
-        switch (msg.role) {
-          case "user":
-            return new HumanMessage(content);
-          case "assistant":
-            return new AIMessage(content);
-          case "system":
-            return new SystemMessage(content);
-          default:
-            return new HumanMessage(content);
-        }
-      });
-      response = await this.model.invoke(langchainMessages);
-      console.log("response", response);
-    }
+				return {
+					role: message.role,
+					content: message.content,
+				};
+			},
+		);
 
-    // Normalize tool calls to match expected format
-    let toolCalls: { function: { name: string; arguments: string } }[] = [];
-    if ((response as { tool_calls: ToolCall[] }).tool_calls) {
-      toolCalls = (response as { tool_calls: ToolCall[] }).tool_calls.map(
-        (tc: ToolCall) => ({
-          function: {
-            name: tc.name,
-            arguments: JSON.stringify(tc.args),
-          },
-        }),
-      );
-    }
+		if (options.response_model) {
+			const responseSchema = zodToJsonSchema(options.response_model.schema, {
+				$refStrategy: "none",
+			});
+			const structuredModel = this.model.withStructuredOutput(responseSchema);
+			const response = await structuredModel.invoke(formattedMessages);
 
-    // Convert LangChain response format to match expected format
-    const formattedResponse = {
-      id: (response as { id: string }).id,
-      choices: [
-        {
-          message: {
-            role: "assistant",
-            content: (response as { content: string }).content,
-            tool_calls: toolCalls,
-          },
-          finish_reason:
-            (
-              response as unknown as {
-                response_metadata: { finish_reason: string };
-              }
-            ).response_metadata?.finish_reason ?? "stop",
-        },
-      ],
-      usage: {
-        prompt_tokens: (
-          response as {
-            usage_metadata: {
-              input_tokens: number;
-              output_tokens: number;
-              total_tokens: number;
-            };
-          }
-        ).usage_metadata?.input_tokens,
-        completion_tokens: (
-          response as {
-            usage_metadata: {
-              input_tokens: number;
-              output_tokens: number;
-              total_tokens: number;
-            };
-          }
-        ).usage_metadata?.output_tokens,
-        total_tokens: (
-          response as {
-            usage_metadata: {
-              input_tokens: number;
-              output_tokens: number;
-              total_tokens: number;
-            };
-          }
-        ).usage_metadata?.total_tokens,
-      },
-    };
-    console.log("formattedResponse", formattedResponse.choices[0].message);
+			return response as T;
+		}
 
-    return formattedResponse as T;
-  }
+		const modelWithTools = this.model.bindTools(options.tools);
+		const response = await modelWithTools.invoke(formattedMessages);
+
+		return response as T;
+	}
 }
