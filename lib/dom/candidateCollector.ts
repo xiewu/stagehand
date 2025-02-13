@@ -12,22 +12,23 @@ import { generateXPathsForElement as generateXPaths } from "./xpathUtils";
 const xpathCache: Map<Node, string[]> = new Map();
 
 /**
- * BFS to gather candidate elements from a given root. This DOES NOT do any scrolling—
- * it's purely the logic to find “interactive” or “text” elements, produce an output string,
- * and build a selector map of XPaths.
+ * `collectCandidateElements` performs a depth-first traversal (despite the BFS naming) of the given `candidateContainerRoot`
+ * to find “candidate elements” or text nodes that meet certain criteria (e.g., visible, active,
+ * interactive, or leaf). This function does not scroll the page; it only collects nodes from
+ * the in-memory DOM structure starting at `candidateContainerRoot`.
  *
- * @param bfsRoot - The HTMLElement to search within
+ * @param candidateContainerRoot - The HTMLElement to search within
  * @param indexOffset - A numeric offset used to label/number your candidate elements
  * @returns { outputString, selectorMap }
  */
 export async function collectCandidateElements(
-  bfsRoot: HTMLElement,
+  candidateContainerRoot: HTMLElement,
   indexOffset: number = 0,
 ): Promise<{
   outputString: string;
   selectorMap: Record<number, string[]>;
 }> {
-  const DOMQueue: ChildNode[] = [...bfsRoot.childNodes];
+  const DOMQueue: ChildNode[] = [...candidateContainerRoot.childNodes];
   const candidateElements: ChildNode[] = [];
 
   while (DOMQueue.length > 0) {
