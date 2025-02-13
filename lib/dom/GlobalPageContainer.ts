@@ -1,9 +1,11 @@
 import { StagehandContainer } from "./StagehandContainer";
-import { DomChunk } from "./DomChunk";
 import { calculateViewportHeight } from "./utils";
-import { collectDomChunksShared } from "@/lib/dom/chunkCollector";
 
-export class GlobalPageContainer implements StagehandContainer {
+export class GlobalPageContainer extends StagehandContainer {
+  public getRootElement(): HTMLElement {
+    return document.body;
+  }
+
   public getViewportHeight(): number {
     return calculateViewportHeight();
   }
@@ -12,8 +14,15 @@ export class GlobalPageContainer implements StagehandContainer {
     return document.documentElement.scrollHeight;
   }
 
-  public getRootElement(): HTMLElement | Document {
-    return document.body;
+  public getScrollPosition(): number {
+    return window.scrollY || document.documentElement.scrollTop;
+  }
+
+  public async scrollTo(offset: number): Promise<void> {
+    // maybe a 1500ms delay
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    window.scrollTo({ top: offset, behavior: "smooth" });
+    await this.waitForScrollEnd();
   }
 
   public async scrollIntoView(element?: HTMLElement): Promise<void> {
@@ -25,16 +34,6 @@ export class GlobalPageContainer implements StagehandContainer {
       const elementY = currentY + rect.top;
       window.scrollTo({ top: elementY, behavior: "smooth" });
     }
-    await this.waitForScrollEnd();
-  }
-
-  public getScrollPosition(): number {
-    return window.scrollY || document.documentElement.scrollTop;
-  }
-
-  public async scrollTo(offset: number): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    window.scrollTo({ top: offset, left: 0, behavior: "smooth" });
     await this.waitForScrollEnd();
   }
 
@@ -51,26 +50,5 @@ export class GlobalPageContainer implements StagehandContainer {
       window.addEventListener("scroll", handleScroll, { passive: true });
       handleScroll();
     });
-  }
-
-  /**
-   * Collect multiple DomChunks from `startOffset` up to `endOffset`, stepping by chunkSize.
-   * BFS each time. This effectively replaces your multi-chunk logic in processAllOfDom.
-   */
-  public async collectDomChunks(
-    startOffset: number,
-    endOffset: number,
-    chunkSize: number,
-    scrollBackToTop: boolean = true,
-    candidateContainer?: HTMLElement,
-  ): Promise<DomChunk[]> {
-    return collectDomChunksShared(
-      this,
-      startOffset,
-      endOffset,
-      chunkSize,
-      scrollBackToTop,
-      candidateContainer,
-    );
   }
 }
