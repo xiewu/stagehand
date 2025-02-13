@@ -17,6 +17,8 @@ async function example() {
   await stagehand.init();
   await stagehand.page.goto("https://python.langchain.com/docs/introduction/");
 
+  await stagehand.page.waitForTimeout(1000);
+
   const observation1 = await stagehand.page.observe({
     instruction: "Go to Conceptual Guides section",
     returnAction: true,
@@ -36,26 +38,6 @@ async function example() {
   }
 
   await stagehand.page.waitForTimeout(1000);
-
-  const observation4 = await stagehand.page.observe({
-    instruction:
-      "Find the work email input field and enter 'john.smith@acme.com'",
-    returnAction: true,
-  });
-  if (observation4.length > 0) {
-    await stagehand.page.act(observation4[0]);
-  }
-
-  await stagehand.page.waitForTimeout(1000);
-
-  const observation5 = await stagehand.page.observe({
-    instruction:
-      "Find the job title input field and enter 'Engineering Manager'",
-    returnAction: true,
-  });
-  if (observation5.length > 0) {
-    await stagehand.page.act(observation5[0]);
-  }
 
   const result = await stagehand.page.extract({
     instruction: "Extract the content of the page",
