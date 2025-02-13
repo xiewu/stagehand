@@ -1,7 +1,7 @@
 import { StagehandContainer } from "./StagehandContainer";
-import { collectCandidateElements } from "./candidateCollector";
 import { DomChunk } from "./DomChunk";
 import { calculateViewportHeight } from "./utils";
+import { collectDomChunksShared } from "@/lib/dom/chunkCollector";
 
 export class GlobalPageContainer implements StagehandContainer {
   public getViewportHeight(): number {
@@ -64,34 +64,13 @@ export class GlobalPageContainer implements StagehandContainer {
     scrollBackToTop: boolean = true,
     candidateContainer?: HTMLElement,
   ): Promise<DomChunk[]> {
-    const chunks: DomChunk[] = [];
-
-    const maxOffset = this.getScrollHeight() - this.getViewportHeight();
-    const finalEnd = Math.min(endOffset, maxOffset);
-    let index = 0;
-
-    for (let current = startOffset; current <= finalEnd; current += chunkSize) {
-      await this.scrollTo(current);
-
-      const { outputString, selectorMap } = await collectCandidateElements(
-        candidateContainer || document.body,
-        index,
-      );
-
-      chunks.push({
-        startOffset: current,
-        endOffset: current + chunkSize,
-        outputString,
-        selectorMap,
-      });
-
-      index += Object.keys(selectorMap).length;
-    }
-
-    if (scrollBackToTop) {
-      await this.scrollTo(0);
-    }
-
-    return chunks;
+    return collectDomChunksShared(
+      this,
+      startOffset,
+      endOffset,
+      chunkSize,
+      scrollBackToTop,
+      candidateContainer,
+    );
   }
 }
