@@ -1,3 +1,4 @@
+import Browserbase from "@browserbasehq/sdk";
 import { LogLine } from "./log";
 
 export interface StagehandAPIConstructorParams {
@@ -19,6 +20,7 @@ export interface StartSessionParams {
   verbose: number;
   debugDom: boolean;
   systemPrompt?: string;
+  browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
 }
 
 export interface StartSessionResult {
@@ -36,3 +38,12 @@ export interface ErrorResponse {
 }
 
 export type ApiResponse<T> = SuccessResponse<T> | ErrorResponse;
+
+export class RaceConditionError extends Error {
+  constructor() {
+    super(
+      "Cannot make multiple API calls at the same time. Ensure you aren't calling multiple Stagehand methods in parallel using the API.",
+    );
+    this.name = "RaceConditionError";
+  }
+}

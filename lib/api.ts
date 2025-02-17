@@ -3,6 +3,7 @@ import zodToJsonSchema from "zod-to-json-schema";
 import {
   ApiResponse,
   ExecuteActionParams,
+  RaceConditionError,
   StagehandAPIConstructorParams,
   StartSessionParams,
   StartSessionResult,
@@ -17,6 +18,10 @@ import {
   ObserveOptions,
   ObserveResult,
 } from "../types/stagehand";
+
+export const API_STATE = {
+  outgoingRequest: false,
+};
 
 export class StagehandAPI {
   private apiKey: string;
@@ -121,6 +126,12 @@ export class StagehandAPI {
     args,
     params,
   }: ExecuteActionParams): Promise<T> {
+    if (API_STATE.outgoingRequest) {
+      throw new RaceConditionError();
+    }
+
+    API_STATE.outgoingRequest = true;
+
     const urlParams = new URLSearchParams(params as Record<string, string>);
     const queryString = urlParams.toString();
     const url = `/sessions/${this.sessionId}/${method}${queryString ? `?${queryString}` : ""}`;
@@ -132,12 +143,14 @@ export class StagehandAPI {
 
     if (!response.ok) {
       const errorBody = await response.text();
+      API_STATE.outgoingRequest = false;
       throw new Error(
         `HTTP error! status: ${response.status}, body: ${errorBody}`,
       );
     }
 
     if (!response.body) {
+      API_STATE.outgoingRequest = false;
       throw new Error("Response body is null");
     }
 
@@ -149,6 +162,7 @@ export class StagehandAPI {
       const { value, done } = await reader.read();
 
       if (done && !buffer) {
+        API_STATE.outgoingRequest = false;
         return null;
       }
 
@@ -164,9 +178,11 @@ export class StagehandAPI {
 
           if (eventData.type === "system") {
             if (eventData.data.status === "error") {
+              API_STATE.outgoingRequest = false;
               throw new Error(eventData.data.error);
             }
             if (eventData.data.status === "finished") {
+              API_STATE.outgoingRequest = false;
               return eventData.data.result as T;
             }
           } else if (eventData.type === "log") {
@@ -174,12 +190,15 @@ export class StagehandAPI {
           }
         } catch (e) {
           console.error("Error parsing event data:", e);
+          API_STATE.outgoingRequest = false;
           throw new Error("Failed to parse server response");
         }
       }
 
       if (done) break;
     }
+
+    API_STATE.outgoingRequest = false;
   }
 
   private async request(
