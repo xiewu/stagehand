@@ -457,6 +457,7 @@ export class Stagehand {
         verbose: this.verbose,
         debugDom: this.debugDom,
         systemPrompt: this.userProvidedInstructions,
+        browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
       });
       this.browserbaseSessionID = sessionId;
     }
