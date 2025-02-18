@@ -6,8 +6,8 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   // Look in "tests" for test files...
   testDir: "./tests",
-  // ...but ignore anything in "tests/browserbase"
-  testIgnore: ["**/browserbase/**"],
+  // ...but ignore anything in "tests/browserbase & "tests/local"
+  testIgnore: ["**/browserbase/**", "**/local/**"],
 
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   /* Run tests in files in parallel */
