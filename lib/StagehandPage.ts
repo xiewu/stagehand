@@ -70,6 +70,11 @@ export class StagehandPage {
           "You seem to be referencing a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
         );
       },
+      waitForCaptcha: () => {
+        throw new Error(
+          "You seem to be calling `waitForCaptcha` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
+        );
+      },
     });
     this.stagehand = stagehand;
     this.intContext = context;
@@ -146,12 +151,26 @@ export class StagehandPage {
     await this._waitForSettledDom();
   }
 
+  async waitForCaptcha(timeoutMs: number = 60_000) {
+    return new Promise<void>((resolve, reject) => {
+      setTimeout(() => {
+        reject(new Error("Captcha timeout"));
+      }, timeoutMs);
+
+      this.intPage.on("console", (msg) => {
+        if (msg.text() === "browserbase-solving-finished") {
+          resolve();
+        }
+      });
+    });
+  }
+
   async init(): Promise<StagehandPage> {
     const page = this.intPage;
     const stagehand = this.stagehand;
     this.intPage = new Proxy(page, {
       get: (target, prop) => {
-        if (prop === "goto")
+        if (prop === "goto") {
           return async (url: string, options: GotoOptions) => {
             const result = this.api
               ? await this.api.goto(url, options)
@@ -171,8 +190,9 @@ export class StagehandPage {
             }
             return result;
           };
-
-        if (this.llmClient) {
+        } else if (prop === "waitForCaptcha") {
+          return this.waitForCaptcha;
+        } else if (this.llmClient) {
           if (prop === "act") {
             return async (options: ActOptions) => {
               return this.act(options);
