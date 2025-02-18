@@ -114,7 +114,7 @@ jobs:
         run: npm run e2e
 
   run-e2e-local-tests:
-    needs: [ run-lint, run-build ]
+    needs: [run-lint, run-build]
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
