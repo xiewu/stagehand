@@ -11,13 +11,9 @@ import StagehandConfig from "@/stagehand.config";
 async function example() {
   const stagehand = new Stagehand({
     ...StagehandConfig,
-    modelName: "gpt-4o-2024-11-20",
-    env: "LOCAL",
   });
   await stagehand.init();
-  await stagehand.page.goto("https://www.google.com");
-  await stagehand.page.act("type 'browserbase' into the search bar");
-  await stagehand.page.act("click the search button");
+  await stagehand.page.goto("https://docs.stagehand.dev");
 }
 
 (async () => {
