@@ -11,10 +11,13 @@ import StagehandConfig from "@/stagehand.config";
 async function example() {
   const stagehand = new Stagehand({
     ...StagehandConfig,
-    modelName: "o3-mini",
+    modelName: "gpt-4o-2024-11-20",
+    env: "LOCAL",
   });
   await stagehand.init();
   await stagehand.page.goto("https://www.google.com");
+  await stagehand.page.act("type 'browserbase' into the search bar");
+  await stagehand.page.act("click the search button");
 }
 
 (async () => {
