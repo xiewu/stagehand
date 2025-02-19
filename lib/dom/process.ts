@@ -382,7 +382,7 @@ export function createTextBoundingBoxes(): void {
   document.querySelectorAll("iframe").forEach((iframe) => {
     try {
       iframe.contentWindow?.postMessage({ action: "highlight" }, "*");
-    } catch (error) {
+    } catch {
       // console.error("Error accessing iframe content: ", error);
     }
   });
