@@ -73,7 +73,7 @@ export abstract class StagehandContainer {
     candidateContainer?: HTMLElement,
   ): Promise<DomChunk[]> {
     const chunks: DomChunk[] = [];
-    const maxOffset = this.getScrollHeight() - this.getViewportHeight();
+    const maxOffset = this.getScrollHeight();
     const finalEnd = Math.min(endOffset, maxOffset);
     let index = 0;
 

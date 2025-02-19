@@ -234,7 +234,7 @@ export async function processAllOfDom(xpath?: string) {
   const viewportHeight = scrollTarget.getViewportHeight();
   const maxScroll = candidateElementContainer
     ? startOffset + candidateElementContainer.getBoundingClientRect().height
-    : scrollTarget.getScrollHeight() - scrollTarget.getViewportHeight();
+    : scrollTarget.getScrollHeight();
   const chunkSize = viewportHeight;
 
   console.log("processAllOfDom chunk-based from", startOffset, "to", maxScroll);
