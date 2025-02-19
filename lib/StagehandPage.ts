@@ -152,6 +152,12 @@ export class StagehandPage {
   }
 
   async waitForCaptcha(timeoutMs?: number) {
+    if (this.stagehand.env === "LOCAL") {
+      throw new Error(
+        "The waitForCaptcha method may only be used when using the Browserbase environment.",
+      );
+    }
+
     this.stagehand.log({
       category: "captcha",
       message: "Waiting for captcha",
