@@ -151,15 +151,34 @@ export class StagehandPage {
     await this._waitForSettledDom();
   }
 
-  async waitForCaptcha(timeoutMs: number = 60_000) {
+  async waitForCaptcha(timeoutMs?: number) {
+    this.stagehand.log({
+      category: "captcha",
+      message: "Waiting for captcha",
+      level: 1,
+    });
+
     return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        reject(new Error("Captcha timeout"));
-      }, timeoutMs);
+      if (timeoutMs) {
+        setTimeout(() => {
+          reject(new Error("Captcha timeout"));
+        }, timeoutMs);
+      }
 
       this.intPage.on("console", (msg) => {
         if (msg.text() === "browserbase-solving-finished") {
+          this.stagehand.log({
+            category: "captcha",
+            message: "Captcha solving finished",
+            level: 1,
+          });
           resolve();
+        } else if (msg.text() === "browserbase-solving-started") {
+          this.stagehand.log({
+            category: "captcha",
+            message: "Captcha solving started",
+            level: 1,
+          });
         }
       });
     });
@@ -191,7 +210,9 @@ export class StagehandPage {
             return result;
           };
         } else if (prop === "waitForCaptcha") {
-          return this.waitForCaptcha;
+          return async () => {
+            await this.waitForCaptcha();
+          };
         } else if (this.llmClient) {
           if (prop === "act") {
             return async (options: ActOptions) => {
