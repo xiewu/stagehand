@@ -40,6 +40,7 @@ export class StagehandPage {
   private cdpClient: CDPSession | null = null;
   private api: StagehandAPI;
   private userProvidedInstructions?: string;
+  private waitForCaptchaSolves: boolean;
 
   constructor(
     page: PlaywrightPage,
@@ -48,6 +49,7 @@ export class StagehandPage {
     llmClient: LLMClient,
     userProvidedInstructions?: string,
     api?: StagehandAPI,
+    waitForCaptchaSolves?: boolean,
   ) {
     this.intPage = Object.assign(page, {
       act: () => {
@@ -81,6 +83,8 @@ export class StagehandPage {
     this.llmClient = llmClient;
     this.api = api;
     this.userProvidedInstructions = userProvidedInstructions;
+    this.waitForCaptchaSolves = waitForCaptchaSolves ?? false;
+
     if (this.llmClient) {
       this.actHandler = new StagehandActHandler({
         verbose: this.stagehand.verbose,
@@ -151,7 +155,15 @@ export class StagehandPage {
     await this._waitForSettledDom();
   }
 
-  async waitForCaptcha(timeoutMs?: number) {
+  /**
+   * Waits for a captcha to be solved when using Browserbase environment.
+   *
+   * @param timeoutMs - Optional timeout in milliseconds. If provided, the promise will reject if the captcha solving hasn't started within the given time.
+   * @throws Error if called in a LOCAL environment
+   * @throws Error if the timeout is reached before captcha solving starts
+   * @returns Promise that resolves when the captcha is solved
+   */
+  private async _waitForCaptcha(timeoutMs?: number) {
     if (this.stagehand.env === "LOCAL") {
       throw new Error(
         "The waitForCaptcha method may only be used when using the Browserbase environment.",
@@ -165,9 +177,14 @@ export class StagehandPage {
     });
 
     return new Promise<void>((resolve, reject) => {
+      let started = false;
+      let timeoutId: NodeJS.Timeout;
+
       if (timeoutMs) {
-        setTimeout(() => {
-          reject(new Error("Captcha timeout"));
+        timeoutId = setTimeout(() => {
+          if (!started) {
+            reject(new Error("Captcha timeout"));
+          }
         }, timeoutMs);
       }
 
@@ -178,8 +195,10 @@ export class StagehandPage {
             message: "Captcha solving finished",
             level: 1,
           });
+          if (timeoutId) clearTimeout(timeoutId);
           resolve();
         } else if (msg.text() === "browserbase-solving-started") {
+          started = true;
           this.stagehand.log({
             category: "captcha",
             message: "Captcha solving started",
@@ -201,6 +220,14 @@ export class StagehandPage {
               ? await this.api.goto(url, options)
               : await page.goto(url, options);
 
+            if (this.waitForCaptchaSolves) {
+              try {
+                await this._waitForCaptcha(1000);
+              } catch {
+                // ignore
+              }
+            }
+
             if (this.api) {
               await this._refreshPageFromAPI();
             } else {
@@ -214,10 +241,6 @@ export class StagehandPage {
               await this._waitForSettledDom();
             }
             return result;
-          };
-        } else if (prop === "waitForCaptcha") {
-          return async () => {
-            await this.waitForCaptcha();
           };
         } else if (this.llmClient) {
           if (prop === "act") {

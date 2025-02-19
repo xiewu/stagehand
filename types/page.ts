@@ -36,8 +36,6 @@ export interface Page extends Omit<PlaywrightPage, "on"> {
   on: {
     (event: "popup", listener: (page: Page) => unknown): Page;
   } & PlaywrightPage["on"];
-
-  waitForCaptcha(timeoutMs?: number): Promise<void>;
 }
 
 // Empty type for now, but will be used in the future
