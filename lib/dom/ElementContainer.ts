@@ -67,7 +67,7 @@ export class ElementContainer extends StagehandContainer {
     if (!element) {
       this.el.scrollTo({ top: 0, behavior: "smooth" });
     } else {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
+      element.scrollIntoView({ behavior: "smooth", block: "end" });
     }
     await this.waitForScrollEnd();
   }

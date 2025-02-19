@@ -59,10 +59,7 @@ export class GlobalPageContainer extends StagehandContainer {
     if (!element) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
-      const rect = element.getBoundingClientRect();
-      const currentY = window.scrollY || document.documentElement.scrollTop;
-      const elementY = currentY + rect.top;
-      window.scrollTo({ top: elementY, behavior: "smooth" });
+      element.scrollIntoView({ block: "end" });
     }
     await this.waitForScrollEnd();
   }
