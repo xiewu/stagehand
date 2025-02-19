@@ -72,12 +72,8 @@ export class StagehandPage {
           "You seem to be referencing a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
         );
       },
-      waitForCaptcha: () => {
-        throw new Error(
-          "You seem to be calling `waitForCaptcha` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
-        );
-      },
     });
+
     this.stagehand = stagehand;
     this.intContext = context;
     this.llmClient = llmClient;
@@ -96,6 +92,7 @@ export class StagehandPage {
         llmClient: llmClient,
         userProvidedInstructions,
         selfHeal: this.stagehand.selfHeal,
+        waitForCaptchaSolves: this.waitForCaptchaSolves,
       });
       this.extractHandler = new StagehandExtractHandler({
         stagehand: this.stagehand,
@@ -163,7 +160,7 @@ export class StagehandPage {
    * @throws Error if the timeout is reached before captcha solving starts
    * @returns Promise that resolves when the captcha is solved
    */
-  private async _waitForCaptcha(timeoutMs?: number) {
+  public async waitForCaptchaSolve(timeoutMs?: number) {
     if (this.stagehand.env === "LOCAL") {
       throw new Error(
         "The waitForCaptcha method may only be used when using the Browserbase environment.",
@@ -222,7 +219,7 @@ export class StagehandPage {
 
             if (this.waitForCaptchaSolves) {
               try {
-                await this._waitForCaptcha(1000);
+                await this.waitForCaptchaSolve(1000);
               } catch {
                 // ignore
               }
