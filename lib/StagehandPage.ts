@@ -19,7 +19,7 @@ import { StagehandExtractHandler } from "./handlers/extractHandler";
 import { StagehandObserveHandler } from "./handlers/observeHandler";
 import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
 import { LLMClient } from "./llm/LLMClient";
-import { StagehandContext } from "./StagehandContext";
+import { StagehandContext, EnhancedContext } from "./StagehandContext";
 import { clearOverlays } from "./utils";
 
 const BROWSERBASE_REGION_DOMAIN = {
@@ -305,7 +305,7 @@ export class StagehandPage {
     return this.intPage;
   }
 
-  public get context(): PlaywrightContext {
+  public get context(): EnhancedContext {
     return this.intContext.context;
   }
 
