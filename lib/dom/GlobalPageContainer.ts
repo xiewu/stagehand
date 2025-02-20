@@ -31,7 +31,7 @@ export class GlobalPageContainer extends StagehandContainer {
   }
 
   public getScrollPosition(): number {
-    return window.scrollY || document.documentElement.scrollTop;
+    return window.scrollY;
   }
 
   /**
@@ -61,7 +61,7 @@ export class GlobalPageContainer extends StagehandContainer {
     } else {
       const rect = element.getBoundingClientRect();
       const currentY = window.scrollY || document.documentElement.scrollTop;
-      const elementY = currentY + rect.top;
+      const elementY = currentY + rect.top - window.innerHeight * 0.25;
       window.scrollTo({ top: elementY, behavior: "smooth" });
     }
     await this.waitForScrollEnd();
