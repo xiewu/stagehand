@@ -551,7 +551,7 @@ export class Stagehand {
       });
     this.intEnv = env;
     this.contextPath = contextPath;
-    
+
     this.stagehandContext = await StagehandContext.init(context, this);
 
     const defaultPage = (await this.stagehandContext.getStagehandPages())[0];

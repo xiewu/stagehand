@@ -1,10 +1,14 @@
-import type { BrowserContext as PlaywrightContext, Page as PlaywrightPage } from "@playwright/test";
+import type {
+  BrowserContext as PlaywrightContext,
+  Page as PlaywrightPage,
+} from "@playwright/test";
 import { Stagehand } from "./index";
 import { StagehandPage } from "./StagehandPage";
 import { Page } from "../types/page";
 
 // Define the enhanced context type that includes our modified methods
-export interface EnhancedContext extends Omit<PlaywrightContext, 'newPage' | 'pages'> {
+export interface EnhancedContext
+  extends Omit<PlaywrightContext, "newPage" | "pages"> {
   newPage(): Promise<Page>;
   pages(): Page[];
 }
@@ -21,14 +25,14 @@ export class StagehandContext {
     // Create proxy around the context
     this.intContext = new Proxy(context, {
       get: (target, prop) => {
-        if (prop === 'newPage') {
+        if (prop === "newPage") {
           return async (): Promise<Page> => {
             const pwPage = await target.newPage();
             const stagehandPage = await this.createStagehandPage(pwPage);
             return stagehandPage.page;
           };
         }
-        if (prop === 'pages') {
+        if (prop === "pages") {
           return (): Page[] => {
             const pwPages = target.pages();
             // Convert all pages to StagehandPages synchronously
@@ -52,11 +56,13 @@ export class StagehandContext {
           };
         }
         return target[prop as keyof PlaywrightContext];
-      }
+      },
     }) as unknown as EnhancedContext;
   }
 
-  private async createStagehandPage(page: PlaywrightPage): Promise<StagehandPage> {
+  private async createStagehandPage(
+    page: PlaywrightPage,
+  ): Promise<StagehandPage> {
     const stagehandPage = await new StagehandPage(
       page,
       this.stagehand,
@@ -75,13 +81,13 @@ export class StagehandContext {
     stagehand: Stagehand,
   ): Promise<StagehandContext> {
     const instance = new StagehandContext(context, stagehand);
-    
+
     // Initialize existing pages
     const existingPages = context.pages();
     for (const page of existingPages) {
       await instance.createStagehandPage(page);
     }
-    
+
     return instance;
   }
 
@@ -99,6 +105,8 @@ export class StagehandContext {
 
   public async getStagehandPages(): Promise<StagehandPage[]> {
     const pwPages = this.intContext.pages();
-    return Promise.all(pwPages.map((page: PlaywrightPage) => this.getStagehandPage(page)));
+    return Promise.all(
+      pwPages.map((page: PlaywrightPage) => this.getStagehandPage(page)),
+    );
   }
 }
