@@ -15,7 +15,8 @@ import { StagehandExtractHandler } from "./handlers/extractHandler";
 import { StagehandObserveHandler } from "./handlers/observeHandler";
 import { ActOptions, ActResult, GotoOptions, Stagehand } from "./index";
 import { LLMClient } from "./llm/LLMClient";
-import { StagehandContext, EnhancedContext } from "./StagehandContext";
+import { StagehandContext } from "./StagehandContext";
+import { EnhancedContext } from "../types/context";
 import { clearOverlays } from "./utils";
 
 const BROWSERBASE_REGION_DOMAIN = {
@@ -52,7 +53,7 @@ export class StagehandPage {
       get: (target: PlaywrightPage, prop: keyof PlaywrightPage) => {
         const value = target[prop];
         // If the property is a function, wrap it to update active page before execution
-        if (typeof value === 'function' && prop !== 'on') {
+        if (typeof value === "function" && prop !== "on") {
           return (...args: unknown[]) => {
             // Update active page before executing the method
             this.intContext.setActivePage(this);
@@ -60,7 +61,7 @@ export class StagehandPage {
           };
         }
         return value;
-      }
+      },
     }) as Page;
 
     // Add enhanced methods
@@ -222,7 +223,7 @@ export class StagehandPage {
   async init(): Promise<StagehandPage> {
     const page = this.intPage;
     const stagehand = this.stagehand;
-    
+
     // Create a proxy that updates active page on method calls
     const handler = {
       get: (target: PlaywrightPage, prop: string | symbol) => {
@@ -237,12 +238,21 @@ export class StagehandPage {
               );
             };
           }
-          
-          // Use type assertion to safely call the method
-          const method = this[prop as keyof StagehandPage] as Function;
-          return async (...args: unknown[]) => {
+
+          // Use type assertion to safely call the method with proper typing
+          type EnhancedMethod = (
+            options:
+              | ActOptions
+              | ExtractOptions<z.AnyZodObject>
+              | ObserveOptions,
+          ) => Promise<
+            ActResult | ExtractResult<z.AnyZodObject> | ObserveResult[]
+          >;
+
+          const method = this[prop as keyof StagehandPage] as EnhancedMethod;
+          return async (options: unknown) => {
             this.intContext.setActivePage(this);
-            return method.apply(this, args);
+            return method.call(this, options);
           };
         }
 
@@ -280,7 +290,10 @@ export class StagehandPage {
 
         // Handle event listeners
         if (prop === "on") {
-          return (event: keyof PlaywrightPage["on"], listener: (...args: any[]) => void) => {
+          return (
+            event: keyof PlaywrightPage["on"],
+            listener: Parameters<PlaywrightPage["on"]>[1],
+          ) => {
             if (event === "popup") {
               return this.context.on("page", async (page: PlaywrightPage) => {
                 const newContext = await StagehandContext.init(
@@ -299,12 +312,12 @@ export class StagehandPage {
               });
             }
             this.intContext.setActivePage(this);
-            return target.on(event, listener as any);
+            return target.on(event, listener);
           };
         }
 
         // For all other method calls, update active page
-        if (typeof value === 'function') {
+        if (typeof value === "function") {
           return (...args: unknown[]) => {
             this.intContext.setActivePage(this);
             return value.apply(target, args);
@@ -312,7 +325,7 @@ export class StagehandPage {
         }
 
         return value;
-      }
+      },
     };
 
     this.intPage = new Proxy(page, handler) as unknown as Page;

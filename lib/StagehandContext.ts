@@ -5,13 +5,7 @@ import type {
 import { Stagehand } from "./index";
 import { StagehandPage } from "./StagehandPage";
 import { Page } from "../types/page";
-
-// Define the enhanced context type that includes our modified methods
-export interface EnhancedContext
-  extends Omit<PlaywrightContext, "newPage" | "pages"> {
-  newPage(): Promise<Page>;
-  pages(): Page[];
-}
+import { EnhancedContext } from "../types/context";
 
 export class StagehandContext {
   private readonly stagehand: Stagehand;

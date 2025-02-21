@@ -199,7 +199,7 @@ test.describe("StagehandContext - Multi-page Support", () => {
    */
   test("should update stagehand.page when creating new pages", async () => {
     const initialPage = stagehand.page;
-    
+
     // Create a new page and verify it becomes active
     const newPage = await stagehand.context.newPage();
     expect(stagehand.page).toBe(newPage);
