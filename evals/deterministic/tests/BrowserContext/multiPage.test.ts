@@ -2,7 +2,6 @@ import { test, expect } from "@playwright/test";
 import { Stagehand } from "@/dist";
 import StagehandConfig from "@/evals/deterministic/stagehand.config";
 import { Page } from "../../../../types/page";
-import { z } from "zod";
 
 import http from "http";
 import express from "express";
