@@ -17,6 +17,7 @@ export class StagehandContext {
   private readonly stagehand: Stagehand;
   private readonly intContext: EnhancedContext;
   private pageMap: WeakMap<PlaywrightPage, StagehandPage>;
+  private activeStagehandPage: StagehandPage | null = null;
 
   private constructor(context: PlaywrightContext, stagehand: Stagehand) {
     this.stagehand = stagehand;
@@ -29,6 +30,8 @@ export class StagehandContext {
           return async (): Promise<Page> => {
             const pwPage = await target.newPage();
             const stagehandPage = await this.createStagehandPage(pwPage);
+            // Set as active page when created
+            this.setActivePage(stagehandPage);
             return stagehandPage.page;
           };
         }
@@ -85,7 +88,11 @@ export class StagehandContext {
     // Initialize existing pages
     const existingPages = context.pages();
     for (const page of existingPages) {
-      await instance.createStagehandPage(page);
+      const stagehandPage = await instance.createStagehandPage(page);
+      // Set the first page as active
+      if (!instance.activeStagehandPage) {
+        instance.setActivePage(stagehandPage);
+      }
     }
 
     return instance;
@@ -100,6 +107,8 @@ export class StagehandContext {
     if (!stagehandPage) {
       stagehandPage = await this.createStagehandPage(page);
     }
+    // Update active page when getting a page
+    this.setActivePage(stagehandPage);
     return stagehandPage;
   }
 
@@ -108,5 +117,15 @@ export class StagehandContext {
     return Promise.all(
       pwPages.map((page: PlaywrightPage) => this.getStagehandPage(page)),
     );
+  }
+
+  public setActivePage(page: StagehandPage): void {
+    this.activeStagehandPage = page;
+    // Update the stagehand's active page reference
+    this.stagehand.setActivePage(page);
+  }
+
+  public getActivePage(): StagehandPage | null {
+    return this.activeStagehandPage;
   }
 }

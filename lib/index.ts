@@ -392,6 +392,10 @@ export class Stagehand {
     return this.waitForCaptchaSolves;
   }
 
+  public setActivePage(page: StagehandPage): void {
+    this.stagehandPage = page;
+  }
+
   public get page(): Page {
     if (!this.stagehandContext) {
       throw new Error(
