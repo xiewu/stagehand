@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { Stagehand } from "../../../../lib";
+import { Stagehand } from "@/dist";
+import StagehandConfig from "@/evals/deterministic/stagehand.config";
 import { Page } from "../../../../types/page";
 import { z } from "zod";
 
@@ -64,7 +65,7 @@ test.describe("StagehandContext - Multi-page Support", () => {
   });
 
   test.beforeEach(async () => {
-    stagehand = new Stagehand({ env: "LOCAL" });
+    stagehand = new Stagehand(StagehandConfig);
     await stagehand.init();
   });
 
