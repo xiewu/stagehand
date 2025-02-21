@@ -224,6 +224,12 @@ export class StagehandPage {
     const page = this.intPage;
     const stagehand = this.stagehand;
 
+    // Clean up the throwing methods before creating the new proxy
+    delete this.intPage.on;
+    delete this.intPage.act;
+    delete this.intPage.extract;
+    delete this.intPage.observe;
+
     // Create a proxy that updates active page on method calls
     const handler = {
       get: (target: PlaywrightPage, prop: string | symbol) => {
