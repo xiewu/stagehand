@@ -442,8 +442,8 @@ export class Stagehand {
     if (isRunningInBun()) {
       throw new Error(
         "Playwright does not currently support the Bun runtime environment. " +
-        "Please use Node.js instead. For more information, see: " +
-        "https://github.com/microsoft/playwright/issues/27139"
+          "Please use Node.js instead. For more information, see: " +
+          "https://github.com/microsoft/playwright/issues/27139",
       );
     }
 
