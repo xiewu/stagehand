@@ -7,6 +7,7 @@ import os from "os";
 import path from "path";
 import { z } from "zod";
 import { BrowserResult } from "../types/browser";
+import { EnhancedContext } from "../types/context";
 import { LogLine } from "../types/log";
 import { AvailableModel } from "../types/model";
 import { BrowserContext, Page } from "../types/page";
@@ -25,7 +26,7 @@ import {
   ObserveOptions,
   ObserveResult,
 } from "../types/stagehand";
-import { StagehandContext, EnhancedContext } from "./StagehandContext";
+import { StagehandContext } from "./StagehandContext";
 import { StagehandPage } from "./StagehandPage";
 import { StagehandAPI } from "./api";
 import { scriptContent } from "./dom/build/scriptContent";
