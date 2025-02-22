@@ -175,7 +175,10 @@ export class StagehandAPI {
             this.logger(eventData.data.message);
           }
         } catch (e) {
-          console.error("Error parsing event data:", e);
+          if (e instanceof Error) {
+            throw new Error(e.message);
+          }
+
           throw new Error("Failed to parse server response");
         }
       }
@@ -207,6 +210,16 @@ export class StagehandAPI {
         ...options.headers,
       },
     });
+
+    if (response.status === 409) {
+      throw new Error(
+        "A request to the Stagehand API is already in progress. Please wait for the current action to complete before triggering another.",
+      );
+    } else if (response.status === 500) {
+      throw new Error(
+        "An error occurred while processing your request. Please try again.",
+      );
+    }
 
     return response;
   }
