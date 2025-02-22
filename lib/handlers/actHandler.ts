@@ -541,12 +541,10 @@ export class StagehandActHandler {
         await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
       }
 
-      await Promise.race([
-        this.stagehandPage.page.waitForLoadState("networkidle"),
-      ]).catch((e) => {
+      await this.stagehandPage._waitForSettledDom().catch((e) => {
         this.logger({
           category: "action",
-          message: "network idle timeout hit",
+          message: "wait for settled dom timeout hit",
           level: 1,
           auxiliary: {
             trace: {
