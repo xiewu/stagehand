@@ -32,6 +32,7 @@ export abstract class StagehandContainer {
    * @param startOffset - The initial scroll offset from which to begin collecting.
    * @param endOffset - The maximum scroll offset to collect up to.
    * @param chunkSize - The vertical increment to move between each chunk.
+   * @param scrollTo - Whether we should scroll to the chunk
    * @param scrollBackToTop - Whether to scroll the container back to the top once finished.
    * @param candidateContainer - Optionally, a specific container element within
    * the root for which to collect data. If omitted, uses `this.getRootElement()`.
@@ -69,6 +70,7 @@ export abstract class StagehandContainer {
     startOffset: number,
     endOffset: number,
     chunkSize: number,
+    scrollTo: boolean = true,
     scrollBackToTop: boolean = true,
     candidateContainer?: HTMLElement,
   ): Promise<DomChunk[]> {
@@ -79,7 +81,9 @@ export abstract class StagehandContainer {
 
     for (let current = startOffset; current <= finalEnd; current += chunkSize) {
       // Move the container's scroll position
-      await this.scrollTo(current);
+      if (scrollTo) {
+        await this.scrollTo(current);
+      }
 
       // Collect the candidate elements at this offset
       const rootCandidate =
