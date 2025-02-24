@@ -13,7 +13,7 @@ export async function debugDom() {
   // 3) If we only want one chunk,
   //    define startOffset = chunkNumber * chunkSize,
   //    and set endOffset = startOffset => exactly 1 iteration
-  const startOffset = window.chunkNumber * chunkSize;
+  const startOffset = container.getScrollPosition();
   const endOffset = startOffset;
 
   // 4) BFS with collectAllDomChunks for exactly 1 chunk
@@ -21,6 +21,7 @@ export async function debugDom() {
     startOffset,
     endOffset,
     chunkSize,
+    false,
     false, // Don't scroll back to top
     undefined, // BFS entire doc
   );

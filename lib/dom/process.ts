@@ -205,6 +205,7 @@ export async function processAllOfDom(xpath?: string) {
           startOffset, // endOffset => same as start => 1 chunk
           1, // chunkSize=1 => doesn't matter, because start==end means exactly 1 iteration
           true,
+          true,
           candidateElementContainer,
         );
 
@@ -243,6 +244,7 @@ export async function processAllOfDom(xpath?: string) {
     startOffset,
     maxScroll,
     chunkSize,
+    true,
     true,
     candidateElementContainer ?? undefined,
   );
