@@ -125,6 +125,7 @@ export async function processDom(chunksSeen: number[]) {
     startOffset,
     endOffset,
     chunkSize,
+    true,
     false, // scrollBackToTop
     undefined, // BFS entire doc
   );
