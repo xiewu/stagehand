@@ -5,10 +5,13 @@ import { z } from "zod";
 export const AvailableModelSchema = z.enum([
   "gpt-4o",
   "gpt-4o-mini",
+  "gpt-4o-2024-11-20",
   "gpt-4o-2024-08-06",
+  "gpt-4o-2024-05-13",
   "claude-3-5-sonnet-latest",
   "claude-3-5-sonnet-20241022",
   "claude-3-5-sonnet-20240620",
+  "claude-3-7-sonnet-20250219",
   "o1-mini",
   "o1-preview",
   "o3-mini",

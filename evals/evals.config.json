@@ -241,6 +241,14 @@
       "categories": ["observe"]
     },
     {
+      "name": "observe_iframes1",
+      "categories": ["observe"]
+    },
+    {
+      "name": "observe_iframes2",
+      "categories": ["observe"]
+    },
+    {
       "name": "extract_hamilton_weather",
       "categories": ["text_extract"]
     },
