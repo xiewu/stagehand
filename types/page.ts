@@ -24,11 +24,9 @@ export interface Page extends Omit<PlaywrightPage, "on"> {
 
   extract(
     instruction: string,
-    observeResult?: ObserveResult,
   ): Promise<ExtractResult<typeof defaultExtractSchema>>;
   extract<T extends z.AnyZodObject>(
     options: ExtractOptions<T>,
-    observeResult?: ObserveResult,
   ): Promise<ExtractResult<T>>;
 
   observe(): Promise<ObserveResult[]>;
