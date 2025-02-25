@@ -116,7 +116,7 @@ export class StagehandExtractHandler {
     requestId,
     domSettleTimeoutMs,
     useTextExtract = false,
-    xpath,
+    selector,
   }: {
     instruction: string;
     schema: T;
@@ -126,7 +126,7 @@ export class StagehandExtractHandler {
     requestId?: string;
     domSettleTimeoutMs?: number;
     useTextExtract?: boolean;
-    xpath?: string;
+    selector?: string;
   }): Promise<z.infer<T>> {
     if (useTextExtract) {
       return this.textExtract({
@@ -136,7 +136,7 @@ export class StagehandExtractHandler {
         llmClient,
         requestId,
         domSettleTimeoutMs,
-        xpath,
+        selector,
       });
     } else {
       return this.domExtract({
@@ -158,7 +158,7 @@ export class StagehandExtractHandler {
     llmClient,
     requestId,
     domSettleTimeoutMs,
-    xpath,
+    selector,
   }: {
     instruction: string;
     schema: T;
@@ -166,7 +166,7 @@ export class StagehandExtractHandler {
     llmClient: LLMClient;
     requestId?: string;
     domSettleTimeoutMs?: number;
-    xpath?: string;
+    selector?: string;
   }): Promise<z.infer<T>> {
     this.logger({
       category: "extraction",
@@ -184,7 +184,7 @@ export class StagehandExtractHandler {
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
     await this.stagehandPage.startDomDebug();
 
-    const targetXpath = xpath;
+    const targetXpath = selector;
 
     // **2:** Store the original DOM before any mutations
     // we need to store the original DOM here because calling createTextBoundingBoxes()

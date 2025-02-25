@@ -37,7 +37,7 @@ export const extract_regulations_table: EvalFunction = async ({
       }),
       modelName,
       useTextExtract,
-      xpath: xpath,
+      selector: xpath,
     });
 
     // Define the expected weather data

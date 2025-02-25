@@ -568,12 +568,12 @@ export class StagehandPage {
       modelClientOptions,
       domSettleTimeoutMs,
       useTextExtract,
-      xpath,
+      selector,
     } = options;
 
     // Throw a NotImplementedError if the user passed in an `xpath`
     // and `useTextExtract` is false
-    if (xpath && useTextExtract !== true) {
+    if (selector && useTextExtract !== true) {
       throw new Error(
         "NotImplementedError: Passing an xpath into extract is only supported when `useTextExtract: true`.",
       );
@@ -616,7 +616,7 @@ export class StagehandPage {
         requestId,
         domSettleTimeoutMs,
         useTextExtract,
-        xpath,
+        selector,
       })
       .catch((e) => {
         this.stagehand.log({

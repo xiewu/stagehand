@@ -31,7 +31,7 @@ export const extract_hamilton_weather: EvalFunction = async ({
       }),
       modelName,
       useTextExtract,
-      xpath: xpath,
+      selector: xpath,
     });
 
     // Define the expected weather data
