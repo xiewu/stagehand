@@ -377,7 +377,7 @@ export class Stagehand {
   private localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   public readonly selfHeal: boolean;
 
-  public setActivePage(page: StagehandPage): void {
+  protected setActivePage(page: StagehandPage): void {
     this.stagehandPage = page;
   }
 
