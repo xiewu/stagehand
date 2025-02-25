@@ -1,7 +1,6 @@
 import { EvalFunction } from "@/types/evals";
 import { initStagehand } from "@/evals/initStagehand";
 import { z } from "zod";
-import { ObserveResult } from "@/types/stagehand";
 
 export const extract_hamilton_weather: EvalFunction = async ({
   modelName,
@@ -17,29 +16,23 @@ export const extract_hamilton_weather: EvalFunction = async ({
 
   try {
     await stagehand.page.goto("https://hamilton-weather.surge.sh/");
+    const xpath =
+      "/html/body[1]/div[5]/main[1]/article[1]/div[6]/div[2]/div[1]/table[1]";
 
-    const observation: ObserveResult = {
-      selector:
-        "xpath=/html/body[1]/div[5]/main[1]/article[1]/div[6]/div[2]/div[1]/table[1]",
-      description: "",
-    };
-
-    const weatherData = await stagehand.page.extract(
-      {
-        instruction: "extract the weather data for Sun, Feb 23 at 11PM",
-        schema: z.object({
-          temperature: z.string(),
-          weather_description: z.string(),
-          wind: z.string(),
-          humidity: z.string(),
-          barometer: z.string(),
-          visibility: z.string(),
-        }),
-        modelName,
-        useTextExtract,
-      },
-      observation,
-    );
+    const weatherData = await stagehand.page.extract({
+      instruction: "extract the weather data for Sun, Feb 23 at 11PM",
+      schema: z.object({
+        temperature: z.string(),
+        weather_description: z.string(),
+        wind: z.string(),
+        humidity: z.string(),
+        barometer: z.string(),
+        visibility: z.string(),
+      }),
+      modelName,
+      useTextExtract,
+      xpath: xpath,
+    });
 
     // Define the expected weather data
     const expectedWeatherData = {

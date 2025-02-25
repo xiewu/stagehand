@@ -248,9 +248,8 @@ export class StagehandPage {
           if (prop === "extract") {
             return async (
               instructionOrOptions: string | ExtractOptions<z.AnyZodObject>,
-              observeResult?: ObserveResult,
             ) => {
-              return this.extract(instructionOrOptions, observeResult);
+              return this.extract(instructionOrOptions);
             };
           }
           if (prop === "observe") {
@@ -547,7 +546,6 @@ export class StagehandPage {
 
   async extract<T extends z.AnyZodObject = typeof defaultExtractSchema>(
     instructionOrOptions: string | ExtractOptions<T>,
-    observeResult?: ObserveResult,
   ): Promise<ExtractResult<T>> {
     if (!this.extractHandler) {
       throw new Error("Extract handler not initialized");
@@ -570,13 +568,14 @@ export class StagehandPage {
       modelClientOptions,
       domSettleTimeoutMs,
       useTextExtract,
+      xpath,
     } = options;
 
-    // Throw a NotImplementedError if the user passed in an `ObserveResult`
+    // Throw a NotImplementedError if the user passed in an `xpath`
     // and `useTextExtract` is false
-    if (observeResult && useTextExtract !== true) {
+    if (xpath && useTextExtract !== true) {
       throw new Error(
-        "NotImplementedError: Passing an ObserveResult into extract is only supported when `useTextExtract: true`.",
+        "NotImplementedError: Passing an xpath into extract is only supported when `useTextExtract: true`.",
       );
     }
 
@@ -617,7 +616,7 @@ export class StagehandPage {
         requestId,
         domSettleTimeoutMs,
         useTextExtract,
-        observation: observeResult,
+        xpath,
       })
       .catch((e) => {
         this.stagehand.log({

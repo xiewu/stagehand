@@ -5,7 +5,7 @@ import { extract } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { formatText } from "../utils";
 import { StagehandPage } from "../StagehandPage";
-import { ObserveResult, Stagehand } from "../index";
+import { Stagehand } from "../index";
 
 const PROXIMITY_THRESHOLD = 15;
 
@@ -116,7 +116,7 @@ export class StagehandExtractHandler {
     requestId,
     domSettleTimeoutMs,
     useTextExtract = false,
-    observation,
+    xpath,
   }: {
     instruction: string;
     schema: T;
@@ -126,7 +126,7 @@ export class StagehandExtractHandler {
     requestId?: string;
     domSettleTimeoutMs?: number;
     useTextExtract?: boolean;
-    observation?: ObserveResult;
+    xpath?: string;
   }): Promise<z.infer<T>> {
     if (useTextExtract) {
       return this.textExtract({
@@ -136,7 +136,7 @@ export class StagehandExtractHandler {
         llmClient,
         requestId,
         domSettleTimeoutMs,
-        observation,
+        xpath,
       });
     } else {
       return this.domExtract({
@@ -158,7 +158,7 @@ export class StagehandExtractHandler {
     llmClient,
     requestId,
     domSettleTimeoutMs,
-    observation,
+    xpath,
   }: {
     instruction: string;
     schema: T;
@@ -166,7 +166,7 @@ export class StagehandExtractHandler {
     llmClient: LLMClient;
     requestId?: string;
     domSettleTimeoutMs?: number;
-    observation?: ObserveResult;
+    xpath?: string;
   }): Promise<z.infer<T>> {
     this.logger({
       category: "extraction",
@@ -184,8 +184,7 @@ export class StagehandExtractHandler {
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
     await this.stagehandPage.startDomDebug();
 
-    // If the observation has a selector in the form "xpath=...", strip off that prefix
-    const targetXpath = observation?.selector?.replace(/^xpath=/, "");
+    const targetXpath = xpath;
 
     // **2:** Store the original DOM before any mutations
     // we need to store the original DOM here because calling createTextBoundingBoxes()

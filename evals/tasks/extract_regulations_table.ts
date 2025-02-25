@@ -1,7 +1,6 @@
 import { EvalFunction } from "@/types/evals";
 import { initStagehand } from "@/evals/initStagehand";
 import { z } from "zod";
-import { ObserveResult } from "@/types/stagehand";
 
 export const extract_regulations_table: EvalFunction = async ({
   modelName,
@@ -20,31 +19,26 @@ export const extract_regulations_table: EvalFunction = async ({
       "https://www.ncc.gov.ng/technical-regulation/standards/numbering",
     );
 
-    const observation: ObserveResult = {
-      selector:
-        "xpath=/html/body/div[2]/section[4]/div/div/div[1]/main/div[2]/div/div/div/div/div/div/div[2]/div[2]/div[3]/div[1]",
-      description: "",
-    };
+    const xpath =
+      "/html/body/div[2]/section[4]/div/div/div[1]/main/div[2]/div/div/div/div/div/div/div[2]/div[2]/div[3]/div[1]";
 
-    const allottees = await stagehand.page.extract(
-      {
-        instruction:
-          "Extract ALL of the Allottees and their corresponding name, area, and area code.",
-        schema: z.object({
-          allottee_list: z.array(
-            z.object({
-              allottee_name: z.string(),
-              area: z.string(),
-              area_code: z.string(),
-              access_code: z.string(),
-            }),
-          ),
-        }),
-        modelName,
-        useTextExtract,
-      },
-      observation,
-    );
+    const allottees = await stagehand.page.extract({
+      instruction:
+        "Extract ALL of the Allottees and their corresponding name, area, and area code.",
+      schema: z.object({
+        allottee_list: z.array(
+          z.object({
+            allottee_name: z.string(),
+            area: z.string(),
+            area_code: z.string(),
+            access_code: z.string(),
+          }),
+        ),
+      }),
+      modelName,
+      useTextExtract,
+      xpath: xpath,
+    });
 
     // Define the expected weather data
     const allottees_expected_first = {
