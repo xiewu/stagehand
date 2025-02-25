@@ -41,10 +41,10 @@ export class StagehandContext {
                   pwPage,
                   this.stagehand,
                   this,
-                  this.stagehand.getLLMClient(),
-                  this.stagehand.getSystemPrompt(),
-                  this.stagehand.getAPIClient(),
-                  this.stagehand.getWaitForCaptchaSolves(),
+                  this.stagehand.llmClient,
+                  this.stagehand.userProvidedInstructions,
+                  this.stagehand.apiClient,
+                  this.stagehand.waitForCaptchaSolves,
                 );
                 this.pageMap.set(pwPage, stagehandPage);
               }
@@ -64,10 +64,10 @@ export class StagehandContext {
       page,
       this.stagehand,
       this,
-      this.stagehand.getLLMClient(),
-      this.stagehand.getSystemPrompt(),
-      this.stagehand.getAPIClient(),
-      this.stagehand.getWaitForCaptchaSolves(),
+      this.stagehand.llmClient,
+      this.stagehand.userProvidedInstructions,
+      this.stagehand.apiClient,
+      this.stagehand.waitForCaptchaSolves,
     ).init();
     this.pageMap.set(page, stagehandPage);
     return stagehandPage;
@@ -116,7 +116,7 @@ export class StagehandContext {
   public setActivePage(page: StagehandPage): void {
     this.activeStagehandPage = page;
     // Update the stagehand's active page reference
-    this.stagehand.setActivePage(page);
+    this.stagehand["setActivePage"](page);
   }
 
   public getActivePage(): StagehandPage | null {

@@ -368,30 +368,14 @@ export class Stagehand {
   private browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
   public variables: { [key: string]: unknown };
   private contextPath?: string;
-  private llmClient: LLMClient;
-  private userProvidedInstructions?: string;
+  public llmClient: LLMClient;
+  public readonly userProvidedInstructions?: string;
   private usingAPI: boolean;
   private modelName: AvailableModel;
-  private apiClient: StagehandAPI | undefined;
-  private waitForCaptchaSolves: boolean;
+  public apiClient: StagehandAPI | undefined;
+  public readonly waitForCaptchaSolves: boolean;
   private localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   public readonly selfHeal: boolean;
-
-  public getLLMClient(): LLMClient {
-    return this.llmClient;
-  }
-
-  public getSystemPrompt(): string | undefined {
-    return this.userProvidedInstructions;
-  }
-
-  public getAPIClient(): StagehandAPI | undefined {
-    return this.apiClient;
-  }
-
-  public getWaitForCaptchaSolves(): boolean {
-    return this.waitForCaptchaSolves;
-  }
 
   public setActivePage(page: StagehandPage): void {
     this.stagehandPage = page;

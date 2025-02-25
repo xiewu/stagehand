@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { Stagehand } from "@/dist";
 import StagehandConfig from "@/evals/deterministic/stagehand.config";
-import { Page } from "../../../../types/page";
+import { Page } from "@/dist";
 
 import http from "http";
 import express from "express";
@@ -206,63 +206,4 @@ test.describe("StagehandContext - Multi-page Support", () => {
     expect(stagehand.page).toBe(anotherPage);
     expect(stagehand.page).not.toBe(newPage);
   });
-
-  /**
-   * Test simultaneous operations on multiple pages THIS WILL FAIL
-   */
-  // test("should handle simultaneous operations on multiple pages", async () => {
-  //   // Create three pages
-  //   const page1 = await stagehand.page;
-  //   const page2 = await stagehand.context.newPage();
-  //   const page3 = await stagehand.context.newPage();
-
-  //   // Navigate each page to a different URL
-  //   await Promise.all([
-  //     page1.goto(`http://localhost:${serverPort}/page1`),
-  //     page2.goto(`http://localhost:${serverPort}/page2`),
-  //     page3.goto(`http://localhost:${serverPort}/page1`),
-  //   ]);
-
-  //   // Verify each page loaded correctly
-  //   expect(await page1.title()).toBe("Page 1");
-  //   expect(await page2.title()).toBe("Page 2");
-  //   expect(await page3.title()).toBe("Page 1");
-
-  //   // Perform simultaneous extractions on all pages
-  //   const schema = z.object({ heading: z.string() });
-  //   const [result1, result2, result3] = await Promise.all([
-  //     page1.extract({
-  //       instruction: "Get the heading text",
-  //       schema,
-  //       useTextExtract: true,
-  //     }),
-  //     page2.extract({
-  //       instruction: "Get the heading text",
-  //       schema,
-  //       useTextExtract: true,
-  //     }),
-  //     page3.extract({
-  //       instruction: "Get the heading text",
-  //       schema,
-  //       useTextExtract: true,
-  //     }),
-  //   ]);
-
-  //   // Verify extraction results
-  //   expect(result1.heading).toBe("Page 1 Content");
-  //   expect(result2.heading).toBe("Page 2 Content");
-  //   expect(result3.heading).toBe("Page 1 Content");
-
-  //   // The last page that completed its operation should be the active page
-  //   // Note: Since Promise.all operations complete in non-deterministic order,
-  //   // we can only verify that the active page is one of the three pages
-  //   expect([page1, page2, page3]).toContain(stagehand.page);
-
-  //   // Verify that subsequent operations on any page update the active page
-  //   await page1.click("body");
-  //   expect(stagehand.page).toBe(page1);
-
-  //   await page2.click("body");
-  //   expect(stagehand.page).toBe(page2);
-  // });
 });

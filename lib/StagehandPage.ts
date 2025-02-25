@@ -38,6 +38,7 @@ export class StagehandPage {
   private api: StagehandAPI;
   private userProvidedInstructions?: string;
   private waitForCaptchaSolves: boolean;
+  private initialized: boolean = false;
 
   constructor(
     page: PlaywrightPage,
@@ -51,6 +52,21 @@ export class StagehandPage {
     // Create a proxy to intercept all method calls and property access
     this.intPage = new Proxy(page, {
       get: (target: PlaywrightPage, prop: keyof PlaywrightPage) => {
+        // Special handling for our enhanced methods before initialization
+        if (
+          !this.initialized &&
+          (prop === ("act" as keyof Page) ||
+            prop === ("extract" as keyof Page) ||
+            prop === ("observe" as keyof Page) ||
+            prop === ("on" as keyof Page))
+        ) {
+          return () => {
+            throw new Error(
+              `You seem to be calling \`${String(prop)}\` on a page in an uninitialized \`Stagehand\` object. Ensure you are running \`await stagehand.init()\` on the Stagehand object before referencing the \`page\` object.`,
+            );
+          };
+        }
+
         const value = target[prop];
         // If the property is a function, wrap it to update active page before execution
         if (typeof value === "function" && prop !== "on") {
@@ -63,30 +79,6 @@ export class StagehandPage {
         return value;
       },
     }) as Page;
-
-    // Add enhanced methods
-    Object.assign(this.intPage, {
-      act: () => {
-        throw new Error(
-          "You seem to be calling `act` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
-        );
-      },
-      extract: () => {
-        throw new Error(
-          "You seem to be calling `extract` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
-        );
-      },
-      observe: () => {
-        throw new Error(
-          "You seem to be calling `observe` on a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
-        );
-      },
-      on: () => {
-        throw new Error(
-          "You seem to referencing a page in an uninitialized `Stagehand` object. Ensure you are running `await stagehand.init()` on the Stagehand object before referencing the `page` object.",
-        );
-      },
-    });
 
     this.stagehand = stagehand;
     this.intContext = context;
@@ -224,12 +216,6 @@ export class StagehandPage {
     const page = this.intPage;
     const stagehand = this.stagehand;
 
-    // Clean up the throwing methods before creating the new proxy
-    delete this.intPage.on;
-    delete this.intPage.act;
-    delete this.intPage.extract;
-    delete this.intPage.observe;
-
     // Create a proxy that updates active page on method calls
     const handler = {
       get: (target: PlaywrightPage, prop: string | symbol) => {
@@ -335,6 +321,7 @@ export class StagehandPage {
     };
 
     this.intPage = new Proxy(page, handler) as unknown as Page;
+    this.initialized = true;
     return this;
   }
 
