@@ -157,8 +157,8 @@ test.describe("StagehandPage - waitFor", () => {
     );
     await getStartedLink.click();
 
-    await page.waitForURL(/.*getting-started.*/);
-    expect(page.url()).toContain("/getting-started");
+    await page.waitForURL(/.*what-is-browserbase.*/);
+    expect(page.url()).toContain("/what-is-browserbase");
 
     await stagehand.close();
   });
