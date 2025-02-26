@@ -711,7 +711,21 @@ export class Stagehand {
 
   async close(): Promise<void> {
     if (this.apiClient) {
-      await this.apiClient.end();
+      try {
+        await this.apiClient.end();
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("Attempted to close session")
+        ) {
+          this.log({
+            category: "close",
+            message:
+              "Warning: attempted to end a session that is not currently active",
+            level: 0,
+          });
+        }
+      }
       return;
     } else {
       await this.context.close();
