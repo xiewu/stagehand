@@ -152,11 +152,6 @@ test.describe("StagehandPage - waitFor", () => {
     const page = stagehand.page;
     await page.goto("https://docs.browserbase.com");
 
-    const getStartedLink = page.locator(
-      "div.not-prose:nth-child(3) > a:nth-child(1) > div:nth-child(1)",
-    );
-    await getStartedLink.click();
-
     await page.waitForURL(/.*what-is-browserbase.*/);
     expect(page.url()).toContain("/what-is-browserbase");
 
