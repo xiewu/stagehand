@@ -501,8 +501,6 @@ export class StagehandPage {
         drawOverlay: true,
       });
 
-      console.log("\n\n\n\n\nobserveResults", observeResults, "\n\n\n\n\n");
-
       if (observeResults.length === 0) {
         return {
           success: false,
