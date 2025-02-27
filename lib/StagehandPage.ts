@@ -489,29 +489,7 @@ export class StagehandPage {
       : this.llmClient;
 
     if (!slowDomBasedAct) {
-      const observeResults = await this.observe({
-        instruction: `Find the action that is most relevant to the following action: ${action}. 
-		If the action is completely unrelated to a potential action to be taken on the page, return an empty array.
-		ONLY return one action. 
-		If multiple actions are relevant, return the most relevant one.`,
-        modelName,
-        modelClientOptions,
-        domSettleTimeoutMs,
-        returnAction: true,
-        drawOverlay: true,
-      });
-
-      if (observeResults.length === 0) {
-        return {
-          success: false,
-          message: `No observe results found for action: "${action}"`,
-          action: action,
-        };
-      }
-
-      const observeResult = observeResults[0];
-
-      return this.actHandler.actFromObserveResult(observeResult);
+      return this.actHandler.observeAct(action);
     }
 
     this.stagehand.log({
