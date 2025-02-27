@@ -538,26 +538,27 @@ export class StagehandActHandler {
         await newOpenedTab.close();
         await this.stagehandPage.page.goto(newOpenedTab.url());
         await this.stagehandPage.page.waitForLoadState("domcontentloaded");
-        await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
       }
 
-      await this.stagehandPage._waitForSettledDom().catch((e) => {
-        this.logger({
-          category: "action",
-          message: "wait for settled dom timeout hit",
-          level: 1,
-          auxiliary: {
-            trace: {
-              value: e.stack,
-              type: "string",
+      await this.stagehandPage
+        ._waitForSettledDom(domSettleTimeoutMs)
+        .catch((e) => {
+          this.logger({
+            category: "action",
+            message: "wait for settled dom timeout hit",
+            level: 1,
+            auxiliary: {
+              trace: {
+                value: e.stack,
+                type: "string",
+              },
+              message: {
+                value: e.message,
+                type: "string",
+              },
             },
-            message: {
-              value: e.message,
-              type: "string",
-            },
-          },
+          });
         });
-      });
 
       this.logger({
         category: "action",
