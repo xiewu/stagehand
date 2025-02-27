@@ -169,7 +169,10 @@ export class StagehandActHandler {
    */
   public async observeAct(instruction: string): Promise<ActResult> {
     const observeResults = await this.stagehandPage.observe(
-      `Find the most relevant element to perform an action on given the following action: ${instruction}. Provide an action for this element such as ${Object.values(SupportedPlaywrightAction).join(", ")}, or any other playwright locator method. Remember that to users, buttons and links look the same in most cases.`,
+      `Find the most relevant element to perform an action on given the following action: ${instruction}. 
+      Provide an action for this element such as ${Object.values(SupportedPlaywrightAction).join(", ")}, or any other playwright locator method. Remember that to users, buttons and links look the same in most cases.
+      If the action is completely unrelated to a potential action to be taken on the page, return an empty array. 
+      ONLY return one action. If multiple actions are relevant, return the most relevant one.`,
     );
     if (observeResults.length === 0) {
       return {
