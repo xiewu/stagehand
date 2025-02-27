@@ -18,7 +18,7 @@ import {
   ObserveOptions,
 } from "@/types/stagehand";
 import { SupportedPlaywrightAction } from "@/types/act";
-
+import { buildActObservePrompt } from "../prompt";
 /**
  * NOTE: Vision support has been removed from this version of Stagehand.
  * If useVision or verifierUseVision is set to true, a warning is logged and
@@ -234,16 +234,11 @@ export class StagehandActHandler {
     }
 
     // Craft the instruction for observe
-    let instruction = `Find the most relevant element to perform an action on given the following action: ${action}. 
-          Provide an action for this element such as ${Object.values(SupportedPlaywrightAction).join(", ")}, or any other playwright locator method. Remember that to users, buttons and links look the same in most cases.
-          If the action is completely unrelated to a potential action to be taken on the page, return an empty array. 
-          ONLY return one action. If multiple actions are relevant, return the most relevant one.`;
-
-    // Add variable names (not values) to the instruction if any
-    if (actionOrOptions.variables) {
-      const variablesPrompt = `The following variables are available to use in the action: ${Object.keys(actionOrOptions.variables).join(", ")}. Fill the argument variables with the variable name.`;
-      instruction += ` ${variablesPrompt}`;
-    }
+    const instruction = buildActObservePrompt(
+      action,
+      Object.values(SupportedPlaywrightAction),
+      actionOrOptions.variables,
+    );
 
     // Call observe with the instruction and extracted options
     const observeResults = await this.stagehandPage.observe({
