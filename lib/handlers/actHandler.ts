@@ -239,9 +239,10 @@ export class StagehandActHandler {
           If the action is completely unrelated to a potential action to be taken on the page, return an empty array. 
           ONLY return one action. If multiple actions are relevant, return the most relevant one.`;
 
+    // Add variable names (not values) to the instruction if any
     if (actionOrOptions.variables) {
-      const variablesPrompt = `The following variables are available to use in the action: ${JSON.stringify(actionOrOptions.variables)}. Fill the argument variables with mock data.`;
-      instruction += `\n${variablesPrompt}`;
+      const variablesPrompt = `The following variables are available to use in the action: ${Object.keys(actionOrOptions.variables).join(", ")}. Fill the argument variables with the variable name.`;
+      instruction += ` ${variablesPrompt}`;
     }
 
     // Call observe with the instruction and extracted options
@@ -260,8 +261,13 @@ export class StagehandActHandler {
 
     // Perform the action on the first observed element
     const element = observeResults[0];
+    // Replace the arguments with the variables if any
     if (actionOrOptions.variables) {
-      element.arguments.push(actionOrOptions.variables.value);
+      Object.keys(actionOrOptions.variables).forEach((key) => {
+        element.arguments = element.arguments.map((arg) =>
+          arg.replace(key, actionOrOptions.variables[key]),
+        );
+      });
     }
     return this.actFromObserveResult(
       element,
