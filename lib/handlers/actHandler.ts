@@ -191,6 +191,7 @@ export class StagehandActHandler {
    * This method will observe the page and then perform the act on the first element returned.
    */
   public async observeAct(instruction: string): Promise<ActResult> {
+    // TODO: Add validation for the supported playwright methods
     const observeResults = await this.stagehandPage.observe(
       `Find the most relevant element to perform an action on given the following action: ${instruction}. 
       Provide an action for this element such as ${Object.values(SupportedPlaywrightAction).join(", ")}, or any other playwright locator method. Remember that to users, buttons and links look the same in most cases.
