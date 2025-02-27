@@ -32,6 +32,7 @@ import { scriptContent } from "./dom/build/scriptContent";
 import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString, isRunningInBun } from "./utils";
+import { ApiResponse, ErrorResponse } from "@/types/api";
 
 dotenv.config({ path: ".env" });
 
@@ -711,19 +712,18 @@ export class Stagehand {
 
   async close(): Promise<void> {
     if (this.apiClient) {
-      try {
-        await this.apiClient.end();
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.message.includes("Attempted to close session")
-        ) {
+      const response = await this.apiClient.end();
+      const body: ApiResponse<unknown> = await response.json();
+      if (!body.success) {
+        if (response.status == 409) {
           this.log({
             category: "close",
             message:
               "Warning: attempted to end a session that is not currently active",
             level: 0,
           });
+        } else {
+          throw new Error((body as ErrorResponse).message);
         }
       }
       return;
