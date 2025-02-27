@@ -11,9 +11,14 @@ import { LLMProvider } from "../llm/LLMProvider";
 import { StagehandContext } from "../StagehandContext";
 import { StagehandPage } from "../StagehandPage";
 import { generateId } from "../utils";
-import { ActResult, ObserveResult } from "@/types/stagehand";
+import {
+  ActResult,
+  ObserveResult,
+  ActOptions,
+  ObserveOptions,
+} from "@/types/stagehand";
 import { SupportedPlaywrightAction } from "@/types/act";
-
+import { buildActObservePrompt } from "../prompt";
 /**
  * NOTE: Vision support has been removed from this version of Stagehand.
  * If useVision or verifierUseVision is set to true, a warning is logged and
@@ -72,6 +77,7 @@ export class StagehandActHandler {
    */
   public async actFromObserveResult(
     observe: ObserveResult,
+    domSettleTimeoutMs?: number,
   ): Promise<ActResult> {
     this.logger({
       category: "action",
@@ -86,12 +92,40 @@ export class StagehandActHandler {
     });
 
     const method = observe.method;
+    if (method === "not-supported") {
+      this.logger({
+        category: "action",
+        message: "Cannot execute ObserveResult with unsupported method",
+        level: 1,
+        auxiliary: {
+          error: {
+            value:
+              "NotSupportedError: The method requested in this ObserveResult is not supported by Stagehand.",
+            type: "string",
+          },
+          trace: {
+            value: `Cannot execute act from ObserveResult with unsupported method: ${method}`,
+            type: "string",
+          },
+        },
+      });
+      return {
+        success: false,
+        message: `Unable to perform action: The method '${method}' is not supported in ObserveResult. Please use a supported Playwright locator method.`,
+        action: observe.description || `ObserveResult action (${method})`,
+      };
+    }
     const args = observe.arguments ?? [];
     // remove the xpath prefix on the selector
     const selector = observe.selector.replace("xpath=", "");
 
     try {
-      await this._performPlaywrightMethod(method, args, selector);
+      await this._performPlaywrightMethod(
+        method,
+        args,
+        selector,
+        domSettleTimeoutMs,
+      );
 
       return {
         success: true,
@@ -167,23 +201,73 @@ export class StagehandActHandler {
    * Perform an act based on an instruction.
    * This method will observe the page and then perform the act on the first element returned.
    */
-  public async observeAct(instruction: string): Promise<ActResult> {
-    const observeResults = await this.stagehandPage.observe(
-      `Find the most relevant element to perform an action on given the following action: ${instruction}. 
-      Provide an action for this element such as ${Object.values(SupportedPlaywrightAction).join(", ")}, or any other playwright locator method. Remember that to users, buttons and links look the same in most cases.
-      If the action is completely unrelated to a potential action to be taken on the page, return an empty array. 
-      ONLY return one action. If multiple actions are relevant, return the most relevant one.`,
+  public async observeAct(actionOrOptions: ActOptions): Promise<ActResult> {
+    // Extract action string and observe options
+    let action: string;
+    const observeOptions: Partial<ObserveOptions> = {};
+
+    if (typeof actionOrOptions === "object" && actionOrOptions !== null) {
+      if (!("action" in actionOrOptions)) {
+        throw new Error(
+          "Invalid argument. Action options must have an `action` field.",
+        );
+      }
+
+      if (
+        typeof actionOrOptions.action !== "string" ||
+        actionOrOptions.action.length === 0
+      ) {
+        throw new Error("Invalid argument. No action provided.");
+      }
+
+      action = actionOrOptions.action;
+
+      // Extract options that should be passed to observe
+      if (actionOrOptions.modelName)
+        observeOptions.modelName = actionOrOptions.modelName;
+      if (actionOrOptions.modelClientOptions)
+        observeOptions.modelClientOptions = actionOrOptions.modelClientOptions;
+    } else {
+      throw new Error(
+        "Invalid argument. Valid arguments are: a string, an ActOptions object with an `action` field not empty, or an ObserveResult with a `selector` and `method` field.",
+      );
+    }
+
+    // Craft the instruction for observe
+    const instruction = buildActObservePrompt(
+      action,
+      Object.values(SupportedPlaywrightAction),
+      actionOrOptions.variables,
     );
+
+    // Call observe with the instruction and extracted options
+    const observeResults = await this.stagehandPage.observe({
+      instruction,
+      ...observeOptions,
+    });
+
     if (observeResults.length === 0) {
       return {
         success: false,
-        message: `Failed to perform act: No observe results found for action"`,
-        action: instruction,
+        message: `Failed to perform act: No observe results found for action`,
+        action,
       };
     }
-    // Picking the first element observe returns
+
+    // Perform the action on the first observed element
     const element = observeResults[0];
-    return this.actFromObserveResult(element);
+    // Replace the arguments with the variables if any
+    if (actionOrOptions.variables) {
+      Object.keys(actionOrOptions.variables).forEach((key) => {
+        element.arguments = element.arguments.map((arg) =>
+          arg.replace(key, actionOrOptions.variables[key]),
+        );
+      });
+    }
+    return this.actFromObserveResult(
+      element,
+      actionOrOptions.domSettleTimeoutMs,
+    );
   }
 
   private async _recordAction(action: string, result: string): Promise<string> {
@@ -532,7 +616,6 @@ export class StagehandActHandler {
         },
       });
 
-      // NAVIDNOTE: Should this happen before we wait for locator[method]?
       const newOpenedTab = await Promise.race([
         new Promise<Page | null>((resolve) => {
           // TODO: This is a hack to get the new page
@@ -569,29 +652,27 @@ export class StagehandActHandler {
         await newOpenedTab.close();
         await this.stagehandPage.page.goto(newOpenedTab.url());
         await this.stagehandPage.page.waitForLoadState("domcontentloaded");
-        await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
       }
 
-      await Promise.race([
-        this.stagehandPage.page.waitForLoadState("networkidle"),
-        new Promise((resolve) => setTimeout(resolve, 5_000)),
-      ]).catch((e) => {
-        this.logger({
-          category: "action",
-          message: "network idle timeout hit",
-          level: 1,
-          auxiliary: {
-            trace: {
-              value: e.stack,
-              type: "string",
+      await this.stagehandPage
+        ._waitForSettledDom(domSettleTimeoutMs)
+        .catch((e) => {
+          this.logger({
+            category: "action",
+            message: "wait for settled dom timeout hit",
+            level: 1,
+            auxiliary: {
+              trace: {
+                value: e.stack,
+                type: "string",
+              },
+              message: {
+                value: e.message,
+                type: "string",
+              },
             },
-            message: {
-              value: e.message,
-              type: "string",
-            },
-          },
+          });
         });
-      });
 
       this.logger({
         category: "action",
