@@ -490,7 +490,10 @@ export class StagehandPage {
 
     if (!slowDomBasedAct) {
       const observeResults = await this.observe({
-        instruction: `Find the action that is most relevant to the following action: ${action}. Only return one action.`,
+        instruction: `Find the action that is most relevant to the following action: ${action}. 
+		If the action is completely unrelated to a potential action to be taken on the page, return an empty array.
+		ONLY return one action. 
+		If multiple actions are relevant, return the most relevant one.`,
         modelName,
         modelClientOptions,
         domSettleTimeoutMs,
@@ -498,8 +501,14 @@ export class StagehandPage {
         drawOverlay: true,
       });
 
+      console.log("\n\n\n\n\nobserveResults", observeResults, "\n\n\n\n\n");
+
       if (observeResults.length === 0) {
-        throw new Error("No observe results found");
+        return {
+          success: false,
+          message: `No observe results found for action: "${action}"`,
+          action: action,
+        };
       }
 
       const observeResult = observeResults[0];
