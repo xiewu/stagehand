@@ -98,7 +98,10 @@ export class StagehandActHandler {
         action: observe.description || `ObserveResult action (${method})`,
       };
     } catch (err) {
-      if (!this.selfHeal) {
+      if (
+        !this.selfHeal ||
+        err instanceof PlaywrightCommandMethodNotSupportedException
+      ) {
         this.logger({
           category: "action",
           message: "Error performing act from an ObserveResult",
@@ -140,7 +143,7 @@ export class StagehandActHandler {
       } catch (err) {
         this.logger({
           category: "action",
-          message: "Error performing act from an ObserveResult",
+          message: "Error performing act from an ObserveResult on fallback",
           level: 1,
           auxiliary: {
             error: { value: err.message, type: "string" },
