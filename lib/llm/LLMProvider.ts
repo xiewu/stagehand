@@ -14,6 +14,7 @@ const modelToProviderMap: { [key in AvailableModel]: ModelProvider } = {
   "gpt-4o": "openai",
   "gpt-4o-mini": "openai",
   "gpt-4o-2024-08-06": "openai",
+  "gpt-4.5-preview": "openai",
   "o1-mini": "openai",
   "o1-preview": "openai",
   "o3-mini": "openai",
