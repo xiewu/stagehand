@@ -5,15 +5,20 @@
  * npx create-browser-app@latest my-browser-app
  */
 
-import { Stagehand } from "@/dist";
+import { AvailableModel, Stagehand } from "@/dist";
 import StagehandConfig from "@/stagehand.config";
 
 async function example() {
   const stagehand = new Stagehand({
     ...StagehandConfig,
+    modelName: "braintrust-gpt-4o" as AvailableModel,
+    modelClientOptions: {
+      apiKey: process.env.BRAINTRUST_API_KEY,
+    },
   });
   await stagehand.init();
   await stagehand.page.goto("https://docs.stagehand.dev");
+  await stagehand.page.act("click the quickstart");
 }
 
 (async () => {
