@@ -7,6 +7,7 @@
 
 import { AvailableModel, Stagehand } from "@/dist";
 import StagehandConfig from "@/stagehand.config";
+import { z } from "zod";
 
 async function example() {
   const stagehand = new Stagehand({
@@ -15,10 +16,19 @@ async function example() {
     modelClientOptions: {
       apiKey: process.env.BRAINTRUST_API_KEY,
     },
+    env: "LOCAL",
   });
   await stagehand.init();
   await stagehand.page.goto("https://docs.stagehand.dev");
-  await stagehand.page.act("click the quickstart");
+  const result = await stagehand.page.extract({
+    instruction: "get the heading",
+    schema: z.object({
+      heading: z.string().describe("The heading of the page"),
+    }),
+    useTextExtract: true,
+  });
+  console.log(result);
+  await stagehand.close();
 }
 
 (async () => {
