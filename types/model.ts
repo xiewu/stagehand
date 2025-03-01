@@ -19,7 +19,7 @@ export const AvailableModelSchema = z.enum([
 
 export type AvailableModel = z.infer<typeof AvailableModelSchema>;
 
-export type ModelProvider = "openai" | "anthropic" | "cerebras";
+export type ModelProvider = "openai" | "anthropic" | "cerebras" | "braintrust";
 
 export type ClientOptions = OpenAIClientOptions | AnthropicClientOptions;
 

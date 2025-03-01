@@ -9,18 +9,19 @@ import { AnthropicClient } from "./AnthropicClient";
 import { CerebrasClient } from "./CerebrasClient";
 import { LLMClient } from "./LLMClient";
 import { OpenAIClient } from "./OpenAIClient";
+import { BraintrustClient } from "./BraintrustClient";
 
 const modelToProviderMap: { [key in AvailableModel]: ModelProvider } = {
-  "gpt-4o": "openai",
-  "gpt-4o-mini": "openai",
-  "gpt-4o-2024-08-06": "openai",
-  "o1-mini": "openai",
-  "o1-preview": "openai",
-  "o3-mini": "openai",
-  "claude-3-5-sonnet-latest": "anthropic",
-  "claude-3-5-sonnet-20240620": "anthropic",
-  "claude-3-5-sonnet-20241022": "anthropic",
-  "claude-3-7-sonnet-20250219": "anthropic",
+  "gpt-4o": "braintrust",
+  "gpt-4o-mini": "braintrust",
+  "gpt-4o-2024-08-06": "braintrust",
+  "o1-mini": "braintrust",
+  "o1-preview": "braintrust",
+  "o3-mini": "braintrust",
+  "claude-3-5-sonnet-latest": "braintrust",
+  "claude-3-5-sonnet-20240620": "braintrust",
+  "claude-3-5-sonnet-20241022": "braintrust",
+  "claude-3-7-sonnet-20250219": "braintrust",
   "cerebras-llama-3.3-70b": "cerebras",
   "cerebras-llama-3.1-8b": "cerebras",
 };
@@ -83,6 +84,14 @@ export class LLMProvider {
         });
       case "cerebras":
         return new CerebrasClient({
+          logger: this.logger,
+          enableCaching: this.enableCaching,
+          cache: this.cache,
+          modelName,
+          clientOptions,
+        });
+      case "braintrust":
+        return new BraintrustClient({
           logger: this.logger,
           enableCaching: this.enableCaching,
           cache: this.cache,
