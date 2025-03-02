@@ -2,7 +2,8 @@ import type { ClientOptions as AnthropicClientOptions } from "@anthropic-ai/sdk"
 import type { ClientOptions as OpenAIClientOptions } from "openai";
 import { z } from "zod";
 
-export const AvailableModelSchema = z.enum([
+// Create a base schema for specific known models
+const BaseModelSchema = z.enum([
   "gpt-4o",
   "gpt-4o-mini",
   "gpt-4o-2024-08-06",
@@ -15,6 +16,14 @@ export const AvailableModelSchema = z.enum([
   "o3-mini",
   "cerebras-llama-3.3-70b",
   "cerebras-llama-3.1-8b",
+]);
+
+// Create a schema that also accepts any string starting with "braintrust-"
+export const AvailableModelSchema = z.union([
+  BaseModelSchema,
+  z.string().refine((val) => val.startsWith("braintrust-"), {
+    message: "Braintrust models must start with 'braintrust-'",
+  }),
 ]);
 
 export type AvailableModel = z.infer<typeof AvailableModelSchema>;

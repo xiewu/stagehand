@@ -12,7 +12,7 @@ import { z } from "zod";
 async function example() {
   const stagehand = new Stagehand({
     ...StagehandConfig,
-    modelName: "braintrust-gpt-4o" as AvailableModel,
+    modelName: "braintrust-claude-3-7-sonnet-latest" as AvailableModel,
     modelClientOptions: {
       apiKey: process.env.BRAINTRUST_API_KEY,
     },
