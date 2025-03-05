@@ -84,6 +84,7 @@ export interface ActOptions {
    * @default true
    */
   slowDomBasedAct?: boolean;
+  timeoutMs?: number;
 }
 
 export interface ActResult {

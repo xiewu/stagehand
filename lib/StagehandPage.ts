@@ -487,7 +487,8 @@ export class StagehandPage {
       useVision, // still destructure this but will not pass it on
       variables = {},
       domSettleTimeoutMs,
-      slowDomBasedAct = true,
+      slowDomBasedAct = false,
+      timeoutMs = 10_000,
     } = actionOrOptions;
 
     if (typeof useVision !== "undefined") {
@@ -545,6 +546,7 @@ export class StagehandPage {
         previousSelectors: [],
         skipActionCacheForThisStep: false,
         domSettleTimeoutMs,
+        timeoutMs,
       })
       .catch((e) => {
         this.stagehand.log({
