@@ -538,12 +538,12 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
-      - name: Check for 'observe' label
+      - name: Check for 'targeted-extract' label
         id: label-check
         run: |
           if [ "${{ needs.determine-evals.outputs.run-targeted-extract }}" != "true" ]; then
             echo "has_label=false" >> $GITHUB_OUTPUT
-            echo "No label for OBSERVE. Exiting with success."
+            echo "No label for TARGETED-EXTRACT. Exiting with success."
           else
             echo "has_label=true" >> $GITHUB_OUTPUT
           fi
@@ -579,7 +579,7 @@ jobs:
           experimentName=$(jq -r '.experimentName' eval-summary.json)
           echo "View results at https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
           if [ -f eval-summary.json ]; then
-            $targeted_extract_score=$(jq '.categories.targeted_extract' eval-summary.json)
+            targeted_extract_score=$(jq '.categories.targeted_extract' eval-summary.json)
             echo "Targeted extract category score: $targeted_extract_score%"
             if (( $(echo "$targeted_extract_score < 80" | bc -l) )); then
               echo "Targeted extract score is below 80%. Failing CI."
