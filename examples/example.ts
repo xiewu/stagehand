@@ -14,12 +14,9 @@ async function example() {
   });
   await stagehand.init();
   await stagehand.page.goto("https://docs.stagehand.dev");
-  const result = await stagehand.page.act({
-    action: "search for 'Stagehand'",
-    timeoutMs: 1_000,
-    slowDomBasedAct: true,
-  });
-  console.log(result);
+  /**
+   * Add your code here!
+   */
   await stagehand.close();
 }
 
