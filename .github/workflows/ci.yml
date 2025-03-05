@@ -523,7 +523,7 @@ jobs:
           fi
 
   run-targeted-extract-evals:
-    needs: [ run-observe-evals, determine-evals ]
+    needs: [run-observe-evals, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
