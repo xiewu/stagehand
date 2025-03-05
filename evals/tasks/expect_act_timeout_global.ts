@@ -1,23 +1,25 @@
 import { initStagehand } from "@/evals/initStagehand";
 import { EvalFunction } from "@/types/evals";
 
-export const expect_act_timeout: EvalFunction = async ({
+export const expect_act_timeout_global: EvalFunction = async ({
   modelName,
   logger,
 }) => {
   const { stagehand, initResponse } = await initStagehand({
     modelName,
     logger,
+    actTimeoutMs: 1_000,
   });
 
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://docs.stagehand.dev");
+
   const result = await stagehand.page.act({
     action: "search for 'Stagehand'",
-    timeoutMs: 1_000,
     slowDomBasedAct: true,
   });
+  console.log("RESULT", result);
 
   await stagehand.close();
 

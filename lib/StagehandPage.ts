@@ -488,7 +488,7 @@ export class StagehandPage {
       variables = {},
       domSettleTimeoutMs,
       slowDomBasedAct = false,
-      timeoutMs = 10_000,
+      timeoutMs = this.stagehand.actTimeoutMs,
     } = actionOrOptions;
 
     if (typeof useVision !== "undefined") {

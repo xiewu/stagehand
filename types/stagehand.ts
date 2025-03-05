@@ -40,6 +40,7 @@ export interface ConstructorParams {
    */
   waitForCaptchaSolves?: boolean;
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
+  actTimeoutMs?: number;
 }
 
 export interface InitOptions {
