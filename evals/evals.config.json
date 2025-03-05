@@ -1,6 +1,10 @@
 {
   "tasks": [
     {
+      "name": "expect_act_timeout",
+      "categories": ["act"]
+    },
+    {
       "name": "extract_repo_name",
       "categories": ["extract"]
     },
