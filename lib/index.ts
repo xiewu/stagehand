@@ -686,8 +686,7 @@ export class Stagehand {
               (log) => log.id !== logObj.id,
             );
         })
-        .catch(() => {
-        });
+        .catch(() => {});
     }
   }
 
