@@ -14,6 +14,10 @@ async function example() {
   });
   await stagehand.init();
   await stagehand.page.goto("https://docs.stagehand.dev");
+  await stagehand.page.act({
+    action: "search for 'Stagehand'",
+    timeoutMs: 1_000,
+  });
 }
 
 (async () => {
