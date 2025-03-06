@@ -473,8 +473,8 @@ export class StagehandActHandler {
 
             const elementNode = getNodeFromXpath(xpath);
             if (!elementNode || elementNode.nodeType !== Node.ELEMENT_NODE) {
-              // If no element is found, we can either return or throw an error
-              throw new Error(`No element found at XPath: ${xpath}`);
+              console.warn(`Could not locate element to scroll on.`);
+              return;
             }
 
             const element = elementNode as HTMLElement;
