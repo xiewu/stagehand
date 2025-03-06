@@ -40,6 +40,7 @@ export interface ConstructorParams {
    */
   waitForCaptchaSolves?: boolean;
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
+  actTimeoutMs?: number;
 }
 
 export interface InitOptions {
@@ -81,9 +82,10 @@ export interface ActOptions {
    * If true, the action will be performed in a slow manner that allows the DOM to settle.
    * This is useful for debugging.
    *
-   * @default false
+   * @default true
    */
   slowDomBasedAct?: boolean;
+  timeoutMs?: number;
 }
 
 export interface ActResult {
