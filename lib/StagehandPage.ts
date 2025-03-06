@@ -687,7 +687,7 @@ export class StagehandPage {
 
   async observe(
     instructionOrOptions?: string | ObserveOptions,
-  ): Promise<ObserveResult[]> {
+  ): Promise<TreeResult | ObserveResult[]> {
     if (!this.observeHandler) {
       throw new Error("Observe handler not initialized");
     }

@@ -64,7 +64,12 @@ export class StagehandObserveHandler {
     drawOverlay?: boolean;
   }) {
     if (!instruction) {
-      instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
+      this.logger({
+        category: "observation",
+        message: "No instruction provided, returning hybrid tree",
+        level: 1,
+      });
+      return await this.stagehandPage.getAccessibilityTree();
     }
 
     this.logger({

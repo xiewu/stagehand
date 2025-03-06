@@ -38,7 +38,7 @@ export interface Page extends Omit<PlaywrightPage, "on"> {
   ): Promise<ExtractResult<T>>;
   extract(): Promise<ExtractResult<typeof pageTextSchema>>;
 
-  observe(): Promise<ObserveResult[]>;
+  observe(): Promise<TreeResult>;
   observe(instruction: string): Promise<ObserveResult[]>;
   observe(options?: ObserveOptions): Promise<ObserveResult[]>;
 
