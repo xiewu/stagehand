@@ -17,6 +17,8 @@ async function example() {
   /**
    * Add your code here!
    */
+  const tree = await stagehand.page.getAccessibilityTree();
+  console.log(tree);
   await stagehand.close();
 }
 

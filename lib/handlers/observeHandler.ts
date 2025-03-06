@@ -4,10 +4,7 @@ import { observe } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { StagehandPage } from "../StagehandPage";
 import { generateId, drawObserveOverlay } from "../utils";
-import {
-  getAccessibilityTree,
-  getXPathByResolvedObjectId,
-} from "../a11y/utils";
+import { getXPathByResolvedObjectId } from "../a11y/utils";
 import { AccessibilityNode } from "../../types/context";
 
 export class StagehandObserveHandler {
@@ -88,7 +85,7 @@ export class StagehandObserveHandler {
     const useAccessibilityTree = !onlyVisible;
     if (useAccessibilityTree) {
       await this.stagehandPage._waitForSettledDom();
-      const tree = await getAccessibilityTree(this.stagehandPage, this.logger);
+      const tree = await this.stagehandPage.getAccessibilityTree();
       this.logger({
         category: "observation",
         message: "Getting accessibility tree data",
