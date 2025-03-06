@@ -19,6 +19,7 @@ import {
 } from "@/types/stagehand";
 import { SupportedPlaywrightAction } from "@/types/act";
 import { buildActObservePrompt } from "../prompt";
+import { getNodeFromXpath } from "@/lib/dom/utils";
 /**
  * NOTE: Vision support has been removed from this version of Stagehand.
  * If useVision or verifierUseVision is set to true, a warning is logged and
@@ -464,19 +465,6 @@ export class StagehandActHandler {
 
         await this.stagehandPage.page.evaluate(
           ({ xpath, yArg }) => {
-            /**
-             * Helper to evaluate an XPath and return the first node found.
-             */
-            function getNodeFromXpath(theXpath: string) {
-              return document.evaluate(
-                theXpath,
-                document.documentElement,
-                null,
-                XPathResult.FIRST_ORDERED_NODE_TYPE,
-                null,
-              ).singleNodeValue;
-            }
-
             function parsePercent(val: string): number {
               const cleaned = val.trim().replace("%", "");
               const num = parseFloat(cleaned);
