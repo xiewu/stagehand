@@ -17,6 +17,7 @@ async function example() {
   /**
    * Add your code here!
    */
+  // delete before pushing to main
   const tree = await stagehand.page.getAccessibilityTree();
   console.log(tree);
   await stagehand.close();
