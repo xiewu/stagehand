@@ -7,10 +7,15 @@
 
 import { Stagehand } from "@/dist";
 import StagehandConfig from "@/stagehand.config";
-
+import { Browserbase } from "@browserbasehq/sdk";
 async function example() {
+  const browserbase = new Browserbase();
+  const session = await browserbase.sessions.create({
+    projectId: process.env.BROWSERBASE_PROJECT_ID,
+  });
   const stagehand = new Stagehand({
     ...StagehandConfig,
+    browserbaseSessionID: session.id,
   });
   await stagehand.init();
   await stagehand.page.goto("https://docs.stagehand.dev");
