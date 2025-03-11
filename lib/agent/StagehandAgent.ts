@@ -10,17 +10,11 @@ export class StagehandAgent {
   private client: AgentClient;
   private logger: (message: LogLine) => void;
 
-  /**
-   * Create a new StagehandAgent
-   */
   constructor(client: AgentClient, logger: (message: LogLine) => void) {
     this.client = client;
     this.logger = logger;
   }
 
-  /**
-   * Execute a task with the agent
-   */
   async execute(
     optionsOrInstruction: AgentExecuteOptions | string,
   ): Promise<AgentResult> {
@@ -44,16 +38,10 @@ export class StagehandAgent {
     return await this.client.execute(executionOptions);
   }
 
-  /**
-   * Get the model name being used by the agent
-   */
   getModelName(): string {
     return this.client.modelName;
   }
 
-  /**
-   * Get the agent type (provider)
-   */
   getAgentType(): string {
     return this.client.type;
   }

@@ -1,11 +1,13 @@
 import { LogLine } from "../../types/log";
 import { AgentClient, AgentType } from "./AgentClient";
 import { OpenAICUAClient } from "./OpenAICUAClient";
+import { AnthropicCUAClient } from "./AnthropicCUAClient";
 
 // Map model names to their provider types
 const modelToAgentProviderMap: Record<string, AgentType> = {
   "computer-use-preview-2025-02-04": "openai",
   "claude-3-5-sonnet-20240620": "anthropic",
+  "claude-3-7-sonnet-20250219": "anthropic", // Add newer Claude models
 };
 
 /**
@@ -23,15 +25,13 @@ export class AgentProvider {
     this.logger = logger;
   }
 
-  /**
-   * Get an agent client for the specified agent type and model
-   */
   getClient(
-    type: AgentType,
     modelName: string,
     clientOptions?: Record<string, unknown>,
     userProvidedInstructions?: string,
   ): AgentClient {
+
+    const type = AgentProvider.getAgentProvider(modelName);
     this.logger({
       category: "agent",
       message: `Getting agent client for type: ${type}, model: ${modelName}`,
@@ -48,15 +48,9 @@ export class AgentProvider {
             clientOptions,
           );
         case "anthropic":
-          // Fallback to OpenAI CUA client for now
-          this.logger({
-            category: "agent",
-            message: `Anthropic CUA client not yet implemented, falling back to OpenAI CUA client`,
-            level: 1,
-          });
-          return new OpenAICUAClient(
-            "openai",
-            "computer-use-preview-2025-02-04", // Fall back to a reliable model
+          return new AnthropicCUAClient(
+            type,
+            modelName,
             userProvidedInstructions,
             clientOptions,
           );
@@ -75,17 +69,13 @@ export class AgentProvider {
     }
   }
 
-  /**
-   * Get the provider type for a model name
-   */
   static getAgentProvider(modelName: string): AgentType {
     // First check the exact model name in the map
     if (modelName in modelToAgentProviderMap) {
       return modelToAgentProviderMap[modelName];
     }
-
+  
     // Default to OpenAI CUA for unrecognized models with warning
-    console.warn(`Unknown model name: ${modelName}, defaulting to OpenAI CUA`);
-    return "openai";
+    throw new Error(`Unknown model name: ${modelName}`);
   }
 }

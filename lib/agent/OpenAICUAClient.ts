@@ -74,9 +74,6 @@ export class OpenAICUAClient extends AgentClient {
   private reasoningItems: Map<string, ResponseItem> = new Map();
   private environment: string = "browser"; // "browser", "mac", "windows", or "ubuntu"
 
-  /**
-   * Create a new OpenAI CUA client
-   */
   constructor(
     type: AgentType,
     modelName: string,
@@ -108,31 +105,18 @@ export class OpenAICUAClient extends AgentClient {
     this.client = new OpenAI(this.clientOptions);
   }
 
-  /**
-   * Set viewport dimensions for the CUA
-   */
   setViewport(width: number, height: number): void {
     this.currentViewport = { width, height };
   }
 
-  /**
-   * Set current URL for context
-   */
   setCurrentUrl(url: string): void {
     this.currentUrl = url;
   }
 
-  /**
-   * Set a callback function that provides screenshots
-   */
   setScreenshotProvider(provider: () => Promise<string>): void {
     this.screenshotProvider = provider;
   }
 
-  /**
-   * Register a handler for executing actions
-   * This allows the agent to execute actions during the execution flow
-   */
   setActionHandler(handler: (action: AgentAction) => Promise<void>): void {
     this.actionHandler = handler;
   }
@@ -383,11 +367,6 @@ export class OpenAICUAClient extends AgentClient {
       // Create the response using the OpenAI Responses API
       // @ts-expect-error - Force type to match what the OpenAI SDK expects
       const response = await this.client.responses.create(requestParams);
-
-      // Log the response for debugging purposes
-      if (process.env.DEBUG_AGENT === "true") {
-        console.log(JSON.stringify(response, null, 2));
-      }
 
       // Store the response ID for future use
       this.lastResponseId = response.id;

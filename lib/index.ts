@@ -633,10 +633,10 @@ export class Stagehand {
           this.stagehandPage,
           this.logger,
           {
-            agentType: provider,
             modelName: model,
             clientOptions: options,
             userProvidedInstructions: instructions,
+            agentType: provider,
           },
         );
 

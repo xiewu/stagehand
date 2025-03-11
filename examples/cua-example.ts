@@ -18,12 +18,12 @@ async function main() {
     // Ensure we have agent configuration
     agent: {
       enabled: true,
-      provider: "openai",
-      model: "computer-use-preview-2025-02-04",
+      provider: "anthropic",
+      model: "claude-3-7-sonnet-20250219",
       instructions:
         "You are a helpful assistant that can use the computer to help the user accomplish tasks in a web browser.",
       options: {
-        apiKey: process.env.OPENAI_API_KEY,
+        apiKey: process.env.ANTHROPIC_API_KEY,
       },
     },
   });

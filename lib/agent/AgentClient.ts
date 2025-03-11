@@ -1,28 +1,12 @@
 import { LogLine } from "../../types/log";
-import { AgentExecuteOptions, AgentResult } from "../../types/agent";
+import { AgentAction, AgentExecuteOptions, AgentResult } from "../../types/agent";
 
-/**
- * Available agent types
- */
+// TODO: MOVE TO TYPES
 export type AgentType = "openai" | "anthropic";
 
-/**
- * Options for agent execution
- */
 export interface AgentExecutionOptions {
-  /**
-   * The execution options
-   */
   options: AgentExecuteOptions;
-
-  /**
-   * Logger function
-   */
   logger: (message: LogLine) => void;
-
-  /**
-   * Number of retries on failure
-   */
   retries?: number;
 }
 
@@ -31,24 +15,9 @@ export interface AgentExecutionOptions {
  * This provides a common interface for all agent implementations
  */
 export abstract class AgentClient {
-  /**
-   * Type of agent
-   */
   public type: AgentType;
-
-  /**
-   * Name of the model used by this agent
-   */
   public modelName: string;
-
-  /**
-   * Client options specific to this agent
-   */
   public clientOptions: Record<string, unknown>;
-
-  /**
-   * Any special instructions for the agent
-   */
   public userProvidedInstructions?: string;
 
   /**
@@ -76,4 +45,24 @@ export abstract class AgentClient {
   abstract captureScreenshot(
     options?: Record<string, unknown>,
   ): Promise<unknown>;
+
+  /**
+   * Set viewport dimensions for the agent
+   */
+  abstract setViewport(width: number, height: number): void;
+
+  /**
+   * Set the current URL for the agent
+   */
+  abstract setCurrentUrl(url: string): void;
+
+  /**
+   * Set a callback function that provides screenshots
+   */
+  abstract setScreenshotProvider(provider: () => Promise<string>): void;
+
+  /**
+   * Set a callback function that executes actions
+   */
+  abstract setActionHandler(handler: (action: AgentAction) => Promise<void>): void;
 }

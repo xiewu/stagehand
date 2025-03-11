@@ -8,73 +8,30 @@ import {
   AgentAction,
   AgentResult,
 } from "../../types/agent";
-import { OpenAICUAClient } from "../agent/OpenAICUAClient";
 
-/**
- * Options for the agent handler
- */
+
+// TODO: MOVE TO TYPES
 export interface AgentHandlerOptions {
-  /**
-   * Type of agent to use
-   */
-  agentType: AgentType;
-
-  /**
-   * Model name to use
-   */
   modelName: string;
-
-  /**
-   * Client options for the agent
-   */
   clientOptions?: Record<string, unknown>;
-
-  /**
-   * Any special instructions for the agent
-   */
   userProvidedInstructions?: string;
-
-  /**
-   * Enable caching of agent responses
-   */
-  enableCaching?: boolean;
+  agentType: AgentType;
 }
 
-/**
- * Result of executing an action
- */
 interface ActionExecutionResult {
-  /**
-   * Whether the action was executed successfully
-   */
   success: boolean;
-
-  /**
-   * Any error message
-   */
   error?: string;
-
-  /**
-   * Any result data
-   */
   data?: unknown;
 }
 
-/**
- * Handler for agent operations
- * This class manages the agent client and provides methods for executing tasks
- */
 export class StagehandAgentHandler {
   private stagehandPage: StagehandPage;
   private agent: StagehandAgent;
   private provider: AgentProvider;
   private logger: (message: LogLine) => void;
-  private cuaClient?: OpenAICUAClient;
+  private agentClient: AgentClient;
   private options: AgentHandlerOptions;
 
-  /**
-   * Constructor for the StagehandAgentHandler
-   */
   constructor(
     stagehandPage: StagehandPage,
     logger: (message: LogLine) => void,
@@ -82,103 +39,97 @@ export class StagehandAgentHandler {
   ) {
     this.stagehandPage = stagehandPage;
     this.logger = logger;
-
+    this.options = options;
+    
     // Initialize the provider
     this.provider = new AgentProvider(logger);
 
-    // Store the options
-    this.options = options;
-
     // Create client first
     const client = this.provider.getClient(
-      options.agentType,
       options.modelName,
       options.clientOptions || {},
       options.userProvidedInstructions,
     );
 
-    // Store CUA client if applicable
-    if (options.agentType === "openai") {
-      this.cuaClient = client as OpenAICUAClient;
+    // Store the client
+    this.agentClient = client;
+    
+    // Set up common functionality for any client type
+    this.setupAgentClient();
 
-      // Set up screenshot provider
-      this.cuaClient.setScreenshotProvider(async () => {
-        // Take screenshot of the current page
-        const cdpSession = await this.stagehandPage.page
-          .context()
-          .newCDPSession(this.stagehandPage.page);
-        const { data } = await cdpSession.send("Page.captureScreenshot", {
-          optimizeForSpeed: true,
-        });
-        // Convert to base64
-        return data;
+    // Create agent with the client
+    this.agent = new StagehandAgent(client, logger);
+  }
+
+  private setupAgentClient(): void {
+    // Set up screenshot provider for any client type
+    this.agentClient.setScreenshotProvider(async () => {
+      // Take screenshot of the current page
+      const cdpSession = await this.stagehandPage.page
+        .context()
+        .newCDPSession(this.stagehandPage.page);
+      const { data } = await cdpSession.send("Page.captureScreenshot", {
+        optimizeForSpeed: true,
       });
+      // Convert to base64
+      return data;
+    });
 
-      // Set up action handler
-      this.cuaClient.setActionHandler(async (action) => {
-        // Default delay between actions (1 second if not specified)
-        const defaultDelay = 1000;
-        // Use specified delay or default
-        const waitBetweenActions =
-          (options.clientOptions?.waitBetweenActions as number) || defaultDelay;
+    // Set up action handler for any client type
+    this.agentClient.setActionHandler(async (action) => {
+      // Default delay between actions (1 second if not specified)
+      const defaultDelay = 1000;
+      // Use specified delay or default
+      const waitBetweenActions =
+        (this.options.clientOptions?.waitBetweenActions as number) || defaultDelay;
 
+      try {
+        // Try to inject cursor before each action
         try {
-          // Try to inject cursor before each action
-          try {
-            await this.injectCursor();
-          } catch {
-            // Ignore cursor injection failures
-          }
+          await this.injectCursor();
+        } catch {
+          // Ignore cursor injection failures
+        }
 
-          // Add a small delay before the action for better visibility
-          await new Promise((resolve) => setTimeout(resolve, 500));
+        // Add a small delay before the action for better visibility
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-          // Execute the action
-          await this.executeAction(action);
+        // Execute the action
+        await this.executeAction(action);
 
-          // Add a delay after the action for better visibility
-          await new Promise((resolve) =>
-            setTimeout(resolve, waitBetweenActions),
-          );
+        // Add a delay after the action for better visibility
+        await new Promise((resolve) =>
+          setTimeout(resolve, waitBetweenActions),
+        );
 
-          // After executing an action, take a screenshot
-          try {
-            await this.captureAndSendScreenshot();
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            this.logger({
-              category: "agent",
-              message: `Warning: Failed to take screenshot after action: ${errorMessage}. Continuing execution.`,
-              level: 1,
-            });
-            // Continue execution even if screenshot fails
-          }
+        // After executing an action, take a screenshot
+        try {
+          await this.captureAndSendScreenshot();
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           this.logger({
             category: "agent",
-            message: `Error executing action ${action.type}: ${errorMessage}`,
-            level: 0,
+            message: `Warning: Failed to take screenshot after action: ${errorMessage}. Continuing execution.`,
+            level: 1,
           });
-          throw error; // Re-throw the error to be handled by the caller
+          // Continue execution even if screenshot fails
         }
-      });
-
-      // Update viewport and URL
-      this.updateClientViewport();
-      this.updateClientUrl();
-    }
-
-    // Create agent with the client
-    this.agent = new StagehandAgent(client, logger);
-
-    this.logger({
-      category: "agent",
-      message: `Agent handler initialized with ${options.agentType} using model ${options.modelName}`,
-      level: 1,
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger({
+          category: "agent",
+          message: `Error executing action ${action.type}: ${errorMessage}`,
+          level: 0,
+        });
+        throw error; // Re-throw the error to be handled by the caller
+      }
     });
+
+    // Update viewport and URL for any client type
+    this.updateClientViewport();
+    this.updateClientUrl();
   }
 
   /**
@@ -426,6 +377,24 @@ export class StagehandAgentHandler {
           };
         }
 
+        case "key": {
+          // Handle the 'key' action type from Anthropic
+          const { text } = action;
+          if (text === "Return" || text === "Enter") {
+            await this.stagehandPage.page.keyboard.press("Enter");
+          } else if (text === "Tab") {
+            await this.stagehandPage.page.keyboard.press("Tab");
+          } else if (text === "Escape" || text === "Esc") {
+            await this.stagehandPage.page.keyboard.press("Escape");
+          } else if (text === "Backspace") {
+            await this.stagehandPage.page.keyboard.press("Backspace");
+          } else {
+            // For other keys, try to press directly
+            await this.stagehandPage.page.keyboard.press(text as string);
+          }
+          return { success: true };
+        }
+
         default:
           return {
             success: false,
@@ -449,46 +418,29 @@ export class StagehandAgentHandler {
     }
   }
 
-  /**
-   * Update the client with the current viewport dimensions
-   */
+
   private updateClientViewport(): void {
-    if (this.cuaClient) {
-      const viewportSize = this.stagehandPage.page.viewportSize();
-      if (viewportSize) {
-        this.cuaClient.setViewport(viewportSize.width, viewportSize.height);
-      }
+    const viewportSize = this.stagehandPage.page.viewportSize();
+    if (viewportSize) {
+      this.agentClient.setViewport(viewportSize.width, viewportSize.height);
     }
   }
 
-  /**
-   * Update the client with the current URL
-   */
   private updateClientUrl(): void {
-    if (this.cuaClient) {
-      const url = this.stagehandPage.page.url();
-      this.cuaClient.setCurrentUrl(url);
-    }
+    const url = this.stagehandPage.page.url();
+    this.agentClient.setCurrentUrl(url);
   }
 
-  /**
-   * Get the agent instance
-   */
+
   getAgent(): StagehandAgent {
     return this.agent;
   }
 
-  /**
-   * Get the agent client
-   */
   getClient(): AgentClient {
-    return this.agent["client"];
+    return this.agentClient;
   }
 
-  /**
-   * Capture a screenshot and send it to the agent
-   * This method is now deprecated - screenshots are handled internally by the client
-   */
+
   async captureAndSendScreenshot(): Promise<unknown> {
     this.logger({
       category: "agent",
@@ -507,7 +459,7 @@ export class StagehandAgentHandler {
       const base64Image = screenshot.toString("base64");
 
       // Just use the captureScreenshot method on the agent client
-      return await this.getClient().captureScreenshot({
+      return await this.agentClient.captureScreenshot({
         base64Image,
         currentUrl: this.stagehandPage.page.url(),
       });
