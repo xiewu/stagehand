@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { z } from "zod";
 import { ActCommandParams, ActCommandResult } from "../types/act";
 import { VerifyActCompletionParams } from "../types/inference";
@@ -20,6 +18,10 @@ import {
   buildVerifyActCompletionSystemPrompt,
   buildVerifyActCompletionUserPrompt,
 } from "./prompt";
+import {
+  appendSummary,
+  writeTimestampedTxtFile,
+} from "@/lib/inferenceLogUtils";
 
 /**
  * Replaces <|VARIABLE|> placeholders in a text with user-provided values.
@@ -51,124 +53,6 @@ interface LLMParsedResponse<T> {
   usage?: LLMUsage;
 }
 
-/** Summaries for "act". */
-interface ActSummaryEntry {
-  act_inference_type: string;
-  timestamp: string;
-  LLM_input_file: string;
-  LLM_output_file: string;
-  prompt_tokens: number;
-  completion_tokens: number;
-  inference_time_ms: number;
-}
-interface ActSummaryFile {
-  act_summary: ActSummaryEntry[];
-}
-
-/** Summaries for "observe". */
-interface ObserveSummaryEntry {
-  observe_inference_type: string;
-  timestamp: string;
-  LLM_input_file: string;
-  LLM_output_file: string;
-  prompt_tokens: number;
-  completion_tokens: number;
-  inference_time_ms: number;
-}
-
-/**
- * Create (or ensure) a parent directory named "inference_summary".
- */
-function ensureInferenceSummaryDir(): string {
-  const inferenceDir = path.join(process.cwd(), "inference_summary");
-  if (!fs.existsSync(inferenceDir)) {
-    fs.mkdirSync(inferenceDir, { recursive: true });
-  }
-  return inferenceDir;
-}
-
-/** A simple timestamp utility for filenames. */
-function getTimestamp(): string {
-  return new Date()
-    .toISOString()
-    .replace(/[^0-9T]/g, "")
-    .replace("T", "_");
-}
-
-/**
- * Writes `data` as JSON into a file in `directory`, using a prefix plus timestamp.
- * Returns both the file name and the timestamp used, so you can log them.
- */
-function writeTimestampedJsonFile(
-  directory: string,
-  prefix: string,
-  data: unknown,
-): { fileName: string; timestamp: string } {
-  const timestamp = getTimestamp();
-  const fileName = `${prefix}_${timestamp}.txt`;
-  const filePath = path.join(directory, fileName);
-  fs.writeFileSync(
-    filePath,
-    JSON.stringify(data, null, 2).replace(/\\n/g, "\n"),
-  );
-  return { fileName, timestamp };
-}
-
-function ensureActSummaryDir(): string {
-  const inferenceDir = ensureInferenceSummaryDir();
-  const dirPath = path.join(inferenceDir, "act_summary");
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-  return dirPath;
-}
-
-function readActSummaryFile(jsonPath: string): ActSummaryFile {
-  if (fs.existsSync(jsonPath)) {
-    try {
-      const raw = fs.readFileSync(jsonPath, "utf8");
-      const parsed = JSON.parse(raw);
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        Array.isArray(parsed.act_summary)
-      ) {
-        return parsed;
-      }
-    } catch {
-      /* empty */
-    }
-  }
-  return { act_summary: [] };
-}
-
-/**
- * Appends a new entry to the act_summary.json file, then writes the file back out.
- */
-function appendActSummary(summaryPath: string, entry: ActSummaryEntry) {
-  const existingSummary = readActSummaryFile(summaryPath);
-  existingSummary.act_summary.push(entry);
-  fs.writeFileSync(summaryPath, JSON.stringify(existingSummary, null, 2));
-}
-
-function ensureObserveSummaryDir(): string {
-  const inferenceDir = ensureInferenceSummaryDir();
-  const dirPath = path.join(inferenceDir, "observe_summary");
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-  return dirPath;
-}
-
-function ensureExtractSummaryDir(): string {
-  const inferenceDir = ensureInferenceSummaryDir();
-  const dirPath = path.join(inferenceDir, "extract_summary");
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-  return dirPath;
-}
-
 export interface VerifyActCompletionResult {
   completed: boolean;
   prompt_tokens: number;
@@ -197,20 +81,10 @@ export async function verifyActCompletion({
     buildVerifyActCompletionUserPrompt(goal, steps, domElements),
   ];
 
-  let actDir = "";
-  let actSummaryPath = "";
-
-  // Only do these if logging is on
-  if (logInferenceToFile) {
-    actDir = ensureActSummaryDir(); // e.g. "inference_summary/act_summary"
-    actSummaryPath = path.join(actDir, "act_summary.json");
-  }
-
-  // If logging is on, write a "verify_call" file
   let callFile = "";
   let callTimestamp = "";
   if (logInferenceToFile) {
-    const callResult = writeTimestampedJsonFile(actDir, "verify_call", {
+    const callResult = writeTimestampedTxtFile("act_summary", "verify_call", {
       requestId,
       modelCall: "verifyActCompletion",
       messages,
@@ -219,7 +93,6 @@ export async function verifyActCompletion({
     callTimestamp = callResult.timestamp;
   }
 
-  // Time the LLM call
   const start = Date.now();
   const rawResponse =
     await llmClient.createChatCompletion<VerificationResponse>({
@@ -244,18 +117,20 @@ export async function verifyActCompletion({
   const verificationData = parsedResponse.data;
   const verificationUsage = parsedResponse.usage;
 
-  // If logging is on, write a "verify_response" file
   let responseFile = "";
   if (logInferenceToFile) {
-    const responseResult = writeTimestampedJsonFile(actDir, "verify_response", {
-      requestId,
-      modelResponse: "verifyActCompletion",
-      rawResponse: verificationData,
-    });
+    const responseResult = writeTimestampedTxtFile(
+      "act_summary",
+      "verify_response",
+      {
+        requestId,
+        modelResponse: "verifyActCompletion",
+        rawResponse: verificationData,
+      },
+    );
     responseFile = responseResult.fileName;
 
-    // Also append usage/time to act_summary.json
-    appendActSummary(actSummaryPath, {
+    appendSummary("act", {
       act_inference_type: "verifyActCompletion",
       timestamp: callTimestamp,
       LLM_input_file: callFile,
@@ -266,7 +141,6 @@ export async function verifyActCompletion({
     });
   }
 
-  // Validate & return
   if (!verificationData || typeof verificationData !== "object") {
     logger({
       category: "VerifyAct",
@@ -325,17 +199,10 @@ export async function act({
     buildActUserPrompt(action, steps, domElements, variables),
   ];
 
-  let actDir = "";
-  let actSummaryPath = "";
-  if (logInferenceToFile) {
-    actDir = ensureActSummaryDir();
-    actSummaryPath = path.join(actDir, "act_summary.json");
-  }
-
   let callFile = "";
   let callTimestamp = "";
   if (logInferenceToFile) {
-    const callResult = writeTimestampedJsonFile(actDir, "act_call", {
+    const callResult = writeTimestampedTxtFile("act_summary", "act_call", {
       requestId,
       modelCall: "act",
       messages,
@@ -359,24 +226,28 @@ export async function act({
     logger,
   });
   const end = Date.now();
+  const inferenceTimeMs = end - start;
 
   let responseFile = "";
   if (logInferenceToFile) {
-    const responseResult = writeTimestampedJsonFile(actDir, "act_response", {
-      requestId,
-      modelResponse: "act",
-      rawResponse,
-    });
+    const responseResult = writeTimestampedTxtFile(
+      "act_summary",
+      "act_response",
+      {
+        requestId,
+        modelResponse: "act",
+        rawResponse,
+      },
+    );
     responseFile = responseResult.fileName;
   }
 
   const usageData = rawResponse.usage;
   const promptTokens = usageData?.prompt_tokens ?? 0;
   const completionTokens = usageData?.completion_tokens ?? 0;
-  const inferenceTimeMs = end - start;
 
   if (logInferenceToFile) {
-    appendActSummary(actSummaryPath, {
+    appendSummary("act", {
       act_inference_type: "act",
       timestamp: callTimestamp,
       LLM_input_file: callFile,
@@ -447,10 +318,6 @@ export async function extract({
   isUsingTextExtract?: boolean;
   userProvidedInstructions?: string;
   logger: (message: LogLine) => void;
-  /**
-   * If true, we write call/response files and an extraction_summary.json
-   * If false, we skip writing these logs to the filesystem
-   */
   logInferenceToFile?: boolean;
 }) {
   const metadataSchema = z.object({
@@ -471,25 +338,6 @@ export async function extract({
 
   const isUsingAnthropic = llmClient.type === "anthropic";
 
-  // This directory is only relevant if we log to file
-  let extractSummaryDir = "";
-  if (logInferenceToFile) {
-    extractSummaryDir = ensureExtractSummaryDir();
-  }
-
-  // We'll store per-step data for the final summary JSON
-  const summaryData = {
-    extraction_summary: [] as Array<{
-      extract_inference_type: string;
-      timestamp: string;
-      LLM_input_file: string;
-      LLM_output_file: string;
-      prompt_tokens: number;
-      completion_tokens: number;
-      inference_time_ms: number;
-    }>,
-  };
-
   const extractCallMessages: ChatMessage[] = [
     buildExtractSystemPrompt(
       isUsingAnthropic,
@@ -499,17 +347,20 @@ export async function extract({
     buildExtractUserPrompt(instruction, domElements, isUsingAnthropic),
   ];
 
-  // If we are logging to file, write the "extract_call" file
-  let extractCallTimestamp = getTimestamp();
   let extractCallFile = "";
+  let extractCallTimestamp = "";
   if (logInferenceToFile) {
-    const result = writeTimestampedJsonFile(extractSummaryDir, "extract_call", {
-      requestId,
-      modelCall: "extract",
-      messages: extractCallMessages,
-    });
-    extractCallFile = result.fileName;
-    extractCallTimestamp = result.timestamp;
+    const { fileName, timestamp } = writeTimestampedTxtFile(
+      "extract_summary",
+      "extract_call",
+      {
+        requestId,
+        modelCall: "extract",
+        messages: extractCallMessages,
+      },
+    );
+    extractCallFile = fileName;
+    extractCallTimestamp = timestamp;
   }
 
   const extractStartTime = Date.now();
@@ -534,11 +385,10 @@ export async function extract({
   const { data: extractedData, usage: extractUsage } =
     extractionResponse as LLMParsedResponse<ExtractionResponse>;
 
-  // If we are logging to file, write the "extract_response" file
   let extractResponseFile = "";
   if (logInferenceToFile) {
-    const responseResult = writeTimestampedJsonFile(
-      extractSummaryDir,
+    const { fileName } = writeTimestampedTxtFile(
+      "extract_summary",
       "extract_response",
       {
         requestId,
@@ -546,38 +396,42 @@ export async function extract({
         rawResponse: extractedData,
       },
     );
-    extractResponseFile = responseResult.fileName;
-  }
+    extractResponseFile = fileName;
 
-  summaryData.extraction_summary.push({
-    extract_inference_type: "extraction",
-    timestamp: extractCallTimestamp,
-    LLM_input_file: extractCallFile,
-    LLM_output_file: extractResponseFile,
-    prompt_tokens: extractUsage?.prompt_tokens ?? 0,
-    completion_tokens: extractUsage?.completion_tokens ?? 0,
-    inference_time_ms: extractEndTime - extractStartTime,
-  });
+    appendSummary("extract", {
+      extract_inference_type: "extract",
+      timestamp: extractCallTimestamp,
+      LLM_input_file: extractCallFile,
+      LLM_output_file: extractResponseFile,
+      prompt_tokens: extractUsage?.prompt_tokens ?? 0,
+      completion_tokens: extractUsage?.completion_tokens ?? 0,
+      inference_time_ms: extractEndTime - extractStartTime,
+    });
+  }
 
   const refineCallMessages: ChatMessage[] = [
     buildRefineSystemPrompt(),
     buildRefineUserPrompt(
       instruction,
       previouslyExtractedContent,
-      extractionResponse.data,
+      extractedData,
     ),
   ];
 
-  let refineCallTimestamp = getTimestamp();
   let refineCallFile = "";
+  let refineCallTimestamp = "";
   if (logInferenceToFile) {
-    const result = writeTimestampedJsonFile(extractSummaryDir, "refine_call", {
-      requestId,
-      modelCall: "refine",
-      messages: refineCallMessages,
-    });
-    refineCallFile = result.fileName;
-    refineCallTimestamp = result.timestamp;
+    const { fileName, timestamp } = writeTimestampedTxtFile(
+      "extract_summary",
+      "refine_call",
+      {
+        requestId,
+        modelCall: "refine",
+        messages: refineCallMessages,
+      },
+    );
+    refineCallFile = fileName;
+    refineCallTimestamp = timestamp;
   }
 
   const refineStartTime = Date.now();
@@ -604,8 +458,8 @@ export async function extract({
 
   let refineResponseFile = "";
   if (logInferenceToFile) {
-    const responseResult = writeTimestampedJsonFile(
-      extractSummaryDir,
+    const { fileName } = writeTimestampedTxtFile(
+      "extract_summary",
       "refine_response",
       {
         requestId,
@@ -613,18 +467,18 @@ export async function extract({
         rawResponse: refinedResponseData,
       },
     );
-    refineResponseFile = responseResult.fileName;
-  }
+    refineResponseFile = fileName;
 
-  summaryData.extraction_summary.push({
-    extract_inference_type: "refinement",
-    timestamp: refineCallTimestamp,
-    LLM_input_file: refineCallFile,
-    LLM_output_file: refineResponseFile,
-    prompt_tokens: refinedResponseUsage?.prompt_tokens ?? 0,
-    completion_tokens: refinedResponseUsage?.completion_tokens ?? 0,
-    inference_time_ms: refineEndTime - refineStartTime,
-  });
+    appendSummary("extract", {
+      extract_inference_type: "refine",
+      timestamp: refineCallTimestamp,
+      LLM_input_file: refineCallFile,
+      LLM_output_file: refineResponseFile,
+      prompt_tokens: refinedResponseUsage?.prompt_tokens ?? 0,
+      completion_tokens: refinedResponseUsage?.completion_tokens ?? 0,
+      inference_time_ms: refineEndTime - refineStartTime,
+    });
+  }
 
   const metadataCallMessages: ChatMessage[] = [
     buildMetadataSystemPrompt(),
@@ -636,11 +490,11 @@ export async function extract({
     ),
   ];
 
-  let metadataCallTimestamp = getTimestamp();
   let metadataCallFile = "";
+  let metadataCallTimestamp = "";
   if (logInferenceToFile) {
-    const result = writeTimestampedJsonFile(
-      extractSummaryDir,
+    const { fileName, timestamp } = writeTimestampedTxtFile(
+      "extract_summary",
       "metadata_call",
       {
         requestId,
@@ -648,8 +502,8 @@ export async function extract({
         messages: metadataCallMessages,
       },
     );
-    metadataCallFile = result.fileName;
-    metadataCallTimestamp = result.timestamp;
+    metadataCallFile = fileName;
+    metadataCallTimestamp = timestamp;
   }
 
   const metadataStartTime = Date.now();
@@ -681,8 +535,8 @@ export async function extract({
 
   let metadataResponseFile = "";
   if (logInferenceToFile) {
-    const responseResult = writeTimestampedJsonFile(
-      extractSummaryDir,
+    const { fileName } = writeTimestampedTxtFile(
+      "extract_summary",
       "metadata_response",
       {
         requestId,
@@ -691,32 +545,19 @@ export async function extract({
         progress: metadataResponseProgress,
       },
     );
-    metadataResponseFile = responseResult.fileName;
+    metadataResponseFile = fileName;
+
+    appendSummary("extract", {
+      extract_inference_type: "metadata",
+      timestamp: metadataCallTimestamp,
+      LLM_input_file: metadataCallFile,
+      LLM_output_file: metadataResponseFile,
+      prompt_tokens: metadataResponseUsage?.prompt_tokens ?? 0,
+      completion_tokens: metadataResponseUsage?.completion_tokens ?? 0,
+      inference_time_ms: metadataEndTime - metadataStartTime,
+    });
   }
 
-  summaryData.extraction_summary.push({
-    extract_inference_type: "metadata",
-    timestamp: metadataCallTimestamp,
-    LLM_input_file: metadataCallFile,
-    LLM_output_file: metadataResponseFile,
-    prompt_tokens: metadataResponseUsage?.prompt_tokens ?? 0,
-    completion_tokens: metadataResponseUsage?.completion_tokens ?? 0,
-    inference_time_ms: metadataEndTime - metadataStartTime,
-  });
-
-  //
-  // 4) If logging to file, write extraction_summary.json
-  //
-  if (logInferenceToFile) {
-    fs.writeFileSync(
-      path.join(extractSummaryDir, "extraction_summary.json"),
-      JSON.stringify(summaryData, null, 2),
-    );
-  }
-
-  //
-  // 5) Return final object with aggregated tokens/time
-  //
   const totalPromptTokens =
     (extractUsage?.prompt_tokens ?? 0) +
     (refinedResponseUsage?.prompt_tokens ?? 0) +
@@ -805,7 +646,6 @@ export async function observe({
 
   type ObserveResponse = z.infer<typeof observeSchema>;
 
-  // 2) Build system/user messages
   const messages: ChatMessage[] = [
     buildObserveSystemPrompt(
       userProvidedInstructions,
@@ -814,19 +654,11 @@ export async function observe({
     buildObserveUserMessage(instruction, domElements, isUsingAccessibilityTree),
   ];
 
-  // If logging to file is false, skip all directory/file writes
-  let observeDir = "";
   let callTimestamp = "";
   let callFile = "";
-  let responseFile = "";
-
   if (logInferenceToFile) {
-    // Ensure the "inference_summary/observe_summary" directory
-    observeDir = ensureObserveSummaryDir(); // <--- your local directory function
-
-    // Write the "observe_call" file
-    const { fileName, timestamp } = writeTimestampedJsonFile(
-      observeDir,
+    const { fileName, timestamp } = writeTimestampedTxtFile(
+      "observe_summary",
       "observe_call",
       {
         requestId,
@@ -838,7 +670,6 @@ export async function observe({
     callTimestamp = timestamp;
   }
 
-  // 3) Make the LLM call
   const start = Date.now();
   const rawResponse = await llmClient.createChatCompletion<ObserveResponse>({
     options: {
@@ -863,10 +694,10 @@ export async function observe({
   const promptTokens = observeUsage?.prompt_tokens ?? 0;
   const completionTokens = observeUsage?.completion_tokens ?? 0;
 
-  // 4) If logging to file, write the "observe_response" file & update summary
-  if (logInferenceToFile && observeDir) {
-    const { fileName: responseFileName } = writeTimestampedJsonFile(
-      observeDir,
+  let responseFile = "";
+  if (logInferenceToFile) {
+    const { fileName: responseFileName } = writeTimestampedTxtFile(
+      "observe_summary",
       "observe_response",
       {
         requestId,
@@ -876,27 +707,7 @@ export async function observe({
     );
     responseFile = responseFileName;
 
-    // Now update the "observe_summary.json"
-    const observeSummaryPath = path.join(observeDir, "observe_summary.json");
-
-    // read or start new structure
-    let existingData: { observe_summary: ObserveSummaryEntry[] } = {
-      observe_summary: [],
-    };
-    if (fs.existsSync(observeSummaryPath)) {
-      try {
-        const raw = fs.readFileSync(observeSummaryPath, "utf8");
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.observe_summary)) {
-          existingData = parsed;
-        }
-      } catch {
-        // ignore parse errors
-      }
-    }
-
-    // push new entry
-    existingData.observe_summary.push({
+    appendSummary("observe", {
       observe_inference_type: "observe",
       timestamp: callTimestamp,
       LLM_input_file: callFile,
@@ -905,15 +716,8 @@ export async function observe({
       completion_tokens: completionTokens,
       inference_time_ms: usageTimeMs,
     });
-
-    // write back out
-    fs.writeFileSync(
-      observeSummaryPath,
-      JSON.stringify(existingData, null, 2).replace(/\\n/g, "\n"),
-    );
   }
 
-  // 5) Convert final data
   const parsedElements =
     observeData.elements?.map((el) => {
       const base = {
@@ -930,7 +734,6 @@ export async function observe({
       return base;
     }) ?? [];
 
-  // 6) Return usage/time plus elements
   return {
     elements: parsedElements,
     prompt_tokens: promptTokens,
