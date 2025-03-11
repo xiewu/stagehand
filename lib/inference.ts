@@ -300,7 +300,6 @@ export async function verifyActCompletion({
   };
 }
 
-
 export async function act({
   action,
   domElements,
