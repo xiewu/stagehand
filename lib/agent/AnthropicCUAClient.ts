@@ -75,9 +75,6 @@ export class AnthropicCUAClient extends AgentClient {
   private actionHandler?: (action: AgentAction) => Promise<void>;
   private thinkingBudget: number | null = null;
 
-  /**
-   * Create a new Anthropic CUA client
-   */
   constructor(
     type: AgentType,
     modelName: string,
@@ -224,10 +221,6 @@ export class AnthropicCUAClient extends AgentClient {
     }
   }
 
-  /**
-   * Execute a single step of the agent
-   * This coordinates the flow: Request → Get Action → Execute Action
-   */
   async executeStep(
     inputItems: ResponseInputItem[],
     logger: (message: LogLine) => void,
@@ -437,14 +430,6 @@ export class AnthropicCUAClient extends AgentClient {
             display_height_px: this.currentViewport.height,
             display_number: 1,
           },
-          {
-            type: "text_editor_20250124",
-            name: "str_replace_editor",
-          },
-          {
-            type: "bash_20250124",
-            name: "bash",
-          },
         ],
         betas: ["computer-use-2025-01-24"],
       };
@@ -475,9 +460,6 @@ export class AnthropicCUAClient extends AgentClient {
       // Create the message using the Anthropic Messages API
       // @ts-expect-error - The Anthropic SDK types are stricter than what we need
       const response = await this.client.beta.messages.create(requestParams);
-
-      // Debug log
-      console.log(JSON.stringify(response, null, 2));
 
       // Store the message ID for future use
       this.lastMessageId = response.id;
@@ -514,6 +496,8 @@ export class AnthropicCUAClient extends AgentClient {
           message: `Processing tool use: ${item.name}, id: ${item.id}, action: ${JSON.stringify(item.input)}`,
           level: 2,
         });
+
+        // TODO: Normalize and migrate to agentHandler
 
         // For computer tool, capture screenshot and return image
         if (item.name === "computer") {
@@ -673,9 +657,6 @@ export class AnthropicCUAClient extends AgentClient {
   private convertToolUseToAction(item: ToolUseItem): AgentAction | null {
     try {
       const { name, input } = item;
-
-      // Add debug logging
-      console.log(`Converting tool use to action: ${name}, input:`, input);
 
       if (name === "computer") {
         // For computer actions, format according to the action type
@@ -893,9 +874,6 @@ export class AnthropicCUAClient extends AgentClient {
     }
   }
 
-  /**
-   * Capture a screenshot and prepare it for the agent
-   */
   async captureScreenshot(options?: {
     base64Image?: string;
     currentUrl?: string;

@@ -124,6 +124,7 @@ export class OpenAICUAClient extends AgentClient {
   /**
    * Execute a task with the OpenAI CUA
    * This is the main entry point for the agent
+   * @implements AgentClient.execute
    */
   async execute(executionOptions: AgentExecutionOptions): Promise<AgentResult> {
     const { options, logger } = executionOptions;
@@ -296,9 +297,6 @@ export class OpenAICUAClient extends AgentClient {
     }
   }
 
-  /**
-   * Check if an item is a ComputerCallItem
-   */
   private isComputerCallItem(item: ResponseItem): item is ComputerCallItem {
     return (
       item.type === "computer_call" &&
@@ -308,9 +306,6 @@ export class OpenAICUAClient extends AgentClient {
     );
   }
 
-  /**
-   * Check if an item is a FunctionCallItem
-   */
   private isFunctionCallItem(item: ResponseItem): item is FunctionCallItem {
     return (
       item.type === "function_call" &&
@@ -320,9 +315,6 @@ export class OpenAICUAClient extends AgentClient {
     );
   }
 
-  /**
-   * Create the initial input items for the agent
-   */
   private createInitialInputItems(instruction: string): ResponseInputItem[] {
     // For the initial request, we use a simple array with the user's instruction
     return [
@@ -333,9 +325,6 @@ export class OpenAICUAClient extends AgentClient {
     ];
   }
 
-  /**
-   * Get an action from the model using the Responses API
-   */
   async getAction(
     inputItems: ResponseInputItem[],
     previousResponseId?: string,
@@ -382,9 +371,6 @@ export class OpenAICUAClient extends AgentClient {
     }
   }
 
-  /**
-   * Take actions based on the output and return the input items for the next request
-   */
   async takeAction(
     output: ResponseItem[],
     logger: (message: LogLine) => void,
@@ -579,9 +565,6 @@ export class OpenAICUAClient extends AgentClient {
     return nextInputItems;
   }
 
-  /**
-   * Convert a computer call to an agent action
-   */
   private convertComputerCallToAction(
     call: ComputerCallItem,
   ): AgentAction | null {
@@ -595,9 +578,6 @@ export class OpenAICUAClient extends AgentClient {
     };
   }
 
-  /**
-   * Convert a function call to an agent action
-   */
   private convertFunctionCallToAction(
     call: FunctionCallItem,
   ): AgentAction | null {
@@ -614,9 +594,6 @@ export class OpenAICUAClient extends AgentClient {
     }
   }
 
-  /**
-   * Capture a screenshot and prepare it for the agent
-   */
   async captureScreenshot(options?: {
     base64Image?: string;
     currentUrl?: string;
