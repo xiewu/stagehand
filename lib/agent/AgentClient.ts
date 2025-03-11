@@ -1,5 +1,9 @@
 import { LogLine } from "../../types/log";
-import { AgentAction, AgentExecuteOptions, AgentResult } from "../../types/agent";
+import {
+  AgentAction,
+  AgentExecuteOptions,
+  AgentResult,
+} from "../../types/agent";
 
 // TODO: MOVE TO TYPES
 export type AgentType = "openai" | "anthropic";
@@ -64,5 +68,7 @@ export abstract class AgentClient {
   /**
    * Set a callback function that executes actions
    */
-  abstract setActionHandler(handler: (action: AgentAction) => Promise<void>): void;
+  abstract setActionHandler(
+    handler: (action: AgentAction) => Promise<void>,
+  ): void;
 }

@@ -30,7 +30,6 @@ export class AgentProvider {
     clientOptions?: Record<string, unknown>,
     userProvidedInstructions?: string,
   ): AgentClient {
-
     const type = AgentProvider.getAgentProvider(modelName);
     this.logger({
       category: "agent",
@@ -74,7 +73,7 @@ export class AgentProvider {
     if (modelName in modelToAgentProviderMap) {
       return modelToAgentProviderMap[modelName];
     }
-  
+
     // Default to OpenAI CUA for unrecognized models with warning
     throw new Error(`Unknown model name: ${modelName}`);
   }

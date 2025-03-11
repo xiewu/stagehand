@@ -9,7 +9,6 @@ import {
   AgentResult,
 } from "../../types/agent";
 
-
 // TODO: MOVE TO TYPES
 export interface AgentHandlerOptions {
   modelName: string;
@@ -40,7 +39,7 @@ export class StagehandAgentHandler {
     this.stagehandPage = stagehandPage;
     this.logger = logger;
     this.options = options;
-    
+
     // Initialize the provider
     this.provider = new AgentProvider(logger);
 
@@ -53,7 +52,7 @@ export class StagehandAgentHandler {
 
     // Store the client
     this.agentClient = client;
-    
+
     // Set up common functionality for any client type
     this.setupAgentClient();
 
@@ -81,7 +80,8 @@ export class StagehandAgentHandler {
       const defaultDelay = 1000;
       // Use specified delay or default
       const waitBetweenActions =
-        (this.options.clientOptions?.waitBetweenActions as number) || defaultDelay;
+        (this.options.clientOptions?.waitBetweenActions as number) ||
+        defaultDelay;
 
       try {
         // Try to inject cursor before each action
@@ -98,9 +98,7 @@ export class StagehandAgentHandler {
         await this.executeAction(action);
 
         // Add a delay after the action for better visibility
-        await new Promise((resolve) =>
-          setTimeout(resolve, waitBetweenActions),
-        );
+        await new Promise((resolve) => setTimeout(resolve, waitBetweenActions));
 
         // After executing an action, take a screenshot
         try {
@@ -418,7 +416,6 @@ export class StagehandAgentHandler {
     }
   }
 
-
   private updateClientViewport(): void {
     const viewportSize = this.stagehandPage.page.viewportSize();
     if (viewportSize) {
@@ -431,7 +428,6 @@ export class StagehandAgentHandler {
     this.agentClient.setCurrentUrl(url);
   }
 
-
   getAgent(): StagehandAgent {
     return this.agent;
   }
@@ -439,7 +435,6 @@ export class StagehandAgentHandler {
   getClient(): AgentClient {
     return this.agentClient;
   }
-
 
   async captureAndSendScreenshot(): Promise<unknown> {
     this.logger({
