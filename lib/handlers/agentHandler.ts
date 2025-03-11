@@ -3,7 +3,11 @@ import { AgentProvider } from "../agent/AgentProvider";
 import { StagehandAgent } from "../agent/StagehandAgent";
 import { AgentClient, AgentType } from "../agent/AgentClient";
 import { LogLine } from "../../types/log";
-import { AgentExecuteOptions, AgentAction, AgentResult } from "../../types/agent";
+import {
+  AgentExecuteOptions,
+  AgentAction,
+  AgentResult,
+} from "../../types/agent";
 import { OpenAICUAClient } from "../agent/OpenAICUAClient";
 
 /**
@@ -14,22 +18,22 @@ export interface AgentHandlerOptions {
    * Type of agent to use
    */
   agentType: AgentType;
-  
+
   /**
    * Model name to use
    */
   modelName: string;
-  
+
   /**
    * Client options for the agent
    */
   clientOptions?: Record<string, unknown>;
-  
+
   /**
    * Any special instructions for the agent
    */
   userProvidedInstructions?: string;
-  
+
   /**
    * Enable caching of agent responses
    */
@@ -44,12 +48,12 @@ interface ActionExecutionResult {
    * Whether the action was executed successfully
    */
   success: boolean;
-  
+
   /**
    * Any error message
    */
   error?: string;
-  
+
   /**
    * Any result data
    */
@@ -67,52 +71,57 @@ export class StagehandAgentHandler {
   private logger: (message: LogLine) => void;
   private cuaClient?: OpenAICUAClient;
   private options: AgentHandlerOptions;
-  
+
   /**
    * Constructor for the StagehandAgentHandler
    */
   constructor(
     stagehandPage: StagehandPage,
     logger: (message: LogLine) => void,
-    options: AgentHandlerOptions
+    options: AgentHandlerOptions,
   ) {
     this.stagehandPage = stagehandPage;
     this.logger = logger;
-    
+
     // Initialize the provider
     this.provider = new AgentProvider(logger);
-    
+
     // Store the options
     this.options = options;
-    
+
     // Create client first
     const client = this.provider.getClient(
       options.agentType,
       options.modelName,
       options.clientOptions || {},
-      options.userProvidedInstructions
+      options.userProvidedInstructions,
     );
-    
+
     // Store CUA client if applicable
     if (options.agentType === "openai") {
       this.cuaClient = client as OpenAICUAClient;
-      
+
       // Set up screenshot provider
       this.cuaClient.setScreenshotProvider(async () => {
         // Take screenshot of the current page
-        const cdpSession = await this.stagehandPage.page.context().newCDPSession(this.stagehandPage.page);
-        const { data } = await cdpSession.send("Page.captureScreenshot", {optimizeForSpeed:true});
+        const cdpSession = await this.stagehandPage.page
+          .context()
+          .newCDPSession(this.stagehandPage.page);
+        const { data } = await cdpSession.send("Page.captureScreenshot", {
+          optimizeForSpeed: true,
+        });
         // Convert to base64
         return data;
       });
-      
+
       // Set up action handler
       this.cuaClient.setActionHandler(async (action) => {
         // Default delay between actions (1 second if not specified)
         const defaultDelay = 1000;
         // Use specified delay or default
-        const waitBetweenActions = options.clientOptions?.waitBetweenActions as number || defaultDelay;
-        
+        const waitBetweenActions =
+          (options.clientOptions?.waitBetweenActions as number) || defaultDelay;
+
         try {
           // Try to inject cursor before each action
           try {
@@ -120,21 +129,24 @@ export class StagehandAgentHandler {
           } catch {
             // Ignore cursor injection failures
           }
-          
+
           // Add a small delay before the action for better visibility
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
           // Execute the action
           await this.executeAction(action);
-          
+
           // Add a delay after the action for better visibility
-          await new Promise(resolve => setTimeout(resolve, waitBetweenActions));
-          
+          await new Promise((resolve) =>
+            setTimeout(resolve, waitBetweenActions),
+          );
+
           // After executing an action, take a screenshot
           try {
             await this.captureAndSendScreenshot();
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
             this.logger({
               category: "agent",
               message: `Warning: Failed to take screenshot after action: ${errorMessage}. Continuing execution.`,
@@ -143,7 +155,8 @@ export class StagehandAgentHandler {
             // Continue execution even if screenshot fails
           }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
           this.logger({
             category: "agent",
             message: `Error executing action ${action.type}: ${errorMessage}`,
@@ -152,41 +165,45 @@ export class StagehandAgentHandler {
           throw error; // Re-throw the error to be handled by the caller
         }
       });
-      
+
       // Update viewport and URL
       this.updateClientViewport();
       this.updateClientUrl();
     }
-    
+
     // Create agent with the client
     this.agent = new StagehandAgent(client, logger);
-    
+
     this.logger({
       category: "agent",
       message: `Agent handler initialized with ${options.agentType} using model ${options.modelName}`,
       level: 1,
     });
   }
-  
+
   /**
    * Execute a task with the agent
    */
-  async execute(optionsOrInstruction: AgentExecuteOptions | string): Promise<AgentResult> {
-    const options = typeof optionsOrInstruction === "string" 
-      ? { instruction: optionsOrInstruction } 
-      : optionsOrInstruction;
-    
+  async execute(
+    optionsOrInstruction: AgentExecuteOptions | string,
+  ): Promise<AgentResult> {
+    const options =
+      typeof optionsOrInstruction === "string"
+        ? { instruction: optionsOrInstruction }
+        : optionsOrInstruction;
+
     this.logger({
       category: "agent",
       message: `Executing agent task: ${options.instruction}`,
       level: 1,
     });
-    
+
     // Inject cursor for visual feedback
     try {
       await this.injectCursor();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger({
         category: "agent",
         message: `Warning: Failed to inject cursor: ${errorMessage}. Continuing with execution.`,
@@ -194,13 +211,14 @@ export class StagehandAgentHandler {
       });
       // Continue execution even if cursor injection fails
     }
-    
+
     // Take initial screenshot if needed
     if (options.autoScreenshot !== false) {
       try {
         await this.captureAndSendScreenshot();
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         this.logger({
           category: "agent",
           message: `Warning: Failed to take initial screenshot: ${errorMessage}. Continuing with execution.`,
@@ -209,20 +227,22 @@ export class StagehandAgentHandler {
         // Continue execution even if screenshot fails
       }
     }
-    
+
     // Execute the task
     const result = await this.agent.execute(optionsOrInstruction);
-    
+
     // The actions are now executed during the agent's execution flow
     // We don't need to execute them again here
-    
+
     return result;
   }
-  
+
   /**
    * Execute a single action on the page
    */
-  private async executeAction(action: AgentAction): Promise<ActionExecutionResult> {
+  private async executeAction(
+    action: AgentAction,
+  ): Promise<ActionExecutionResult> {
     try {
       switch (action.type) {
         case "click": {
@@ -232,12 +252,14 @@ export class StagehandAgentHandler {
           // Animate the click
           await this.animateClick(x as number, y as number);
           // Small delay to see the animation
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise((resolve) => setTimeout(resolve, 300));
           // Perform the actual click
-          await this.stagehandPage.page.mouse.click(x as number, y as number, { button: button as "left" | "right" });
+          await this.stagehandPage.page.mouse.click(x as number, y as number, {
+            button: button as "left" | "right",
+          });
           return { success: true };
         }
-        
+
         case "double_click": {
           const { x, y } = action;
           // Update cursor position first
@@ -245,16 +267,19 @@ export class StagehandAgentHandler {
           // Animate the click
           await this.animateClick(x as number, y as number);
           // Small delay to see the animation
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
           // Animate the second click
           await this.animateClick(x as number, y as number);
           // Small delay to see the animation
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
           // Perform the actual double click
-          await this.stagehandPage.page.mouse.dblclick(x as number, y as number);
+          await this.stagehandPage.page.mouse.dblclick(
+            x as number,
+            y as number,
+          );
           return { success: true };
         }
-        
+
         // Handle the case for "doubleClick" as well for backward compatibility
         case "doubleClick": {
           const { x, y } = action;
@@ -263,22 +288,25 @@ export class StagehandAgentHandler {
           // Animate the click
           await this.animateClick(x as number, y as number);
           // Small delay to see the animation
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
           // Animate the second click
           await this.animateClick(x as number, y as number);
           // Small delay to see the animation
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise((resolve) => setTimeout(resolve, 200));
           // Perform the actual double click
-          await this.stagehandPage.page.mouse.dblclick(x as number, y as number);
+          await this.stagehandPage.page.mouse.dblclick(
+            x as number,
+            y as number,
+          );
           return { success: true };
         }
-        
+
         case "type": {
           const { text } = action;
           await this.stagehandPage.page.keyboard.type(text as string);
           return { success: true };
         }
-        
+
         case "keypress": {
           const { keys } = action;
           if (Array.isArray(keys)) {
@@ -313,7 +341,7 @@ export class StagehandAgentHandler {
           }
           return { success: true };
         }
-        
+
         case "scroll": {
           const { x, y, scroll_x = 0, scroll_y = 0 } = action;
           // First move to the position
@@ -321,32 +349,32 @@ export class StagehandAgentHandler {
           // Then scroll
           await this.stagehandPage.page.evaluate(
             ({ scrollX, scrollY }) => window.scrollBy(scrollX, scrollY),
-            { scrollX: scroll_x as number, scrollY: scroll_y as number }
+            { scrollX: scroll_x as number, scrollY: scroll_y as number },
           );
           return { success: true };
         }
-        
+
         case "drag": {
           const { path } = action;
           if (Array.isArray(path) && path.length >= 2) {
             const start = path[0];
-            
+
             // Update cursor position for start
             await this.updateCursorPosition(start.x, start.y);
             await this.stagehandPage.page.mouse.move(start.x, start.y);
             await this.stagehandPage.page.mouse.down();
-            
+
             // Update cursor position for each point in the path
             for (let i = 1; i < path.length; i++) {
               await this.updateCursorPosition(path[i].x, path[i].y);
               await this.stagehandPage.page.mouse.move(path[i].x, path[i].y);
             }
-            
+
             await this.stagehandPage.page.mouse.up();
           }
           return { success: true };
         }
-        
+
         case "move": {
           const { x, y } = action;
           // Update cursor position first
@@ -354,22 +382,27 @@ export class StagehandAgentHandler {
           await this.stagehandPage.page.mouse.move(x as number, y as number);
           return { success: true };
         }
-        
+
         case "wait": {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
           return { success: true };
         }
-        
+
         case "screenshot": {
           // Screenshot is handled automatically by the agent client
           // after each action, so we don't need to do anything here
           return { success: true };
         }
-        
+
         case "function": {
           const { name, arguments: args = {} } = action;
-          
-          if (name === "goto" && typeof args === 'object' && args !== null && 'url' in args) {
+
+          if (
+            name === "goto" &&
+            typeof args === "object" &&
+            args !== null &&
+            "url" in args
+          ) {
             await this.stagehandPage.page.goto(args.url as string);
             this.updateClientUrl();
             return { success: true };
@@ -386,35 +419,36 @@ export class StagehandAgentHandler {
             this.updateClientUrl();
             return { success: true };
           }
-          
-          return { 
-            success: false, 
-            error: `Unsupported function: ${name}` 
+
+          return {
+            success: false,
+            error: `Unsupported function: ${name}`,
           };
         }
-        
+
         default:
-          return { 
-            success: false, 
-            error: `Unsupported action type: ${action.type}` 
+          return {
+            success: false,
+            error: `Unsupported action type: ${action.type}`,
           };
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
       this.logger({
         category: "agent",
         message: `Error executing action ${action.type}: ${errorMessage}`,
         level: 0,
       });
-      
-      return { 
-        success: false, 
-        error: errorMessage 
+
+      return {
+        success: false,
+        error: errorMessage,
       };
     }
   }
-  
+
   /**
    * Update the client with the current viewport dimensions
    */
@@ -426,7 +460,7 @@ export class StagehandAgentHandler {
       }
     }
   }
-  
+
   /**
    * Update the client with the current URL
    */
@@ -436,21 +470,21 @@ export class StagehandAgentHandler {
       this.cuaClient.setCurrentUrl(url);
     }
   }
-  
+
   /**
    * Get the agent instance
    */
   getAgent(): StagehandAgent {
     return this.agent;
   }
-  
+
   /**
    * Get the agent client
    */
   getClient(): AgentClient {
-    return this.agent['client'];
+    return this.agent["client"];
   }
-  
+
   /**
    * Capture a screenshot and send it to the agent
    * This method is now deprecated - screenshots are handled internally by the client
@@ -461,7 +495,7 @@ export class StagehandAgentHandler {
       message: "Taking screenshot and sending to agent",
       level: 1,
     });
-    
+
     try {
       // Take screenshot of the current page
       const screenshot = await this.stagehandPage.page.screenshot({
@@ -470,15 +504,16 @@ export class StagehandAgentHandler {
       });
 
       // Convert to base64
-      const base64Image = screenshot.toString('base64');
-      
+      const base64Image = screenshot.toString("base64");
+
       // Just use the captureScreenshot method on the agent client
-      return await this.getClient().captureScreenshot({ 
+      return await this.getClient().captureScreenshot({
         base64Image,
-        currentUrl: this.stagehandPage.page.url() 
+        currentUrl: this.stagehandPage.page.url(),
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger({
         category: "agent",
         message: `Error capturing screenshot: ${errorMessage}`,
@@ -487,25 +522,28 @@ export class StagehandAgentHandler {
       return null;
     }
   }
-  
+
   /**
    * Inject a cursor element into the page for visual feedback
    */
   private async injectCursor(): Promise<void> {
     try {
       // Define constants for cursor and highlight element IDs
-      const CURSOR_ID = 'stagehand-cursor';
-      const HIGHLIGHT_ID = 'stagehand-highlight';
-      
+      const CURSOR_ID = "stagehand-cursor";
+      const HIGHLIGHT_ID = "stagehand-highlight";
+
       // Check if cursor already exists
-      const cursorExists = await this.stagehandPage.page.evaluate((id: string) => {
-        return !!document.getElementById(id);
-      }, CURSOR_ID);
-      
+      const cursorExists = await this.stagehandPage.page.evaluate(
+        (id: string) => {
+          return !!document.getElementById(id);
+        },
+        CURSOR_ID,
+      );
+
       if (cursorExists) {
         return;
       }
-      
+
       // Inject cursor and highlight elements
       await this.stagehandPage.page.evaluate(`
         (function(cursorId, highlightId) {
@@ -572,7 +610,7 @@ export class StagehandAgentHandler {
           };
         })('${CURSOR_ID}', '${HIGHLIGHT_ID}');
       `);
-      
+
       this.logger({
         category: "agent",
         message: "Cursor injected for visual feedback",
@@ -592,13 +630,16 @@ export class StagehandAgentHandler {
    */
   private async updateCursorPosition(x: number, y: number): Promise<void> {
     try {
-      await this.stagehandPage.page.evaluate(({ x, y }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((window as any).__updateCursorPosition) {
+      await this.stagehandPage.page.evaluate(
+        ({ x, y }) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).__updateCursorPosition(x, y);
-        }
-      }, { x, y });
+          if ((window as any).__updateCursorPosition) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).__updateCursorPosition(x, y);
+          }
+        },
+        { x, y },
+      );
     } catch {
       // Silently fail if cursor update fails
       // This is not critical functionality
@@ -610,13 +651,16 @@ export class StagehandAgentHandler {
    */
   private async animateClick(x: number, y: number): Promise<void> {
     try {
-      await this.stagehandPage.page.evaluate(({ x, y }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((window as any).__animateClick) {
+      await this.stagehandPage.page.evaluate(
+        ({ x, y }) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).__animateClick(x, y);
-        }
-      }, { x, y });
+          if ((window as any).__animateClick) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).__animateClick(x, y);
+          }
+        },
+        { x, y },
+      );
     } catch {
       // Silently fail if animation fails
       // This is not critical functionality
@@ -629,37 +673,37 @@ export class StagehandAgentHandler {
   private convertKeyToPlaywright(key: string): string {
     // Map of CUA key names to Playwright key names
     const keyMap: Record<string, string> = {
-      "ENTER": "Enter",
-      "ESCAPE": "Escape",
-      "BACKSPACE": "Backspace",
-      "TAB": "Tab",
-      "SPACE": " ",
-      "ARROWUP": "ArrowUp",
-      "ARROWDOWN": "ArrowDown",
-      "ARROWLEFT": "ArrowLeft",
-      "ARROWRIGHT": "ArrowRight",
-      "UP": "ArrowUp",
-      "DOWN": "ArrowDown",
-      "LEFT": "ArrowLeft",
-      "RIGHT": "ArrowRight",
-      "SHIFT": "Shift",
-      "CONTROL": "Control",
-      "ALT": "Alt",
-      "META": "Meta",
-      "COMMAND": "Meta",
-      "CMD": "Meta",
-      "CTRL": "Control",
-      "DELETE": "Delete",
-      "HOME": "Home",
-      "END": "End",
-      "PAGEUP": "PageUp",
-      "PAGEDOWN": "PageDown",
+      ENTER: "Enter",
+      ESCAPE: "Escape",
+      BACKSPACE: "Backspace",
+      TAB: "Tab",
+      SPACE: " ",
+      ARROWUP: "ArrowUp",
+      ARROWDOWN: "ArrowDown",
+      ARROWLEFT: "ArrowLeft",
+      ARROWRIGHT: "ArrowRight",
+      UP: "ArrowUp",
+      DOWN: "ArrowDown",
+      LEFT: "ArrowLeft",
+      RIGHT: "ArrowRight",
+      SHIFT: "Shift",
+      CONTROL: "Control",
+      ALT: "Alt",
+      META: "Meta",
+      COMMAND: "Meta",
+      CMD: "Meta",
+      CTRL: "Control",
+      DELETE: "Delete",
+      HOME: "Home",
+      END: "End",
+      PAGEUP: "PageUp",
+      PAGEDOWN: "PageDown",
     };
-    
+
     // Convert to uppercase for case-insensitive matching
     const upperKey = key.toUpperCase();
-    
+
     // Return the mapped key or the original key if not found
     return keyMap[upperKey] || key;
   }
-} 
+}

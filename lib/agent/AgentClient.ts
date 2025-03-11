@@ -14,12 +14,12 @@ export interface AgentExecutionOptions {
    * The execution options
    */
   options: AgentExecuteOptions;
-  
+
   /**
    * Logger function
    */
   logger: (message: LogLine) => void;
-  
+
   /**
    * Number of retries on failure
    */
@@ -35,17 +35,17 @@ export abstract class AgentClient {
    * Type of agent
    */
   public type: AgentType;
-  
+
   /**
    * Name of the model used by this agent
    */
   public modelName: string;
-  
+
   /**
    * Client options specific to this agent
    */
   public clientOptions: Record<string, unknown>;
-  
+
   /**
    * Any special instructions for the agent
    */
@@ -54,7 +54,11 @@ export abstract class AgentClient {
   /**
    * Create a new agent client
    */
-  constructor(type: AgentType, modelName: string, userProvidedInstructions?: string) {
+  constructor(
+    type: AgentType,
+    modelName: string,
+    userProvidedInstructions?: string,
+  ) {
     this.type = type;
     this.modelName = modelName;
     this.userProvidedInstructions = userProvidedInstructions;
@@ -65,9 +69,11 @@ export abstract class AgentClient {
    * Execute a task with the agent
    */
   abstract execute(options: AgentExecutionOptions): Promise<AgentResult>;
-  
+
   /**
    * Take a screenshot and send it to the agent
    */
-  abstract captureScreenshot(options?: Record<string, unknown>): Promise<unknown>;
-} 
+  abstract captureScreenshot(
+    options?: Record<string, unknown>,
+  ): Promise<unknown>;
+}

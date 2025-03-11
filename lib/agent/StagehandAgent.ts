@@ -21,23 +21,26 @@ export class StagehandAgent {
   /**
    * Execute a task with the agent
    */
-  async execute(optionsOrInstruction: AgentExecuteOptions | string): Promise<AgentResult> {
-    const options = typeof optionsOrInstruction === "string" 
-      ? { instruction: optionsOrInstruction } 
-      : optionsOrInstruction;
-    
+  async execute(
+    optionsOrInstruction: AgentExecuteOptions | string,
+  ): Promise<AgentResult> {
+    const options =
+      typeof optionsOrInstruction === "string"
+        ? { instruction: optionsOrInstruction }
+        : optionsOrInstruction;
+
     this.logger({
       category: "agent",
       message: `Executing agent task: ${options.instruction}`,
       level: 1,
     });
-    
+
     const executionOptions: AgentExecutionOptions = {
       options,
       logger: this.logger,
       retries: 3,
     };
-    
+
     return await this.client.execute(executionOptions);
   }
 
@@ -54,4 +57,4 @@ export class StagehandAgent {
   getAgentType(): string {
     return this.client.type;
   }
-} 
+}

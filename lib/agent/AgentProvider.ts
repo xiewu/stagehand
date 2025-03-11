@@ -30,7 +30,7 @@ export class AgentProvider {
     type: AgentType,
     modelName: string,
     clientOptions?: Record<string, unknown>,
-    userProvidedInstructions?: string
+    userProvidedInstructions?: string,
   ): AgentClient {
     this.logger({
       category: "agent",
@@ -45,7 +45,7 @@ export class AgentProvider {
             type,
             modelName,
             userProvidedInstructions,
-            clientOptions
+            clientOptions,
           );
         case "anthropic":
           // Fallback to OpenAI CUA client for now
@@ -58,13 +58,14 @@ export class AgentProvider {
             "openai",
             "computer-use-preview-2025-02-04", // Fall back to a reliable model
             userProvidedInstructions,
-            clientOptions
+            clientOptions,
           );
         default:
           throw new Error(`Unknown agent type: ${type}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger({
         category: "agent",
         message: `Error creating agent client: ${errorMessage}`,
@@ -87,4 +88,4 @@ export class AgentProvider {
     console.warn(`Unknown model name: ${modelName}, defaulting to OpenAI CUA`);
     return "openai";
   }
-} 
+}

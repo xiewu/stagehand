@@ -479,12 +479,12 @@ export class Stagehand {
     // Store agent configuration for use in init
     this.agentEnabled = agent?.enabled ?? false;
     this.agentConfig = agent || {};
-    
+
     // If agent is enabled, we'll initialize it during the init() method
     if (this.agentEnabled) {
       this.log({
         category: "agent",
-        message: `Agent functionality enabled with provider: ${this.agentConfig.provider || 'openai'}, model: ${this.agentConfig.model || 'computer-use-preview-2025-02-04'}`,
+        message: `Agent functionality enabled with provider: ${this.agentConfig.provider || "openai"}, model: ${this.agentConfig.model || "computer-use-preview-2025-02-04"}`,
         level: 1,
       });
     }
@@ -618,16 +618,17 @@ export class Stagehand {
     // Initialize agent if enabled
     if (this.agentEnabled && this.stagehandPage) {
       try {
-        const provider = this.agentConfig.provider || 'openai';
-        const model = this.agentConfig.model || 'computer-use-preview-2025-02-04';
+        const provider = this.agentConfig.provider || "openai";
+        const model =
+          this.agentConfig.model || "computer-use-preview-2025-02-04";
         const instructions = this.agentConfig.instructions;
         const options = this.agentConfig.options || {};
-        
+
         // Add API key to options if not provided
         if (!options.apiKey && this.apiKey) {
           options.apiKey = this.apiKey;
         }
-        
+
         this.agentHandler = new StagehandAgentHandler(
           this.stagehandPage,
           this.logger,
@@ -636,16 +637,17 @@ export class Stagehand {
             modelName: model,
             clientOptions: options,
             userProvidedInstructions: instructions,
-          }
+          },
         );
-        
+
         this.log({
           category: "agent",
           message: `Agent initialized with provider: ${provider}, model: ${model}`,
           level: 1,
         });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         this.log({
           category: "agent",
           message: `Failed to initialize agent: ${errorMessage}`,
@@ -806,36 +808,41 @@ export class Stagehand {
    * @returns An agent instance with execute() method
    */
   agent(): {
-    execute: (instructionOrOptions: string | AgentExecuteOptions) => Promise<AgentResult>;
+    execute: (
+      instructionOrOptions: string | AgentExecuteOptions,
+    ) => Promise<AgentResult>;
   } {
     if (!this.agentEnabled || !this.agentHandler) {
-      throw new Error("Agent functionality is not enabled. Set agent.enabled to true in constructor options.");
+      throw new Error(
+        "Agent functionality is not enabled. Set agent.enabled to true in constructor options.",
+      );
     }
-    
+
     this.log({
       category: "agent",
       message: "Creating agent instance",
       level: 1,
     });
-    
+
     return {
       execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
-        const executeOptions: AgentExecuteOptions = typeof instructionOrOptions === 'string'
-          ? { instruction: instructionOrOptions }
-          : instructionOrOptions;
-        
+        const executeOptions: AgentExecuteOptions =
+          typeof instructionOrOptions === "string"
+            ? { instruction: instructionOrOptions }
+            : instructionOrOptions;
+
         if (!executeOptions.instruction) {
           throw new Error("Instruction is required for agent execution");
         }
-        
+
         this.log({
           category: "agent",
           message: `Executing agent task: ${executeOptions.instruction}`,
           level: 1,
         });
-        
+
         return await this.agentHandler.execute(executeOptions);
-      }
+      },
     };
   }
 }

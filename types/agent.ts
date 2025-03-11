@@ -52,7 +52,7 @@ export interface AgentClientOptions {
   baseURL?: string;
   defaultMaxSteps?: number;
   [key: string]: unknown;
-} 
+}
 
 // OPENAI Types
 
@@ -62,7 +62,7 @@ export type Tool = FunctionTool | ComputerTool;
 
 export type Item = Message | FunctionToolCall | ComputerToolCall | Reasoning;
 
-export type InputContent = InputText | InputImage ;
+export type InputContent = InputText | InputImage;
 
 export type OutputContent = OutputText | Refusal;
 
@@ -71,7 +71,7 @@ export type Content = InputContent | OutputContent | Reasoning;
 export interface EasyMessage {
   role: "system" | "user" | "assistant" | "developer";
   content: string | InputContent[];
-};
+}
 
 export type OutputText = {
   type: "output_text";
@@ -120,7 +120,7 @@ export interface FunctionOutput {
   type: "function_call_output";
   call_id: string;
   output: string;
-};
+}
 
 export interface ComputerCallOutput {
   type: "computer_call_output";
@@ -128,14 +128,14 @@ export interface ComputerCallOutput {
   output: { type: "input_image"; image_url: string };
   // acknowledged_safety_checks: SafetyCheck[];
   current_url?: string;
-};
+}
 
 export interface ComputerTool {
   type: "computer-preview";
   display_width: number;
   display_height: number;
   environment: "browser";
-};
+}
 
 export interface FunctionTool {
   type: "function";
@@ -143,7 +143,7 @@ export interface FunctionTool {
   description: string | null;
   parameters: object;
   strict: boolean;
-};
+}
 
 export interface FunctionToolCall {
   type: "function_call";
@@ -152,14 +152,14 @@ export interface FunctionToolCall {
   name: string;
   arguments: string;
   output: Content[] | null;
-};
+}
 
 export interface ComputerToolCall {
   type: "computer_call";
   id: string;
   call_id: string;
   action: ComputerAction;
-};
+}
 
 export type ComputerAction =
   | Click
@@ -224,7 +224,6 @@ export type Move = {
   x: number;
   y: number;
 };
-
 
 export type RequestOptions = {
   model: string;
