@@ -41,6 +41,7 @@ export interface ConstructorParams {
   waitForCaptchaSolves?: boolean;
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   actTimeoutMs?: number;
+  logInferenceToFile?: boolean;
 }
 
 export interface InitOptions {
@@ -168,4 +169,19 @@ export interface LocalBrowserLaunchOptions {
   timezoneId?: string;
   bypassCSP?: boolean;
   cookies?: Cookie[];
+}
+
+export interface StagehandMetrics {
+  actPromptTokens: number;
+  actCompletionTokens: number;
+  actInferenceTimeMs: number;
+  extractPromptTokens: number;
+  extractCompletionTokens: number;
+  extractInferenceTimeMs: number;
+  observePromptTokens: number;
+  observeCompletionTokens: number;
+  observeInferenceTimeMs: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalInferenceTimeMs: number;
 }

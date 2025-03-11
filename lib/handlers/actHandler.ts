@@ -19,12 +19,14 @@ import {
 } from "@/types/stagehand";
 import { SupportedPlaywrightAction } from "@/types/act";
 import { buildActObservePrompt } from "../prompt";
+import { Stagehand } from "@/lib";
 /**
  * NOTE: Vision support has been removed from this version of Stagehand.
  * If useVision or verifierUseVision is set to true, a warning is logged and
  * the flow continues as if vision = false.
  */
 export class StagehandActHandler {
+  private readonly stagehand: Stagehand;
   private readonly stagehandPage: StagehandPage;
   private readonly verbose: 0 | 1 | 2;
   private readonly llmProvider: LLMProvider;
@@ -39,6 +41,7 @@ export class StagehandActHandler {
   private readonly waitForCaptchaSolves: boolean;
 
   constructor({
+    stagehand,
     verbose,
     llmProvider,
     enableCaching,
@@ -48,6 +51,7 @@ export class StagehandActHandler {
     selfHeal,
     waitForCaptchaSolves,
   }: {
+    stagehand: Stagehand;
     verbose: 0 | 1 | 2;
     llmProvider: LLMProvider;
     enableCaching: boolean;
@@ -59,6 +63,7 @@ export class StagehandActHandler {
     selfHeal: boolean;
     waitForCaptchaSolves: boolean;
   }) {
+    this.stagehand = stagehand;
     this.verbose = verbose;
     this.llmProvider = llmProvider;
     this.enableCaching = enableCaching;
@@ -331,8 +336,8 @@ export class StagehandActHandler {
         },
       });
 
-      // Always use text-based DOM verification (no vision).
-      actionCompleted = await verifyActCompletion({
+      // NEW: verifyActCompletion now returns { completed, prompt_tokens, ... }
+      const verifyResult = await verifyActCompletion({
         goal: action,
         steps,
         llmProvider: this.llmProvider,
@@ -340,7 +345,9 @@ export class StagehandActHandler {
         domElements,
         logger: this.logger,
         requestId,
+        logInferenceToFile: this.stagehand.logInferenceToFile,
       });
+      actionCompleted = verifyResult.completed;
 
       this.logger({
         category: "action",
@@ -357,6 +364,11 @@ export class StagehandActHandler {
           },
         },
       });
+      this.stagehand.updateActMetrics(
+        verifyResult.prompt_tokens,
+        verifyResult.completion_tokens,
+        verifyResult.inference_time_ms,
+      );
     }
 
     return actionCompleted;
@@ -902,6 +914,14 @@ export class StagehandActHandler {
         requestId,
         variables,
         userProvidedInstructions: this.userProvidedInstructions,
+        onActMetrics: (promptTokens, completionTokens, inferenceTimeMs) => {
+          this.stagehand.updateActMetrics(
+            promptTokens,
+            completionTokens,
+            inferenceTimeMs,
+          );
+        },
+        logInferenceToFile: this.stagehand.logInferenceToFile,
       });
 
       this.logger({

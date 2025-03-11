@@ -357,12 +357,22 @@ export class StagehandExtractHandler {
       requestId,
       userProvidedInstructions: this.userProvidedInstructions,
       logger: this.logger,
+      logInferenceToFile: this.stagehand.logInferenceToFile,
     });
 
     const {
       metadata: { completed },
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      inference_time_ms: inferenceTimeMs,
       ...output
     } = extractionResponse;
+
+    this.stagehand.updateExtractMetrics(
+      promptTokens,
+      completionTokens,
+      inferenceTimeMs,
+    );
 
     // Clean up debug
     await this.stagehandPage.cleanupDomDebug();
@@ -489,12 +499,22 @@ export class StagehandExtractHandler {
       isUsingTextExtract: false,
       userProvidedInstructions: this.userProvidedInstructions,
       logger: this.logger,
+      logInferenceToFile: this.stagehand.logInferenceToFile,
     });
 
     const {
       metadata: { completed },
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      inference_time_ms: inferenceTimeMs,
       ...output
     } = extractionResponse;
+
+    this.stagehand.updateExtractMetrics(
+      promptTokens,
+      completionTokens,
+      inferenceTimeMs,
+    );
 
     await this.stagehandPage.cleanupDomDebug();
 

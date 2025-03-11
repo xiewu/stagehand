@@ -113,7 +113,20 @@ export class StagehandObserveHandler {
       logger: this.logger,
       isUsingAccessibilityTree: useAccessibilityTree,
       returnAction,
+      logInferenceToFile: this.stagehand.logInferenceToFile,
     });
+
+    const {
+      prompt_tokens = 0,
+      completion_tokens = 0,
+      inference_time_ms = 0,
+    } = observationResponse;
+
+    this.stagehand.updateObserveMetrics(
+      prompt_tokens,
+      completion_tokens,
+      inference_time_ms,
+    );
 
     //Add iframes to the observation response if there are any on the page
     if (iframes.length > 0) {
