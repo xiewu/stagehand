@@ -136,6 +136,7 @@ function readActSummaryFile(jsonPath: string): ActSummaryFile {
         return parsed;
       }
     } catch {
+      /* empty */
     }
   }
   return { act_summary: [] };
