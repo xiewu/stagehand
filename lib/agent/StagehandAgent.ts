@@ -1,6 +1,10 @@
 import { LogLine } from "../../types/log";
-import { AgentExecuteOptions, AgentResult } from "../../types/agent";
-import { AgentClient, AgentExecutionOptions } from "./AgentClient";
+import {
+  AgentExecuteOptions,
+  AgentResult,
+  AgentExecutionOptions,
+} from "@/types/agent";
+import { AgentClient } from "./AgentClient";
 
 /**
  * Main interface for agent operations in Stagehand

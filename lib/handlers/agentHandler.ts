@@ -1,27 +1,15 @@
 import { StagehandPage } from "../StagehandPage";
 import { AgentProvider } from "../agent/AgentProvider";
 import { StagehandAgent } from "../agent/StagehandAgent";
-import { AgentClient, AgentType } from "../agent/AgentClient";
+import { AgentClient } from "../agent/AgentClient";
 import { LogLine } from "../../types/log";
 import {
   AgentExecuteOptions,
   AgentAction,
   AgentResult,
-} from "../../types/agent";
-
-// TODO: MOVE TO TYPES
-export interface AgentHandlerOptions {
-  modelName: string;
-  clientOptions?: Record<string, unknown>;
-  userProvidedInstructions?: string;
-  agentType: AgentType;
-}
-
-interface ActionExecutionResult {
-  success: boolean;
-  error?: string;
-  data?: unknown;
-}
+  AgentHandlerOptions,
+  ActionExecutionResult,
+} from "@/types/agent";
 
 export class StagehandAgentHandler {
   private stagehandPage: StagehandPage;
@@ -283,7 +271,7 @@ export class StagehandAgentHandler {
                 await this.stagehandPage.page.keyboard.press("ArrowRight");
               } else {
                 // For other keys, use the existing conversion
-                const playwrightKey = this.convertKeyToPlaywright(key);
+                const playwrightKey = this.convertKeyName(key);
                 await this.stagehandPage.page.keyboard.press(playwrightKey);
               }
             }
@@ -614,10 +602,7 @@ export class StagehandAgentHandler {
     }
   }
 
-  /**
-   * Convert key names to the format expected by Playwright
-   */
-  private convertKeyToPlaywright(key: string): string {
+  private convertKeyName(key: string): string {
     // Map of CUA key names to Playwright key names
     const keyMap: Record<string, string> = {
       ENTER: "Enter",

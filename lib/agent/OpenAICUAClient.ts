@@ -1,61 +1,16 @@
 import OpenAI from "openai";
 import { LogLine } from "../../types/log";
-import { AgentAction, AgentResult } from "../../types/agent";
-import { AgentClient, AgentExecutionOptions, AgentType } from "./AgentClient";
-
-interface ResponseItem {
-  type: string;
-  id: string;
-  [key: string]: unknown;
-}
-
-interface ComputerCallItem extends ResponseItem {
-  type: "computer_call";
-  call_id: string;
-  action: {
-    type: string;
-    [key: string]: unknown;
-  };
-  pending_safety_checks?: Array<{
-    id: string;
-    code: string;
-    message: string;
-  }>;
-}
-
-interface FunctionCallItem extends ResponseItem {
-  type: "function_call";
-  call_id: string;
-  name: string;
-  arguments: string;
-}
-
-// This interface must be compatible with what the OpenAI API expects
-type ResponseInputItem =
-  | { role: string; content: string }
-  | {
-      type: "computer_call_output";
-      call_id: string;
-      output:
-        | {
-            type: "input_image";
-            image_url: string;
-            current_url?: string;
-            error?: string;
-            [key: string]: unknown;
-          }
-        | string;
-      acknowledged_safety_checks?: Array<{
-        id: string;
-        code: string;
-        message: string;
-      }>;
-    }
-  | {
-      type: "function_call_output";
-      call_id: string;
-      output: string;
-    };
+import {
+  AgentAction,
+  AgentResult,
+  AgentType,
+  AgentExecutionOptions,
+  ResponseInputItem,
+  ResponseItem,
+  ComputerCallItem,
+  FunctionCallItem,
+} from "@/types/agent";
+import { AgentClient } from "./AgentClient";
 
 /**
  * Client for OpenAI's Computer Use Assistant API

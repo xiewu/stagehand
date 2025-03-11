@@ -1,18 +1,9 @@
-import { LogLine } from "../../types/log";
 import {
   AgentAction,
-  AgentExecuteOptions,
   AgentResult,
-} from "../../types/agent";
-
-// TODO: MOVE TO TYPES
-export type AgentType = "openai" | "anthropic";
-
-export interface AgentExecutionOptions {
-  options: AgentExecuteOptions;
-  logger: (message: LogLine) => void;
-  retries?: number;
-}
+  AgentType,
+  AgentExecutionOptions,
+} from "@/types/agent";
 
 /**
  * Abstract base class for agent clients

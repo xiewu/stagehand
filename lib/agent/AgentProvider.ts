@@ -1,5 +1,6 @@
-import { LogLine } from "../../types/log";
-import { AgentClient, AgentType } from "./AgentClient";
+import { LogLine } from "@/types/log";
+import { AgentClient } from "./AgentClient";
+import { AgentType } from "@/types/agent";
 import { OpenAICUAClient } from "./OpenAICUAClient";
 import { AnthropicCUAClient } from "./AnthropicCUAClient";
 

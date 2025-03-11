@@ -1,64 +1,19 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { LogLine } from "../../types/log";
-import { AgentAction, AgentResult } from "../../types/agent";
-import { AgentClient, AgentExecutionOptions, AgentType } from "./AgentClient";
+import { LogLine } from "@/types/log";
+import {
+  AgentAction,
+  AgentResult,
+  AgentType,
+  AgentExecutionOptions,
+  ToolUseItem,
+  AnthropicMessage,
+  AnthropicContentBlock,
+  AnthropicTextBlock,
+  AnthropicToolResult,
+} from "@/types/agent";
+import { AgentClient } from "./AgentClient";
 
-/**
- * Anthropic message response item interface
- */
-interface ResponseItem {
-  type: string;
-  id: string;
-  [key: string]: unknown;
-}
-
-/**
- * Anthropic tool use response item
- */
-interface ToolUseItem extends ResponseItem {
-  type: "tool_use";
-  id: string; // This is the correct property name from Anthropic's API
-  name: string; // Name of the tool being used
-  input: Record<string, unknown>;
-}
-
-/**
- * Anthropic message structure
- */
-interface AnthropicMessage {
-  role: string;
-  content: string | Array<AnthropicContentBlock>;
-}
-
-/**
- * Anthropic content block structure
- */
-interface AnthropicContentBlock {
-  type: string;
-  [key: string]: unknown;
-}
-
-/**
- * Anthropic text block
- */
-interface AnthropicTextBlock extends AnthropicContentBlock {
-  type: "text";
-  text: string;
-}
-
-/**
- * Anthropic tool result block
- */
-interface AnthropicToolResult {
-  type: "tool_result";
-  tool_use_id: string;
-  content: string | Array<AnthropicContentBlock>;
-}
-
-/**
- * Union type for input items that can be sent to Anthropic
- */
-type ResponseInputItem = AnthropicMessage | AnthropicToolResult;
+export type ResponseInputItem = AnthropicMessage | AnthropicToolResult;
 
 /**
  * Client for Anthropic's Computer Use API
