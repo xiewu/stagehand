@@ -409,7 +409,7 @@ export class Stagehand {
     totalInferenceTimeMs: 0,
   };
 
-  public getMetrics(): StagehandMetrics {
+  public get metrics(): StagehandMetrics {
     return this.stagehandMetrics;
   }
 
