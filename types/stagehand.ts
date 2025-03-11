@@ -6,6 +6,36 @@ import { LogLine } from "./log";
 import { AvailableModel, ClientOptions } from "./model";
 import { LLMClient } from "../lib/llm/LLMClient";
 import { Cookie } from "@playwright/test";
+import { AgentProviderType } from "./agent";
+
+/**
+ * Configuration for agent functionality
+ */
+export interface AgentConfig {
+  /**
+   * Whether to enable agent functionality
+   * @default false
+   */
+  enabled?: boolean;
+  /**
+   * The provider to use for agent functionality
+   * @default "openai"
+   */
+  provider?: AgentProviderType;
+  /**
+   * The model to use for agent functionality
+   * @default "computer-use-preview-2025-02-04"
+   */
+  model?: string;
+  /**
+   * Custom instructions to provide to the agent
+   */
+  instructions?: string;
+  /**
+   * Additional options to pass to the agent client
+   */
+  options?: Record<string, unknown>;
+}
 
 export interface ConstructorParams {
   env: "LOCAL" | "BROWSERBASE";
@@ -41,6 +71,10 @@ export interface ConstructorParams {
   waitForCaptchaSolves?: boolean;
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   actTimeoutMs?: number;
+  /**
+   * Agent-related configuration
+   */
+  agent?: AgentConfig;
 }
 
 export interface InitOptions {
@@ -168,4 +202,33 @@ export interface LocalBrowserLaunchOptions {
   timezoneId?: string;
   bypassCSP?: boolean;
   cookies?: Cookie[];
+}
+
+/**
+ * Options for executing a task with an agent
+ */
+export interface AgentExecuteParams {
+  /**
+   * The instruction to execute with the agent
+   */
+  instruction: string;
+  /**
+   * Maximum number of steps the agent can take to complete the task
+   * @default 10
+   */
+  maxSteps?: number;
+  /**
+   * Take a screenshot automatically before each agent step
+   * @default true
+   */
+  autoScreenshot?: boolean;
+  /**
+   * Wait time in milliseconds between agent actions
+   * @default 0
+   */
+  waitBetweenActions?: number;
+  /**
+   * Additional context to provide to the agent
+   */
+  context?: string;
 }

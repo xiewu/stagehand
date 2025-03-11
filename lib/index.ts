@@ -25,6 +25,7 @@ import {
   LocalBrowserLaunchOptions,
   ObserveOptions,
   ObserveResult,
+  AgentConfig,
 } from "../types/stagehand";
 import { StagehandContext } from "./StagehandContext";
 import { StagehandPage } from "./StagehandPage";
@@ -34,6 +35,8 @@ import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString, isRunningInBun } from "./utils";
 import { ApiResponse, ErrorResponse } from "@/types/api";
+import { AgentExecuteOptions, AgentResult } from "../types/agent";
+import { StagehandAgentHandler } from "./handlers/agentHandler";
 
 dotenv.config({ path: ".env" });
 
@@ -261,8 +264,8 @@ async function getBrowser(
       acceptDownloads: localBrowserLaunchOptions?.acceptDownloads ?? true,
       headless: localBrowserLaunchOptions?.headless ?? headless,
       viewport: {
-        width: localBrowserLaunchOptions?.viewport?.width ?? 1250,
-        height: localBrowserLaunchOptions?.viewport?.height ?? 800,
+        width: localBrowserLaunchOptions?.viewport?.width ?? 1024,
+        height: localBrowserLaunchOptions?.viewport?.height ?? 768,
       },
       locale: localBrowserLaunchOptions?.locale ?? "en-US",
       timezoneId: localBrowserLaunchOptions?.timezoneId ?? "America/New_York",
@@ -379,6 +382,12 @@ export class Stagehand {
   public readonly selfHeal: boolean;
   private cleanupCalled = false;
   public readonly actTimeoutMs: number;
+
+  // Agent properties
+  private agentEnabled: boolean = false;
+  private agentConfig: AgentConfig = {};
+  private agentHandler?: StagehandAgentHandler;
+
   protected setActivePage(page: StagehandPage): void {
     this.stagehandPage = page;
   }
@@ -415,6 +424,7 @@ export class Stagehand {
       selfHeal = true,
       waitForCaptchaSolves = false,
       actTimeoutMs = 60_000,
+      agent,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
@@ -465,6 +475,19 @@ export class Stagehand {
 
     this.selfHeal = selfHeal;
     this.localBrowserLaunchOptions = localBrowserLaunchOptions;
+
+    // Store agent configuration for use in init
+    this.agentEnabled = agent?.enabled ?? false;
+    this.agentConfig = agent || {};
+    
+    // If agent is enabled, we'll initialize it during the init() method
+    if (this.agentEnabled) {
+      this.log({
+        category: "agent",
+        message: `Agent functionality enabled with provider: ${this.agentConfig.provider || 'openai'}, model: ${this.agentConfig.model || 'computer-use-preview-2025-02-04'}`,
+        level: 1,
+      });
+    }
 
     if (this.usingAPI) {
       this.registerSignalHandlers();
@@ -591,6 +614,45 @@ export class Stagehand {
     });
 
     this.browserbaseSessionID = sessionId;
+
+    // Initialize agent if enabled
+    if (this.agentEnabled && this.stagehandPage) {
+      try {
+        const provider = this.agentConfig.provider || 'openai';
+        const model = this.agentConfig.model || 'computer-use-preview-2025-02-04';
+        const instructions = this.agentConfig.instructions;
+        const options = this.agentConfig.options || {};
+        
+        // Add API key to options if not provided
+        if (!options.apiKey && this.apiKey) {
+          options.apiKey = this.apiKey;
+        }
+        
+        this.agentHandler = new StagehandAgentHandler(
+          this.stagehandPage,
+          this.logger,
+          {
+            agentType: provider,
+            modelName: model,
+            clientOptions: options,
+            userProvidedInstructions: instructions,
+          }
+        );
+        
+        this.log({
+          category: "agent",
+          message: `Agent initialized with provider: ${provider}, model: ${model}`,
+          level: 1,
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        this.log({
+          category: "agent",
+          message: `Failed to initialize agent: ${errorMessage}`,
+          level: 0,
+        });
+      }
+    }
 
     return { debugUrl, sessionUrl, sessionId };
   }
@@ -737,6 +799,44 @@ export class Stagehand {
         console.error("Error deleting context directory:", e);
       }
     }
+  }
+
+  /**
+   * Create an agent instance that can be executed with different instructions
+   * @returns An agent instance with execute() method
+   */
+  agent(): {
+    execute: (instructionOrOptions: string | AgentExecuteOptions) => Promise<AgentResult>;
+  } {
+    if (!this.agentEnabled || !this.agentHandler) {
+      throw new Error("Agent functionality is not enabled. Set agent.enabled to true in constructor options.");
+    }
+    
+    this.log({
+      category: "agent",
+      message: "Creating agent instance",
+      level: 1,
+    });
+    
+    return {
+      execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
+        const executeOptions: AgentExecuteOptions = typeof instructionOrOptions === 'string'
+          ? { instruction: instructionOrOptions }
+          : instructionOrOptions;
+        
+        if (!executeOptions.instruction) {
+          throw new Error("Instruction is required for agent execution");
+        }
+        
+        this.log({
+          category: "agent",
+          message: `Executing agent task: ${executeOptions.instruction}`,
+          level: 1,
+        });
+        
+        return await this.agentHandler.execute(executeOptions);
+      }
+    };
   }
 }
 
