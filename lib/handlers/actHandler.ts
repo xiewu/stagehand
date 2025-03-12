@@ -449,7 +449,11 @@ export class StagehandActHandler {
 
         throw new PlaywrightCommandException(e.message);
       }
-    } else if (method === "scrollTo" || method === "scroll") {
+    } else if (
+      method === "scrollTo" ||
+      method === "scroll" ||
+      method === "mouse.wheel"
+    ) {
       this.logger({
         category: "action",
         message: "scrolling element vertically to specified percentage",
