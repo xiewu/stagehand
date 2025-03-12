@@ -8,35 +8,6 @@ import { LLMClient } from "../lib/llm/LLMClient";
 import { Cookie } from "@playwright/test";
 import { AgentProviderType } from "./agent";
 
-/**
- * Configuration for agent functionality
- */
-export interface AgentConfig {
-  /**
-   * Whether to enable agent functionality
-   * @default false
-   */
-  enabled?: boolean;
-  /**
-   * The provider to use for agent functionality
-   * @default "openai"
-   */
-  provider?: AgentProviderType;
-  /**
-   * The model to use for agent functionality
-   * @default "computer-use-preview-2025-02-04"
-   */
-  model?: string;
-  /**
-   * Custom instructions to provide to the agent
-   */
-  instructions?: string;
-  /**
-   * Additional options to pass to the agent client
-   */
-  options?: Record<string, unknown>;
-}
-
 export interface ConstructorParams {
   env: "LOCAL" | "BROWSERBASE";
   apiKey?: string;
@@ -231,4 +202,31 @@ export interface AgentExecuteParams {
    * Additional context to provide to the agent
    */
   context?: string;
+}
+
+/**
+ * Configuration for agent functionality
+ */
+export interface AgentConfig {
+  /**
+   * Whether to enable agent functionality
+   * @default false
+   */
+  enabled?: boolean;
+  /**
+   * The provider to use for agent functionality
+   */
+  provider?: AgentProviderType;
+  /**
+   * The model to use for agent functionality
+   */
+  model?: string;
+  /**
+   * Custom instructions to provide to the agent
+   */
+  instructions?: string;
+  /**
+   * Additional options to pass to the agent client
+   */
+  options?: Record<string, unknown>;
 }

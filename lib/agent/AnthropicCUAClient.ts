@@ -341,6 +341,10 @@ export class AnthropicCUAClient extends AgentClient {
     // For the initial request, we use a simple array with the user's instruction
     return [
       {
+        role: "system",
+        content: this.userProvidedInstructions,
+      },
+      {
         role: "user",
         content: instruction,
       },

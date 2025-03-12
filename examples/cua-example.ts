@@ -33,14 +33,14 @@ async function main() {
       model: "computer-use-preview-2025-02-04",
       instructions: `You are a helpful assistant that can use a web browser.
       You are currently on the following page: ${page.url()}.
-	  Do not ask follow up questions, I trust your judgement.`,
+      Do not ask follow up questions, the user will trust your judgement.`,
       options: {
         apiKey: process.env.OPENAI_API_KEY,
       },
     });
     const result = await agent.execute({
-      instruction: "apply for the full-stack engineer position",
-      maxSteps: 10,
+      instruction: "apply for the full-stack engineer position with mock data",
+      maxSteps: 20,
     });
 
     console.log("✅ First agent execution complete");

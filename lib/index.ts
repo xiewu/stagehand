@@ -479,15 +479,6 @@ export class Stagehand {
     // Store agent configuration for use in init
     this.agentEnabled = agentEnabled;
 
-    // If agent is enabled, we'll initialize it during the init() method
-    if (this.agentEnabled) {
-      this.log({
-        category: "agent",
-        message: `Agent functionality enabled with provider: ${this.agentConfig.provider || "openai"}, model: ${this.agentConfig.model || "computer-use-preview-2025-02-04"}`,
-        level: 1,
-      });
-    }
-
     if (this.usingAPI) {
       this.registerSignalHandlers();
     }
@@ -613,35 +604,6 @@ export class Stagehand {
     });
 
     this.browserbaseSessionID = sessionId;
-
-    // Initialize agent if enabled
-    if (this.agentEnabled && this.stagehandPage) {
-      try {
-        const provider = this.agentConfig.provider || "openai";
-        const model =
-          this.agentConfig.model || "computer-use-preview-2025-02-04";
-        const options = this.agentConfig.options || {};
-
-        // Add API key to options if not provided
-        if (!options.apiKey && this.apiKey) {
-          options.apiKey = this.apiKey;
-        }
-
-        this.log({
-          category: "agent",
-          message: `Agent initialized with provider: ${provider}, model: ${model}`,
-          level: 1,
-        });
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        this.log({
-          category: "agent",
-          message: `Failed to initialize agent: ${errorMessage}`,
-          level: 0,
-        });
-      }
-    }
 
     return { debugUrl, sessionUrl, sessionId };
   }
@@ -832,12 +794,6 @@ export class Stagehand {
         if (!executeOptions.instruction) {
           throw new Error("Instruction is required for agent execution");
         }
-
-        this.log({
-          category: "agent",
-          message: `Executing agent task: ${executeOptions.instruction}`,
-          level: 1,
-        });
 
         return await agentHandler.execute(executeOptions);
       },
