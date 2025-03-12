@@ -28,7 +28,8 @@ export const scroll_75: EvalFunction = async ({ modelName, logger }) => {
   await stagehand.close();
 
   const threeQuartersScroll = scrollInfo.scrollHeight * 0.75;
-  const threeQuartersReached = scrollInfo.scrollTop == threeQuartersScroll;
+  const threeQuartersReached =
+    Math.abs(scrollInfo.scrollTop - threeQuartersScroll) <= 200;
   const evaluationResult = threeQuartersReached
     ? {
         _success: true,

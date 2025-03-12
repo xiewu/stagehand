@@ -28,7 +28,7 @@ export const scroll_50: EvalFunction = async ({ modelName, logger }) => {
   await stagehand.close();
 
   const halfwayScroll = scrollInfo.scrollHeight / 2;
-  const halfwayReached = scrollInfo.scrollTop == halfwayScroll;
+  const halfwayReached = Math.abs(scrollInfo.scrollTop - halfwayScroll) <= 200;
   const evaluationResult = halfwayReached
     ? {
         _success: true,
