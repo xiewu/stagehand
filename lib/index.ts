@@ -383,11 +383,6 @@ export class Stagehand {
   private cleanupCalled = false;
   public readonly actTimeoutMs: number;
 
-  // Agent properties
-  private agentEnabled: boolean = false;
-  private agentConfig: AgentConfig = {};
-  private agentHandler?: StagehandAgentHandler;
-
   protected setActivePage(page: StagehandPage): void {
     this.stagehandPage = page;
   }
@@ -424,7 +419,6 @@ export class Stagehand {
       selfHeal = true,
       waitForCaptchaSolves = false,
       actTimeoutMs = 60_000,
-      agentEnabled = false,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
@@ -475,9 +469,6 @@ export class Stagehand {
 
     this.selfHeal = selfHeal;
     this.localBrowserLaunchOptions = localBrowserLaunchOptions;
-
-    // Store agent configuration for use in init
-    this.agentEnabled = agentEnabled;
 
     if (this.usingAPI) {
       this.registerSignalHandlers();
@@ -761,12 +752,6 @@ export class Stagehand {
       instructionOrOptions: string | AgentExecuteOptions,
     ) => Promise<AgentResult>;
   } {
-    if (!this.agentEnabled) {
-      throw new Error(
-        "Agent functionality is not enabled. Set agentEnabled to true in constructor options.",
-      );
-    }
-
     const agentHandler = new StagehandAgentHandler(
       this.stagehandPage,
       this.logger,

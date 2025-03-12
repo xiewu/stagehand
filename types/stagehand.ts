@@ -42,10 +42,6 @@ export interface ConstructorParams {
   waitForCaptchaSolves?: boolean;
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
   actTimeoutMs?: number;
-  /**
-   * Agent-related configuration
-   */
-  agentEnabled?: boolean;
 }
 
 export interface InitOptions {
@@ -208,11 +204,6 @@ export interface AgentExecuteParams {
  * Configuration for agent functionality
  */
 export interface AgentConfig {
-  /**
-   * Whether to enable agent functionality
-   * @default false
-   */
-  enabled?: boolean;
   /**
    * The provider to use for agent functionality
    */
