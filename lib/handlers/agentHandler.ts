@@ -51,15 +51,11 @@ export class StagehandAgentHandler {
   private setupAgentClient(): void {
     // Set up screenshot provider for any client type
     this.agentClient.setScreenshotProvider(async () => {
-      // Take screenshot of the current page
-      const cdpSession = await this.stagehandPage.page
-        .context()
-        .newCDPSession(this.stagehandPage.page);
-      const { data } = await cdpSession.send("Page.captureScreenshot", {
-        optimizeForSpeed: true,
+      const screenshot = await this.stagehandPage.page.screenshot({
+        fullPage: false,
       });
       // Convert to base64
-      return data;
+      return screenshot.toString("base64");
     });
 
     // Set up action handler for any client type
