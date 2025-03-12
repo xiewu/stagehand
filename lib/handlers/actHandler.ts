@@ -825,7 +825,6 @@ export class StagehandActHandler {
   }): Promise<{ success: boolean; message: string; action: string }> {
     try {
       await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-      await this.stagehandPage.startDomDebug();
 
       if (timeoutMs && startTime) {
         const elapsedTime = Date.now() - startTime;
@@ -915,8 +914,6 @@ export class StagehandActHandler {
           },
         },
       });
-
-      await this.stagehandPage.cleanupDomDebug();
 
       if (!response) {
         if (chunksSeen.length + 1 < chunks.length) {
