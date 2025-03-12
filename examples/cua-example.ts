@@ -15,38 +15,31 @@ async function main() {
     ...StagehandConfig,
     env: "BROWSERBASE",
     llmProvider: undefined, // Override to prevent type conflict
-    // Ensure we have agent configuration
-    agent: {
-      enabled: true,
-      provider: "openai",
-      model: "computer-use-preview-2025-02-04",
-      instructions:
-        "You are a helpful assistant that can use the computer to help the user accomplish tasks in a web browser.",
-      options: {
-        apiKey: process.env.OPENAI_API_KEY,
-      },
-    },
+    agentEnabled: true,
   });
 
   await stagehand.init();
   console.log("✅ Stagehand initialized");
 
   try {
+    const page = stagehand.page;
+
     // Navigate to a website
-    console.log("🌐 Navigating to a website...");
-    await stagehand.page.goto("https://www.browserbase.com/careers");
-    console.log("✅ Navigation complete");
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await page.goto("https://www.browserbase.com/careers");
 
-    // Create an agent instance
-    console.log("🤖 Creating an agent instance...");
-    const agent = stagehand.agent();
-
-    // Execute the agent with an instruction
-    console.log("🤖 Executing the agent...");
+    const agent = stagehand.agent({
+      enabled: true,
+      provider: "openai",
+      model: "computer-use-preview-2025-02-04",
+      instructions: `You are a helpful assistant that can use a web browser.
+      You are currently on the following page: ${page.url()}.
+	  Do not ask follow up questions, I trust your judgement.`,
+      options: {
+        apiKey: process.env.OPENAI_API_KEY,
+      },
+    });
     const result = await agent.execute({
-      instruction:
-        "click on the first job posting and complete the application form with mock data, don't submit it, just fill the form. Please don't ask follow up questions, I trust your judgement.",
+      instruction: "apply for the full-stack engineer position",
       maxSteps: 10,
     });
 

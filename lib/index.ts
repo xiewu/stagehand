@@ -424,7 +424,7 @@ export class Stagehand {
       selfHeal = true,
       waitForCaptchaSolves = false,
       actTimeoutMs = 60_000,
-      agent,
+      agentEnabled = false,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
@@ -477,8 +477,7 @@ export class Stagehand {
     this.localBrowserLaunchOptions = localBrowserLaunchOptions;
 
     // Store agent configuration for use in init
-    this.agentEnabled = agent?.enabled ?? false;
-    this.agentConfig = agent || {};
+    this.agentEnabled = agentEnabled;
 
     // If agent is enabled, we'll initialize it during the init() method
     if (this.agentEnabled) {
@@ -621,24 +620,12 @@ export class Stagehand {
         const provider = this.agentConfig.provider || "openai";
         const model =
           this.agentConfig.model || "computer-use-preview-2025-02-04";
-        const instructions = this.agentConfig.instructions;
         const options = this.agentConfig.options || {};
 
         // Add API key to options if not provided
         if (!options.apiKey && this.apiKey) {
           options.apiKey = this.apiKey;
         }
-
-        this.agentHandler = new StagehandAgentHandler(
-          this.stagehandPage,
-          this.logger,
-          {
-            modelName: model,
-            clientOptions: options,
-            userProvidedInstructions: instructions,
-            agentType: provider,
-          },
-        );
 
         this.log({
           category: "agent",
@@ -807,16 +794,27 @@ export class Stagehand {
    * Create an agent instance that can be executed with different instructions
    * @returns An agent instance with execute() method
    */
-  agent(): {
+  agent(options: AgentConfig): {
     execute: (
       instructionOrOptions: string | AgentExecuteOptions,
     ) => Promise<AgentResult>;
   } {
-    if (!this.agentEnabled || !this.agentHandler) {
+    if (!this.agentEnabled) {
       throw new Error(
-        "Agent functionality is not enabled. Set agent.enabled to true in constructor options.",
+        "Agent functionality is not enabled. Set agentEnabled to true in constructor options.",
       );
     }
+
+    const agentHandler = new StagehandAgentHandler(
+      this.stagehandPage,
+      this.logger,
+      {
+        modelName: options.model,
+        clientOptions: options.options,
+        userProvidedInstructions: options.instructions,
+        agentType: options.provider,
+      },
+    );
 
     this.log({
       category: "agent",
@@ -841,7 +839,7 @@ export class Stagehand {
           level: 1,
         });
 
-        return await this.agentHandler.execute(executeOptions);
+        return await agentHandler.execute(executeOptions);
       },
     };
   }

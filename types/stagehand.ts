@@ -74,7 +74,7 @@ export interface ConstructorParams {
   /**
    * Agent-related configuration
    */
-  agent?: AgentConfig;
+  agentEnabled?: boolean;
 }
 
 export interface InitOptions {
