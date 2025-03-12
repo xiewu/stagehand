@@ -1,4 +1,4 @@
-import { LogLine } from "../../types/log";
+import { LogLine } from "@/types/log";
 import {
   AgentExecuteOptions,
   AgentResult,
