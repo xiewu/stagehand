@@ -2,4 +2,4 @@
 "@browserbasehq/stagehand": minor
 ---
 
-Adding support to Computer Use Agents (aka CUA). This unlocks brand new frontier of applications for Stagehand users 🤘!
+You can now use Computer Using Agents (CUA) natively in Stagehand for both Anthropic and OpenAI models! This unlocks a brand new frontier of applications for Stagehand users 🤘
