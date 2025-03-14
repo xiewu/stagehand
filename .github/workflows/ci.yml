@@ -311,7 +311,6 @@ jobs:
     needs: [check-regression-evals-score, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    if: needs.determine-evals.outputs.run-combination == 'true'
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
