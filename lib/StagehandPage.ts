@@ -152,7 +152,7 @@ export class StagehandPage {
       this.stagehand.log({
         category: "deprecation",
         message:
-          "Warning: vision is not supported in this version of Stagehand",
+          "Warning: debugDom is not supported in this version of Stagehand",
         level: 1,
       });
     }
