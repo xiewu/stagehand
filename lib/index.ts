@@ -39,7 +39,6 @@ import { logLineToString, isRunningInBun } from "./utils";
 import { ApiResponse, ErrorResponse } from "@/types/api";
 import { AgentExecuteOptions, AgentResult } from "../types/agent";
 import { StagehandAgentHandler } from "./handlers/agentHandler";
-import { ActCommandParams, ActCommandResult } from "@/types/act";
 
 dotenv.config({ path: ".env" });
 
