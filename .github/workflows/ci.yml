@@ -226,6 +226,7 @@ jobs:
         run: mv eval-summary.json eval-summary-regression-dom.json
 
       - name: Log and Regression (domExtract) Evals Performance
+        id: set-dom-score
         run: |
           experimentNameRegressionDom=$(jq -r '.experimentName' eval-summary-regression-dom.json)
           regression_dom_score=$(jq '.categories.regression_dom_extract' eval-summary-regression-dom.json)
@@ -276,6 +277,7 @@ jobs:
         run: mv eval-summary.json eval-summary-regression-text.json
 
       - name: Log Regression (textExtract) Evals Performance
+        id: set-text-score
         run: |
           experimentNameRegressionText=$(jq -r '.experimentName' eval-summary-regression-text.json)
           regression_text_score=$(jq '.categories.regression_text_extract' eval-summary-regression-text.json)
