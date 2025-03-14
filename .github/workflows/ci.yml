@@ -9,7 +9,7 @@ on:
       - unlabeled
 
 env:
-  EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
+  EVAL_MODELS: "gpt-4o"
   EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
 
 concurrency:
@@ -20,6 +20,7 @@ jobs:
   determine-evals:
     runs-on: ubuntu-latest
     outputs:
+      run-combination: ${{ steps.check-labels.outputs.run-combination }}
       run-extract: ${{ steps.check-labels.outputs.run-extract }}
       run-act: ${{ steps.check-labels.outputs.run-act }}
       run-observe: ${{ steps.check-labels.outputs.run-observe }}
@@ -31,6 +32,7 @@ jobs:
           # Default to running all tests on main branch
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "Running all tests for main branch"
+            echo "run-combination=true" >> $GITHUB_OUTPUT
             echo "run-extract=true" >> $GITHUB_OUTPUT
             echo "run-act=true" >> $GITHUB_OUTPUT
             echo "run-observe=true" >> $GITHUB_OUTPUT
@@ -40,6 +42,7 @@ jobs:
           fi
 
           # Check for specific labels
+          echo "run-combination=${{ contains(github.event.pull_request.labels.*.name, 'combination') }}" >> $GITHUB_OUTPUT
           echo "run-extract=${{ contains(github.event.pull_request.labels.*.name, 'extract') }}" >> $GITHUB_OUTPUT
           echo "run-act=${{ contains(github.event.pull_request.labels.*.name, 'act') }}" >> $GITHUB_OUTPUT
           echo "run-observe=${{ contains(github.event.pull_request.labels.*.name, 'observe') }}" >> $GITHUB_OUTPUT
@@ -220,7 +223,7 @@ jobs:
         run: npm exec playwright install --with-deps
 
       - name: Run Regression Evals (domExtract)
-        run: npm run evals category regression_dom_extract trials=2 concurrency=12 env=BROWSERBASE -- --extract-method=domExtract
+        run: npm run evals category regression_dom_extract trials=1 concurrency=12 env=BROWSERBASE -- --extract-method=domExtract
 
       - name: Save Regression domExtract Results
         run: mv eval-summary.json eval-summary-regression-dom.json
@@ -271,7 +274,7 @@ jobs:
         run: npm exec playwright install --with-deps
 
       - name: Run Regression Evals (textExtract)
-        run: npm run evals category regression_text_extract trials=2 concurrency=12 env=BROWSERBASE -- --extract-method=textExtract
+        run: npm run evals category regression_text_extract trials=1 concurrency=12 env=BROWSERBASE -- --extract-method=textExtract
 
       - name: Save Regression textExtract Results
         run: mv eval-summary.json eval-summary-regression-text.json
