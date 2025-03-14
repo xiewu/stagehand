@@ -1,5 +1,5 @@
 import { LogLine } from "../../types/log";
-import { Stagehand } from "../index";
+import { Stagehand, StagehandFunctionName } from "../index";
 import { observe } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { StagehandPage } from "../StagehandPage";
@@ -122,7 +122,8 @@ export class StagehandObserveHandler {
       inference_time_ms = 0,
     } = observationResponse;
 
-    this.stagehand.updateObserveMetrics(
+    this.stagehand.updateMetrics(
+      StagehandFunctionName.OBSERVE,
       prompt_tokens,
       completion_tokens,
       inference_time_ms,

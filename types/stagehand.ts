@@ -237,3 +237,9 @@ export interface AgentConfig {
    */
   options?: Record<string, unknown>;
 }
+
+export enum StagehandFunctionName {
+  ACT = "ACT",
+  EXTRACT = "EXTRACT",
+  OBSERVE = "OBSERVE",
+}

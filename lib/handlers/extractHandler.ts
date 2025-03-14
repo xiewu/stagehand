@@ -5,7 +5,7 @@ import { extract } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { formatText } from "../utils";
 import { StagehandPage } from "../StagehandPage";
-import { Stagehand } from "../index";
+import { Stagehand, StagehandFunctionName } from "../index";
 import { pageTextSchema } from "../../types/page";
 
 const PROXIMITY_THRESHOLD = 15;
@@ -368,7 +368,8 @@ export class StagehandExtractHandler {
       ...output
     } = extractionResponse;
 
-    this.stagehand.updateExtractMetrics(
+    this.stagehand.updateMetrics(
+      StagehandFunctionName.EXTRACT,
       promptTokens,
       completionTokens,
       inferenceTimeMs,
@@ -510,7 +511,8 @@ export class StagehandExtractHandler {
       ...output
     } = extractionResponse;
 
-    this.stagehand.updateExtractMetrics(
+    this.stagehand.updateMetrics(
+      StagehandFunctionName.EXTRACT,
       promptTokens,
       completionTokens,
       inferenceTimeMs,

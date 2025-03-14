@@ -16,6 +16,7 @@ import {
   ObserveResult,
   ActOptions,
   ObserveOptions,
+  StagehandFunctionName,
 } from "@/types/stagehand";
 import { MethodHandlerContext, SupportedPlaywrightAction } from "@/types/act";
 import { buildActObservePrompt } from "../prompt";
@@ -368,7 +369,8 @@ export class StagehandActHandler {
           },
         },
       });
-      this.stagehand.updateActMetrics(
+      this.stagehand.updateMetrics(
+        StagehandFunctionName.ACT,
         verifyResult.prompt_tokens,
         verifyResult.completion_tokens,
         verifyResult.inference_time_ms,
@@ -694,7 +696,8 @@ export class StagehandActHandler {
         variables,
         userProvidedInstructions: this.userProvidedInstructions,
         onActMetrics: (promptTokens, completionTokens, inferenceTimeMs) => {
-          this.stagehand.updateActMetrics(
+          this.stagehand.updateMetrics(
+            StagehandFunctionName.ACT,
             promptTokens,
             completionTokens,
             inferenceTimeMs,

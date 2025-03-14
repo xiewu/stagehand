@@ -27,6 +27,7 @@ import {
   ObserveResult,
   AgentConfig,
   StagehandMetrics,
+  StagehandFunctionName,
 } from "../types/stagehand";
 import { StagehandContext } from "./StagehandContext";
 import { StagehandPage } from "./StagehandPage";
@@ -38,6 +39,7 @@ import { logLineToString, isRunningInBun } from "./utils";
 import { ApiResponse, ErrorResponse } from "@/types/api";
 import { AgentExecuteOptions, AgentResult } from "../types/agent";
 import { StagehandAgentHandler } from "./handlers/agentHandler";
+import { ActCommandParams, ActCommandResult } from "@/types/act";
 
 dotenv.config({ path: ".env" });
 
@@ -416,36 +418,31 @@ export class Stagehand {
     return this.stagehandMetrics;
   }
 
-  public updateActMetrics(
+  public updateMetrics(
+    functionName: StagehandFunctionName,
     promptTokens: number,
     completionTokens: number,
     inferenceTimeMs: number,
   ): void {
-    this.stagehandMetrics.actPromptTokens += promptTokens;
-    this.stagehandMetrics.actCompletionTokens += completionTokens;
-    this.stagehandMetrics.actInferenceTimeMs += inferenceTimeMs;
-    this.updateTotalMetrics(promptTokens, completionTokens, inferenceTimeMs);
-  }
+    switch (functionName) {
+      case StagehandFunctionName.ACT:
+        this.stagehandMetrics.actPromptTokens += promptTokens;
+        this.stagehandMetrics.actCompletionTokens += completionTokens;
+        this.stagehandMetrics.actInferenceTimeMs += inferenceTimeMs;
+        break;
 
-  public updateExtractMetrics(
-    promptTokens: number,
-    completionTokens: number,
-    inferenceTimeMs: number,
-  ): void {
-    this.stagehandMetrics.extractPromptTokens += promptTokens;
-    this.stagehandMetrics.extractCompletionTokens += completionTokens;
-    this.stagehandMetrics.extractInferenceTimeMs += inferenceTimeMs;
-    this.updateTotalMetrics(promptTokens, completionTokens, inferenceTimeMs);
-  }
+      case StagehandFunctionName.EXTRACT:
+        this.stagehandMetrics.extractPromptTokens += promptTokens;
+        this.stagehandMetrics.extractCompletionTokens += completionTokens;
+        this.stagehandMetrics.extractInferenceTimeMs += inferenceTimeMs;
+        break;
 
-  public updateObserveMetrics(
-    promptTokens: number,
-    completionTokens: number,
-    inferenceTimeMs: number,
-  ): void {
-    this.stagehandMetrics.observePromptTokens += promptTokens;
-    this.stagehandMetrics.observeCompletionTokens += completionTokens;
-    this.stagehandMetrics.observeInferenceTimeMs += inferenceTimeMs;
+      case StagehandFunctionName.OBSERVE:
+        this.stagehandMetrics.observePromptTokens += promptTokens;
+        this.stagehandMetrics.observeCompletionTokens += completionTokens;
+        this.stagehandMetrics.observeInferenceTimeMs += inferenceTimeMs;
+        break;
+    }
     this.updateTotalMetrics(promptTokens, completionTokens, inferenceTimeMs);
   }
 
