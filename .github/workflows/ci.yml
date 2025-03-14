@@ -183,10 +183,75 @@ jobs:
       - name: Run E2E Tests (browserbase)
         run: npm run e2e:bb
 
+  run-regression-evals:
+    needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
+      BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+      BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+      HEADLESS: true
+      EVAL_ENV: browserbase
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm install
+
+      - name: Build Stagehand
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npm exec playwright install --with-deps
+
+      - name: Run Regression Evals (domExtract)
+        run: npm run evals category regression_dom_extract trials=2 concurrency=12 env=BROWSERBASE -- --extract-method=domExtract
+
+      - name: Save Regression domExtract Results
+        run: mv eval-summary.json eval-summary-regression-dom.json
+
+      - name: Run Regression Evals (textExtract)
+        run: npm run evals category regression_text_extract trials=2 concurrency=12 env=BROWSERBASE -- --extract-method=textExtract
+
+      - name: Save Regression textExtract Results
+        run: mv eval-summary.json eval-summary-regression-text.json
+
+      - name: Log and Compare Regression Evals Performance
+        run: |
+          experimentNameRegressionDom=$(jq -r '.experimentName' eval-summary-regression-dom.json)
+          regression_dom_score=$(jq '.categories.regression_dom_extract' eval-summary-regression-dom.json)
+          echo "regression_dom_extract category score: regression_dom_score%"
+          echo "View regression_dom_extract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameDom}"
+
+          experimentNameRegressionText=$(jq -r '.experimentName' eval-summary-regression-text.json)
+          regression_text_score=$(jq '.categories.regression_text_extract' eval-summary-regression-text.json)
+          echo "regression_text_extract category score: regression_text_score%"
+          echo "View regression_text_extract results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameText}"
+
+          overall_score=$(echo "(${regression_dom_score} + ${regression_text_score}) / 2" | bc -l)
+          echo "Overall regression score: ${overall_score}%"
+          if (( $(echo "${overall_score} < 90" | bc -l) )); then
+            echo "Overall regression score is below 90%. Failing CI."
+            exit 1
+          fi
+
   run-combination-evals:
     needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    if: needs.determine-evals.outputs.run-combination == 'true'
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
