@@ -147,7 +147,7 @@ jobs:
         run: npm run e2e:local
 
   run-e2e-bb-tests:
-    needs: [run-e2e-tests]
+    needs: [run-lint, run-build]
     runs-on: ubuntu-latest
     timeout-minutes: 50
     if: >
@@ -184,7 +184,8 @@ jobs:
         run: npm run e2e:bb
 
   run-regression-evals:
-    needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
+    needs:
+      [run-e2e-bb-tests, run-e2e-tests, run-e2e-local-tests, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
@@ -248,7 +249,7 @@ jobs:
           fi
 
   run-combination-evals:
-    needs: [run-e2e-bb-tests, run-e2e-tests, determine-evals]
+    needs: [run-regression-evals, determine-evals]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     if: needs.determine-evals.outputs.run-combination == 'true'
