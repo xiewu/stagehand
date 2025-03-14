@@ -97,7 +97,6 @@ async function getBrowser(
         }
 
         sessionId = browserbaseSessionID;
-        // @ts-expect-error - connectUrl is not typed
         connectUrl = sessionStatus.connectUrl;
 
         logger({
@@ -333,8 +332,8 @@ async function applyStealthScripts(context: BrowserContext) {
     window.navigator.permissions.query = (parameters) =>
       parameters.name === "notifications"
         ? Promise.resolve({
-            state: Notification.permission,
-          } as PermissionStatus)
+          state: Notification.permission,
+        } as PermissionStatus)
         : originalQuery(parameters);
   });
 }
@@ -409,8 +408,8 @@ export class Stagehand {
       waitForCaptchaSolves = false,
       actTimeoutMs = 60_000,
     }: ConstructorParams = {
-      env: "BROWSERBASE",
-    },
+        env: "BROWSERBASE",
+      },
   ) {
     this.externalLogger = logger || defaultLogger;
     this.enableCaching =
@@ -513,8 +512,8 @@ export class Stagehand {
     if (isRunningInBun()) {
       throw new Error(
         "Playwright does not currently support the Bun runtime environment. " +
-          "Please use Node.js instead. For more information, see: " +
-          "https://github.com/microsoft/playwright/issues/27139",
+        "Please use Node.js instead. For more information, see: " +
+        "https://github.com/microsoft/playwright/issues/27139",
       );
     }
 
@@ -681,7 +680,7 @@ export class Stagehand {
               (log) => log.id !== logObj.id,
             );
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }
 
