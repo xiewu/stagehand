@@ -226,7 +226,7 @@
     },
     {
       "name": "observe_vantechjournal",
-      "categories": ["observe"]
+      "categories": ["observe", "regression_text_extract"]
     },
     {
       "name": "observe_amazon_add_to_cart",

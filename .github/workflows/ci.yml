@@ -9,7 +9,7 @@ on:
       - unlabeled
 
 env:
-  EVAL_MODELS: "gpt-4o"
+  EVAL_MODELS: "gpt-4o,gpt-4o-mini,claude-3-5-sonnet-latest"
   EVAL_CATEGORIES: "observe,act,combination,extract,text_extract"
 
 concurrency:
@@ -223,7 +223,7 @@ jobs:
         run: npm exec playwright install --with-deps
 
       - name: Run Regression Evals (domExtract)
-        run: npm run evals category regression_dom_extract trials=1 concurrency=12 env=BROWSERBASE -- --extract-method=domExtract
+        run: npm run evals category regression_dom_extract trials=2 concurrency=12 env=BROWSERBASE -- --extract-method=domExtract
 
       - name: Save Regression domExtract Results
         run: mv eval-summary.json eval-summary-regression-dom.json
@@ -274,7 +274,7 @@ jobs:
         run: npm exec playwright install --with-deps
 
       - name: Run Regression Evals (textExtract)
-        run: npm run evals category regression_text_extract trials=1 concurrency=12 env=BROWSERBASE -- --extract-method=textExtract
+        run: npm run evals category regression_text_extract trials=2 concurrency=12 env=BROWSERBASE -- --extract-method=textExtract
 
       - name: Save Regression textExtract Results
         run: mv eval-summary.json eval-summary-regression-text.json
