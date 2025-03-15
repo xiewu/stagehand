@@ -91,8 +91,6 @@ async function getBrowser(
       try {
         const sessionStatus =
           await browserbase.sessions.retrieve(browserbaseSessionID);
-        console.log("GOT SESSION STATUS", sessionStatus);
-
         if (sessionStatus.status !== "RUNNING") {
           throw new Error(
             `Session ${browserbaseSessionID} is not running (status: ${sessionStatus.status})`,
