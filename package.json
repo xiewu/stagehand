@@ -85,6 +85,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.39.0",
     "@browserbasehq/sdk": "^2.4.0",
+    "puppeteer": "^24.4.0",
+    "puppeteer-core": "^24.4.0",
     "ws": "^8.18.0",
     "zod-to-json-schema": "^3.23.5"
   },
