@@ -164,7 +164,6 @@ export class StagehandExtractHandler {
 
   private async extractPageText(): Promise<{ page_text?: string }> {
     await this.stagehandPage._waitForSettledDom();
-    await this.stagehandPage.startDomDebug();
 
     const originalDOM = await this.stagehandPage.page.evaluate(() =>
       window.storeDOM(undefined),
@@ -202,8 +201,6 @@ export class StagehandExtractHandler {
       containerDims.width,
     );
 
-    await this.stagehandPage.cleanupDomDebug();
-
     const result = { page_text: formattedText };
     return pageTextSchema.parse(result);
   }
@@ -239,7 +236,6 @@ export class StagehandExtractHandler {
 
     // **1:** Wait for the DOM to settle and start DOM debugging
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-    await this.stagehandPage.startDomDebug();
 
     const targetXpath = selector?.replace(/^xpath=/, "") ?? "";
 
@@ -375,9 +371,6 @@ export class StagehandExtractHandler {
       inferenceTimeMs,
     );
 
-    // Clean up debug
-    await this.stagehandPage.cleanupDomDebug();
-
     // **11:** Handle the extraction response and log the results
     this.logger({
       category: "extraction",
@@ -450,7 +443,6 @@ export class StagehandExtractHandler {
     // **1:** Wait for the DOM to settle and start DOM debugging
     // This ensures the page is stable before extracting any data.
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-    await this.stagehandPage.startDomDebug();
 
     // **2:** Call processDom() to handle chunk-based extraction
     // processDom determines which chunk of the page to process next.
@@ -517,8 +509,6 @@ export class StagehandExtractHandler {
       completionTokens,
       inferenceTimeMs,
     );
-
-    await this.stagehandPage.cleanupDomDebug();
 
     this.logger({
       category: "extraction",
