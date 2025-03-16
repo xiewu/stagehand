@@ -153,7 +153,6 @@ export class StagehandOperatorHandler {
   }
 
   private async executeAction(action: OperatorResponse): Promise<unknown> {
-    console.log(action);
     const { method, parameters } = action;
     const page = this.stagehandPage.page;
 
