@@ -40,7 +40,7 @@ export class StagehandOperatorHandler {
     this.messages = [buildOperatorSystemPrompt(options.instruction)];
     let completed = false;
     let currentStep = 0;
-    const maxSteps = options.maxSteps || 4;
+    const maxSteps = options.maxSteps || 10;
     const actions: AgentAction[] = [];
 
     while (!completed && currentStep < maxSteps) {
