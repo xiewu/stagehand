@@ -809,12 +809,12 @@ export class Stagehand {
    * Create an agent instance that can be executed with different instructions
    * @returns An agent instance with execute() method
    */
-  agent(options: AgentConfig): {
+  agent(options?: AgentConfig): {
     execute: (
       instructionOrOptions: string | AgentExecuteOptions,
     ) => Promise<AgentResult>;
   } {
-    if (!options.provider) {
+    if (!options || !options.provider) {
       // use open operator agent
       return {
         execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
