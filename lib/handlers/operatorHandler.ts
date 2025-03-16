@@ -1,54 +1,23 @@
+import {
+  AgentAction,
+  AgentExecuteOptions,
+  AgentResult,
+  ActionExecutionResult,
+} from "@/types/agent";
 import { LogLine } from "@/types/log";
-import { StagehandPage } from "../StagehandPage";
-import { AgentAction, AgentExecuteOptions } from "@/types/agent";
-import { AgentResult } from "@/types/agent";
+import { OperatorResponse, operatorResponseSchema } from "@/types/operator";
+import { LLMParsedResponse } from "../inference";
 import { ChatMessage, LLMClient } from "../llm/LLMClient";
 import { buildOperatorSystemPrompt } from "../prompt";
-import { z } from "zod";
-import { LLMParsedResponse } from "../inference";
-
-const operatorResponseSchema = z.object({
-  reasoning: z.string().describe("The reasoning for the step taken"),
-  method: z.enum([
-    "act",
-    "extract",
-    "goto",
-    "close",
-    "wait",
-    "navback",
-    "refresh",
-  ])
-    .describe(`The action to perform on the page based off of the goal and the current state of the page.
-    goto: Navigate to a specific URL.
-    act: Perform an action on the page.  
-    extract: Extract data from the page.
-    close: The task is complete, close the browser.
-    wait: Wait for a period of time.
-    navback: Navigate back to the previous page. Do not navigate back if you are already on the first page.
-    refresh: Refresh the page.`),
-  parameters: z
-    .string()
-    .describe(
-      `The parameter for the action. Only pass in a parameter for the following methods:
-      - act: The action to perform. e.g. "click on the submit button" or "type [email] into the email input field and press enter"
-      - extract: The data to extract. e.g. "the title of the article". If you want to extract all of the text on the page, leave this undefined.
-      - wait: The amount of time to wait in milliseconds.
-      - goto: The URL to navigate to. e.g. "https://www.google.com"
-      The other methods do not require a parameter.`,
-    )
-    .optional(),
-  taskComplete: z
-    .boolean()
-    .describe(
-      "Whether the task is complete. If true, the task is complete and the browser should be closed. If you chose to close the browser because the task failed, set this to false.",
-    ),
-});
+import { StagehandPage } from "../StagehandPage";
 
 export class StagehandOperatorHandler {
   private stagehandPage: StagehandPage;
   private logger: (message: LogLine) => void;
   private llmClient: LLMClient;
   messages: ChatMessage[];
+  private lastActionResult: ActionExecutionResult | null = null;
+  private lastMethod: string | null = null;
 
   constructor(
     stagehandPage: StagehandPage,
@@ -71,7 +40,7 @@ export class StagehandOperatorHandler {
     this.messages = [buildOperatorSystemPrompt(options.instruction)];
     let completed = false;
     let currentStep = 0;
-    const maxSteps = options.maxSteps || 10;
+    const maxSteps = options.maxSteps || 4;
     const actions: AgentAction[] = [];
 
     while (!completed && currentStep < maxSteps) {
@@ -95,12 +64,30 @@ export class StagehandOperatorHandler {
 
         const base64Image = screenshot.toString("base64");
 
+        let messageText = `Here is a screenshot of the current page (URL: ${url}):`;
+
+        if (this.lastMethod && this.lastActionResult) {
+          const statusMessage = this.lastActionResult.success
+            ? "was successful"
+            : `failed with error: ${this.lastActionResult.error}`;
+
+          messageText = `Previous action '${this.lastMethod}' ${statusMessage}.\n\n${messageText}`;
+
+          if (
+            this.lastMethod === "extract" &&
+            this.lastActionResult.success &&
+            this.lastActionResult.data
+          ) {
+            messageText = `Previous extraction result: ${JSON.stringify(this.lastActionResult.data, null, 2)}\n\n${messageText}`;
+          }
+        }
+
         this.messages.push({
           role: "user",
           content: [
             {
               type: "text",
-              text: `Here is a screenshot of the current page (URL: ${url}):`,
+              text: messageText,
             },
             {
               type: "image_url",
@@ -119,52 +106,64 @@ export class StagehandOperatorHandler {
       actions.push({
         type: result.method,
         reasoning: result.reasoning,
-        completed: result.taskComplete,
+        taskCompleted: result.taskComplete,
       });
 
       currentStep++;
 
-      await this.executeAction(result);
+      try {
+        const actionResult = await this.executeAction(result);
+        this.lastActionResult = {
+          success: true,
+          data: actionResult,
+        };
+      } catch (error) {
+        this.lastActionResult = {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+
+      this.lastMethod = result.method;
     }
 
     return {
       success: true,
       message: actions[actions.length - 1].reasoning as string,
       actions,
-      completed: actions[actions.length - 1].completed as boolean,
+      completed: actions[actions.length - 1].taskCompleted as boolean,
     };
   }
 
-  private async getNextStep(
-    currentStep: number,
-  ): Promise<z.infer<typeof operatorResponseSchema>> {
-    const { data: response } = (await this.llmClient.createChatCompletion<
-      z.infer<typeof operatorResponseSchema>
-    >({
-      options: {
-        messages: this.messages,
-        response_model: {
-          name: "operatorResponseSchema",
-          schema: operatorResponseSchema,
+  private async getNextStep(currentStep: number): Promise<OperatorResponse> {
+    const { data: response } =
+      (await this.llmClient.createChatCompletion<OperatorResponse>({
+        options: {
+          messages: this.messages,
+          response_model: {
+            name: "operatorResponseSchema",
+            schema: operatorResponseSchema,
+          },
+          requestId: `operator-step-${currentStep}`,
         },
-        requestId: `operator-step-${currentStep}`,
-      },
-      logger: this.logger,
-    })) as LLMParsedResponse<z.infer<typeof operatorResponseSchema>>;
+        logger: this.logger,
+      })) as LLMParsedResponse<OperatorResponse>;
 
     return response;
   }
 
-  private async executeAction(
-    action: z.infer<typeof operatorResponseSchema>,
-  ): Promise<unknown> {
+  private async executeAction(action: OperatorResponse): Promise<unknown> {
     console.log(action);
     const { method, parameters } = action;
     const page = this.stagehandPage.page;
 
     switch (method) {
       case "act":
-        await page.act({ action: parameters, slowDomBasedAct: false });
+        await page.act({
+          action: parameters,
+          slowDomBasedAct: false,
+          timeoutMs: 5000,
+        });
         break;
       case "extract":
         return await page.extract(parameters);
