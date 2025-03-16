@@ -37,7 +37,7 @@ export const operatorResponseSchema = z.object({
   taskComplete: z
     .boolean()
     .describe(
-      "Whether the task is complete. If true, the task is complete and the browser should be closed. If you chose to close the browser because the task failed, set this to false.",
+      "Whether the task is complete. If true, the task is complete and no more steps are needed. If you chose to close the task because the goal is not achievable, set this to false.",
     ),
 });
 

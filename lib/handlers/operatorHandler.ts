@@ -156,6 +156,10 @@ export class StagehandOperatorHandler {
     const { method, parameters } = action;
     const page = this.stagehandPage.page;
 
+    if (method === "close") {
+      return;
+    }
+
     switch (method) {
       case "act":
         await page.act({
@@ -168,9 +172,6 @@ export class StagehandOperatorHandler {
         return await page.extract(parameters);
       case "goto":
         await page.goto(parameters, { waitUntil: "load" });
-        break;
-      case "close":
-        await page.close();
         break;
       case "wait":
         await page.waitForTimeout(parseInt(parameters));
