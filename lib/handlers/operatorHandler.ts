@@ -15,7 +15,7 @@ export class StagehandOperatorHandler {
   private stagehandPage: StagehandPage;
   private logger: (message: LogLine) => void;
   private llmClient: LLMClient;
-  messages: ChatMessage[];
+  private messages: ChatMessage[];
   private lastActionResult: ActionExecutionResult | null = null;
   private lastMethod: string | null = null;
 
