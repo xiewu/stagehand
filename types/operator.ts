@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 export const operatorResponseSchema = z.object({
-  reasoning: z.string().describe("The reasoning for the step taken"),
+  reasoning: z
+    .string()
+    .describe(
+      "The reasoning for the step taken. If this step's method is `close`, the goal was to extract data, and the task was successful, state the data that was extracted.",
+    ),
   method: z.enum([
     "act",
     "extract",

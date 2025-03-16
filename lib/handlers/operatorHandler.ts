@@ -168,7 +168,7 @@ export class StagehandOperatorHandler {
       case "extract":
         return await page.extract(parameters);
       case "goto":
-        await page.goto(parameters, { waitUntil: "domcontentloaded" });
+        await page.goto(parameters, { waitUntil: "load" });
         break;
       case "close":
         await page.close();
