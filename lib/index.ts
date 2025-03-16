@@ -39,6 +39,7 @@ import { logLineToString, isRunningInBun } from "./utils";
 import { ApiResponse, ErrorResponse } from "@/types/api";
 import { AgentExecuteOptions, AgentResult } from "../types/agent";
 import { StagehandAgentHandler } from "./handlers/agentHandler";
+import { StagehandOperatorHandler } from "./handlers/operatorHandler";
 
 dotenv.config({ path: ".env" });
 
@@ -813,6 +814,19 @@ export class Stagehand {
       instructionOrOptions: string | AgentExecuteOptions,
     ) => Promise<AgentResult>;
   } {
+    if (!options.provider) {
+      // use open operator agent
+      return {
+        execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
+          return new StagehandOperatorHandler(
+            this.stagehandPage,
+            this.logger,
+            this.llmClient,
+          ).execute(instructionOrOptions);
+        },
+      };
+    }
+
     const agentHandler = new StagehandAgentHandler(
       this.stagehandPage,
       this.logger,
