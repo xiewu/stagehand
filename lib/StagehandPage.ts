@@ -475,7 +475,12 @@ export class StagehandPage {
       : this.llmClient;
 
     if (!slowDomBasedAct) {
-      return this.actHandler.observeAct(actionOrOptions);
+      return this.actHandler.observeAct(
+        actionOrOptions,
+        this.observeHandler,
+        llmClient,
+        requestId,
+      );
     }
 
     this.stagehand.log({
