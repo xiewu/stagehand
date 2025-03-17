@@ -848,6 +848,22 @@ export class Stagehand {
             );
           }
 
+          if (!options.options) {
+            options.options = {};
+          }
+
+          if (options.provider === "anthropic") {
+            options.options.apiKey = process.env.ANTHROPIC_API_KEY;
+          } else if (options.provider === "openai") {
+            options.options.apiKey = process.env.OPENAI_API_KEY;
+          }
+
+          if (!options.options.apiKey) {
+            throw new Error(
+              `API key not found for \`${options.provider}\` provider. Please set the ${options.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} environment variable or pass an apiKey in the options object.`,
+            );
+          }
+
           return await this.apiClient.agentExecute(options, executeOptions);
         }
 
