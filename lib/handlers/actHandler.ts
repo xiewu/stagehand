@@ -18,8 +18,7 @@ import {
   ObserveOptions,
   StagehandFunctionName,
 } from "@/types/stagehand";
-import { MethodHandlerContext, SupportedPlaywrightAction } from "@/types/act";
-import { buildActObservePrompt } from "../prompt";
+import { MethodHandlerContext } from "@/types/act";
 import {
   methodHandlerMap,
   fallbackLocatorMethod,
@@ -250,11 +249,7 @@ export class StagehandActHandler {
     }
 
     // Craft the instruction for observe
-    const instruction = buildActObservePrompt(
-      action,
-      Object.values(SupportedPlaywrightAction),
-      actionOrOptions.variables,
-    );
+    const instruction = actionOrOptions.action;
 
     // Call observe with the instruction and extracted options
     const observeResults = await observeHandler.observe({
@@ -264,6 +259,7 @@ export class StagehandActHandler {
       onlyVisible: false,
       drawOverlay: false,
       returnAction: true,
+      fromAct: true,
     });
 
     if (observeResults.length === 0) {
