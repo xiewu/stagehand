@@ -524,8 +524,15 @@ export class Stagehand {
       throw new Error(
         "STAGEHAND_API_URL is required when using the API. Please set it in your environment variables.",
       );
+    } else if (
+      this.usingAPI &&
+      this.llmClient.type !== "openai" &&
+      this.llmClient.type !== "anthropic"
+    ) {
+      throw new Error(
+        "API mode requires an OpenAI or Anthropic LLM. Please provide a compatible model.",
+      );
     }
-
     this.waitForCaptchaSolves = waitForCaptchaSolves;
 
     this.selfHeal = selfHeal;
@@ -614,6 +621,9 @@ export class Stagehand {
         verbose: this.verbose,
         debugDom: this.debugDom,
         systemPrompt: this.userProvidedInstructions,
+        selfHeal: this.selfHeal,
+        waitForCaptchaSolves: this.waitForCaptchaSolves,
+        actionTimeoutMs: this.actTimeoutMs,
         browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
       });
       this.browserbaseSessionID = sessionId;
@@ -855,6 +865,32 @@ export class Stagehand {
           throw new Error("Instruction is required for agent execution");
         }
 
+        if (this.usingAPI) {
+          if (!this.apiClient) {
+            throw new Error(
+              "API client not initialized. Ensure that you have initialized Stagehand via `await stagehand.init()`.",
+            );
+          }
+
+          if (!options.options) {
+            options.options = {};
+          }
+
+          if (options.provider === "anthropic") {
+            options.options.apiKey = process.env.ANTHROPIC_API_KEY;
+          } else if (options.provider === "openai") {
+            options.options.apiKey = process.env.OPENAI_API_KEY;
+          }
+
+          if (!options.options.apiKey) {
+            throw new Error(
+              `API key not found for \`${options.provider}\` provider. Please set the ${options.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} environment variable or pass an apiKey in the options object.`,
+            );
+          }
+
+          return await this.apiClient.agentExecute(options, executeOptions);
+        }
+
         return await agentHandler.execute(executeOptions);
       },
     };
@@ -868,4 +904,5 @@ export * from "../types/page";
 export * from "../types/playwright";
 export * from "../types/stagehand";
 export * from "../types/operator";
+export * from "../types/agent";
 export * from "./llm/LLMClient";
