@@ -7,9 +7,10 @@ test.describe("StagehandContext - addInitScript", () => {
     const stagehand = new Stagehand(StagehandConfig);
     await stagehand.init();
 
+    const page = stagehand.page;
     const context = stagehand.context;
 
-    await context.addInitScript(() => {
+    await page.evaluateOnNewDocument(() => {
       const w = window as typeof window & {
         __testContextScriptVar?: string;
       };

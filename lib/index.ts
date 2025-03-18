@@ -297,6 +297,8 @@ async function getBrowser(
       handleSIGINT: localBrowserLaunchOptions?.handleSIGINT ?? true,
       handleSIGTERM: localBrowserLaunchOptions?.handleSIGTERM ?? true,
       ignoreDefaultArgs: localBrowserLaunchOptions?.ignoreDefaultArgs,
+      executablePath: localBrowserLaunchOptions?.executablePath,
+      channel: "chrome",
     });
 
     const context = await browser.createBrowserContext();

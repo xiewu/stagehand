@@ -15,23 +15,23 @@ test.describe("StagehandContext - Cookies", () => {
   });
 
   test("should add cookies and retrieve them", async () => {
-    const context = stagehand.context; // This is the wrapped BrowserContext
-    const url = "https://example.com";
+    const context = stagehand.context;
 
-    await context.addCookies([
-      {
-        name: "myCookie",
-        value: "myValue",
-        domain: "example.com",
-        path: "/",
-        expires: Math.floor(Date.now() / 1000) + 3600,
-        httpOnly: false,
-        secure: false,
-        sameSite: "Lax",
-      },
-    ]);
+    const cookie = {
+      name: "myCookie",
+      value: "myValue",
+      domain: "example.com",
+      path: "/",
+      expires: Math.floor(Date.now() / 1000) + 3600,
+      httpOnly: false,
+      secure: false,
+      session: false,
+      size: 0,
+    };
 
-    const cookies = await context.cookies(url);
+    await context.setCookie(cookie);
+
+    const cookies = await context.cookies();
     expect(cookies.length).toBeGreaterThan(0);
 
     const myCookie = cookies.find((c) => c.name === "myCookie");
@@ -41,28 +41,28 @@ test.describe("StagehandContext - Cookies", () => {
 
   test("should clear all cookies", async () => {
     const context = stagehand.context;
-    const url = "https://example.com";
 
-    await context.addCookies([
-      {
-        name: "myOtherCookie",
-        value: "anotherValue",
-        domain: "example.com",
-        path: "/",
-        expires: Math.floor(Date.now() / 1000) + 3600,
-        httpOnly: false,
-        secure: false,
-        sameSite: "Lax",
-      },
-    ]);
+    const cookie = {
+      name: "myOtherCookie",
+      value: "anotherValue",
+      domain: "example.com",
+      path: "/",
+      expires: Math.floor(Date.now() / 1000) + 3600,
+      httpOnly: false,
+      secure: false,
+      session: false,
+      size: 0,
+    };
 
-    const cookiesBefore = await context.cookies(url);
+    await context.setCookie(cookie);
+
+    const cookiesBefore = await context.cookies();
     const found = cookiesBefore.some((c) => c.name === "myOtherCookie");
     expect(found).toBe(true);
 
-    await context.clearCookies();
+    await context.deleteCookie(cookie);
 
-    const cookiesAfter = await context.cookies(url);
+    const cookiesAfter = await context.cookies();
     const stillFound = cookiesAfter.some((c) => c.name === "myOtherCookie");
     expect(stillFound).toBe(false);
   });

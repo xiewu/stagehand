@@ -24,7 +24,15 @@ test("Downloads", async () => {
   await page.goto("https://browser-tests-alpha.vercel.app/api/download-test");
 
   const [download] = await Promise.all([
-    page.waitForEvent("download"),
+    new Promise<{ failure: () => null | string }>((resolve, reject) => {
+      client.on("Browser.downloadProgress", (e) => {
+        if (e.state === "completed") {
+          resolve({ failure: () => null });
+        } else if (e.state === "canceled") {
+          reject(new Error("Download was canceled"));
+        }
+      });
+    }),
     page.locator("#download").click(),
   ]);
 

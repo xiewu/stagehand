@@ -19,16 +19,21 @@ test.describe("Playwright Upload", () => {
     const page = stagehand.page;
     await page.goto("https://browser-tests-alpha.vercel.app/api/upload-test");
 
-    const fileInput = page.locator("#fileUpload");
-    await fileInput.setInputFiles(
+    const [fileChooser] = await Promise.all([
+      page.waitForFileChooser(),
+      page.click("#fileUpload"),
+    ]);
+    await fileChooser.accept([
       join(__dirname, "../..", "auxiliary", "logo.png"),
+    ]);
+
+    const fileNameSpan = await page.$("#fileName");
+    const fileName = await fileNameSpan.evaluate((el) => el.textContent);
+
+    const fileSizeSpan = await page.$("#fileSize");
+    const fileSize = Number(
+      await fileSizeSpan.evaluate((el) => el.textContent),
     );
-
-    const fileNameSpan = page.locator("#fileName");
-    const fileName = await fileNameSpan.innerText();
-
-    const fileSizeSpan = page.locator("#fileSize");
-    const fileSize = Number(await fileSizeSpan.innerText());
 
     expect(fileName).toBe("logo.png");
     expect(fileSize).toBeGreaterThan(0);

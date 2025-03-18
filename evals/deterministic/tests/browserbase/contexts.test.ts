@@ -46,15 +46,13 @@ async function setRandomCookie(contextId: string, stagehand: Stagehand) {
   const testCookieName = `bb_${now.getTime().toString()}`;
   const testCookieValue = now.toISOString();
 
-  await stagehand.context.addCookies([
-    {
-      domain: `.${new URL(CONTEXT_TEST_URL).hostname}`,
-      expires: addHour(now),
-      name: testCookieName,
-      path: "/",
-      value: testCookieValue,
-    },
-  ]);
+  await stagehand.context.setCookie({
+    domain: `.${new URL(CONTEXT_TEST_URL).hostname}`,
+    expires: addHour(now),
+    name: testCookieName,
+    path: "/",
+    value: testCookieValue,
+  });
 
   expect(findCookie(stagehand, testCookieName)).toBeDefined();
   console.log(`Set test cookie: ${testCookieName}=${testCookieValue}`);

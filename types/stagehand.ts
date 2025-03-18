@@ -171,6 +171,15 @@ export interface LocalBrowserLaunchOptions {
   timezoneId?: string;
   bypassCSP?: boolean;
   cookies?: Cookie[];
+  channel?:
+    | "chrome"
+    | "chrome-beta"
+    | "chrome-dev"
+    | "chrome-canary"
+    | "msedge"
+    | "msedge-beta"
+    | "msedge-dev"
+    | "msedge-canary";
 }
 
 export interface StagehandMetrics {
