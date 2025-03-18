@@ -10,6 +10,7 @@ import {
   AgentHandlerOptions,
   ActionExecutionResult,
 } from "@/types/agent";
+import { KeyInput } from "puppeteer-core/lib/types";
 
 export class StagehandAgentHandler {
   private stagehandPage: StagehandPage;
@@ -55,7 +56,7 @@ export class StagehandAgentHandler {
         fullPage: false,
       });
       // Convert to base64
-      return screenshot.toString("base64");
+      return screenshot.toString();
     });
 
     // Set up action handler for any client type
@@ -206,10 +207,10 @@ export class StagehandAgentHandler {
           // Small delay to see the animation
           await new Promise((resolve) => setTimeout(resolve, 200));
           // Perform the actual double click
-          await this.stagehandPage.page.mouse.dblclick(
-            x as number,
-            y as number,
-          );
+          await this.stagehandPage.page.mouse.click(x as number, y as number, {
+            button: "left",
+            clickCount: 2,
+          });
           return { success: true };
         }
 
@@ -227,10 +228,10 @@ export class StagehandAgentHandler {
           // Small delay to see the animation
           await new Promise((resolve) => setTimeout(resolve, 200));
           // Perform the actual double click
-          await this.stagehandPage.page.mouse.dblclick(
-            x as number,
-            y as number,
-          );
+          await this.stagehandPage.page.mouse.click(x as number, y as number, {
+            button: "left",
+            clickCount: 2,
+          });
           return { success: true };
         }
 
@@ -267,7 +268,7 @@ export class StagehandAgentHandler {
                 await this.stagehandPage.page.keyboard.press("ArrowRight");
               } else {
                 // For other keys, use the existing conversion
-                const playwrightKey = this.convertKeyName(key);
+                const playwrightKey = this.convertKeyName(key) as KeyInput;
                 await this.stagehandPage.page.keyboard.press(playwrightKey);
               }
             }
@@ -372,7 +373,7 @@ export class StagehandAgentHandler {
             await this.stagehandPage.page.keyboard.press("Backspace");
           } else {
             // For other keys, try to press directly
-            await this.stagehandPage.page.keyboard.press(text as string);
+            await this.stagehandPage.page.keyboard.press(text as KeyInput);
           }
           return { success: true };
         }
@@ -401,7 +402,7 @@ export class StagehandAgentHandler {
   }
 
   private updateClientViewport(): void {
-    const viewportSize = this.stagehandPage.page.viewportSize();
+    const viewportSize = this.stagehandPage.page.viewport();
     if (viewportSize) {
       this.agentClient.setViewport(viewportSize.width, viewportSize.height);
     }
@@ -435,7 +436,7 @@ export class StagehandAgentHandler {
       });
 
       // Convert to base64
-      const base64Image = screenshot.toString("base64");
+      const base64Image = screenshot.toString();
 
       // Just use the captureScreenshot method on the agent client
       return await this.agentClient.captureScreenshot({

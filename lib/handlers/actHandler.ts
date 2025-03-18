@@ -25,6 +25,7 @@ import {
   fallbackLocatorMethod,
 } from "./handlerUtils/actHandlerUtils";
 import { Stagehand } from "@/lib";
+
 /**
  * NOTE: Vision support has been removed from this version of Stagehand.
  * If useVision or verifierUseVision is set to true, a warning is logged and
@@ -386,7 +387,7 @@ export class StagehandActHandler {
     xpath: string,
     domSettleTimeoutMs?: number,
   ) {
-    const locator = this.stagehandPage.page.locator(`xpath=${xpath}`).first();
+    const locator = this.stagehandPage.page.locator(`xpath=${xpath}`);
     const initialUrl = this.stagehandPage.page.url();
 
     this.logger({
@@ -419,10 +420,12 @@ export class StagehandActHandler {
         await methodFn(context);
 
         // 3) Otherwise, see if it's a valid locator method
-      } else if (typeof locator[method as keyof Locator] === "function") {
+      } else if (
+        typeof locator[method as keyof typeof locator] === "function"
+      ) {
         await fallbackLocatorMethod(context);
 
-        // 4) If still unknown, we can’t handle it
+        // 4) If still unknown, we can't handle it
       } else {
         this.logger({
           category: "action",
@@ -491,7 +494,7 @@ export class StagehandActHandler {
     initialUrl: string,
     domSettleTimeoutMs: number,
   ): Promise<void> {
-    // 1) Log that we’re about to check for page navigation
+    // 1) Log that we're about to check for page navigation
     this.logger({
       category: "action",
       message: `${actionDescription}, checking for page navigation`,
@@ -509,7 +512,7 @@ export class StagehandActHandler {
       new Promise<Page | null>((resolve) => {
         // TODO: This is a hack to get the new page.
         // We should find a better way to do this.
-        this.stagehandPage.context.once("page", (page) => resolve(page));
+        this.stagehandPage.context.once("page", (page: Page) => resolve(page));
         setTimeout(() => resolve(null), 1_500);
       }),
     ]);
@@ -542,7 +545,9 @@ export class StagehandActHandler {
       });
       await newOpenedTab.close();
       await this.stagehandPage.page.goto(newOpenedTab.url());
-      await this.stagehandPage.page.waitForLoadState("domcontentloaded");
+      await this.stagehandPage.page.waitForNavigation({
+        waitUntil: "domcontentloaded",
+      });
     }
 
     // 5) Wait for the DOM to settle
@@ -808,14 +813,14 @@ export class StagehandActHandler {
         let locator: Locator | null = null;
 
         for (const xp of xpaths) {
-          const candidate = this.stagehandPage.page
-            .locator(`xpath=${xp}`)
-            .first();
+          const candidate = this.stagehandPage.page.locator(`xpath=${xp}`);
           try {
             // Try a short wait to see if it's attached to the DOM
-            await candidate.waitFor({ state: "attached", timeout: 2000 });
+            await this.stagehandPage.page.waitForSelector(`xpath=${xp}`, {
+              timeout: 2000,
+            });
             foundXpath = xp;
-            locator = candidate;
+            locator = candidate as unknown as Locator;
             break;
           } catch (e) {
             this.logger({

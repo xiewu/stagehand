@@ -1,9 +1,10 @@
-import { Page, Locator } from "@playwright/test";
+import { Page } from "@playwright/test";
 import { PlaywrightCommandException } from "../../../types/playwright";
 import { StagehandPage } from "../../StagehandPage";
 import { getNodeFromXpath } from "@/lib/dom/utils";
 import { Logger } from "../../../types/log";
 import { MethodHandlerContext } from "@/types/act";
+import { KeyInput } from "puppeteer-core/lib/types";
 
 /**
  * A mapping of playwright methods that may be chosen by the LLM to their
@@ -24,7 +25,7 @@ export const methodHandlerMap: Record<
 };
 
 export async function scrollElementIntoView(ctx: MethodHandlerContext) {
-  const { locator, xpath, logger } = ctx;
+  const { stagehandPage, xpath, logger } = ctx;
 
   logger({
     category: "action",
@@ -36,7 +37,7 @@ export async function scrollElementIntoView(ctx: MethodHandlerContext) {
   });
 
   try {
-    await locator.evaluate((element: HTMLElement) => {
+    await stagehandPage.page.$eval(`xpath/${xpath}`, (element: HTMLElement) => {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   } catch (e) {
@@ -126,15 +127,22 @@ export async function scrollElementToPercentage(ctx: MethodHandlerContext) {
 }
 
 export async function fillOrType(ctx: MethodHandlerContext) {
-  const { locator, xpath, args, logger } = ctx;
+  const { stagehandPage, xpath, args, logger } = ctx;
 
   try {
-    await locator.fill("");
-    await locator.click();
+    await stagehandPage.page.$eval(`xpath/${xpath}`, (element: HTMLElement) => {
+      if (
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLTextAreaElement
+      ) {
+        element.value = "";
+      }
+      element.click();
+    });
 
     const text = args[0]?.toString() || "";
     for (const char of text) {
-      await locator.page().keyboard.type(char, {
+      await stagehandPage.page.keyboard.type(char, {
         delay: Math.random() * 50 + 25,
       });
     }
@@ -154,18 +162,11 @@ export async function fillOrType(ctx: MethodHandlerContext) {
 }
 
 export async function pressKey(ctx: MethodHandlerContext) {
-  const {
-    locator,
-    xpath,
-    args,
-    logger,
-    stagehandPage,
-    initialUrl,
-    domSettleTimeoutMs,
-  } = ctx;
+  const { xpath, args, logger, stagehandPage, initialUrl, domSettleTimeoutMs } =
+    ctx;
   try {
     const key = args[0]?.toString() ?? "";
-    await locator.page().keyboard.press(key);
+    await stagehandPage.page.keyboard.press(key as KeyInput);
 
     await handlePossiblePageNavigation(
       "press",
@@ -215,43 +216,54 @@ export async function clickElement(ctx: MethodHandlerContext) {
 
   try {
     // If it's a radio input, try to click its label
-    const isRadio = await locator.evaluate((el) => {
+    const isRadio = await stagehandPage.page.$eval(`xpath/${xpath}`, (el) => {
       return el instanceof HTMLInputElement && el.type === "radio";
     });
 
     const clickArg = args.length ? args[0] : undefined;
 
     if (isRadio) {
-      const inputId = await locator.evaluate(
-        (el) => (el as HTMLInputElement).id,
-      );
+      const inputId = await stagehandPage.page.$eval(`xpath/${xpath}`, (el) => {
+        return (el as HTMLInputElement).id;
+      });
       let labelLocator = null;
 
       if (inputId) {
-        labelLocator = stagehandPage.page.locator(`label[for="${inputId}"]`);
+        const labelSelector = `label[for="${inputId}"]`;
+        const labelCount = await stagehandPage.page.$$eval(
+          labelSelector,
+          (elements) => elements.length,
+        );
+        if (labelCount > 0) {
+          labelLocator = stagehandPage.page.locator(labelSelector);
+        }
       }
-      if (!labelLocator || (await labelLocator.count()) < 1) {
-        // Check ancestor <label>
-        labelLocator = stagehandPage.page
-          .locator(`xpath=${xpath}/ancestor::label`)
-          .first();
-      }
-      if ((await labelLocator.count()) < 1) {
-        // Check sibling <label>
-        labelLocator = locator
-          .locator("xpath=following-sibling::label")
-          .first();
-        if ((await labelLocator.count()) < 1) {
-          labelLocator = locator
-            .locator("xpath=preceding-sibling::label")
-            .first();
+      if (!labelLocator) {
+        const ancestorSelector = `xpath=${xpath}/ancestor::label`;
+        const ancestorCount = await stagehandPage.page.$$eval(
+          ancestorSelector,
+          (elements) => elements.length,
+        );
+        if (ancestorCount > 0) {
+          labelLocator = stagehandPage.page.locator(ancestorSelector);
+        } else {
+          const siblingSelector = `xpath=${xpath}/following-sibling::label | ${xpath}/preceding-sibling::label`;
+          const siblingCount = await stagehandPage.page.$$eval(
+            siblingSelector,
+            (elements) => elements.length,
+          );
+          if (siblingCount > 0) {
+            labelLocator = stagehandPage.page.locator(siblingSelector);
+          }
         }
       }
 
-      if ((await labelLocator.count()) > 0) {
+      if (labelLocator) {
         await labelLocator.click(clickArg);
       } else {
-        await locator.click(clickArg);
+        await stagehandPage.page.$eval(`xpath/${xpath}`, (el: HTMLElement) =>
+          el.click(),
+        );
       }
     } else {
       await locator.click(clickArg);
@@ -286,23 +298,24 @@ export async function clickElement(ctx: MethodHandlerContext) {
  * Fallback method: if method is not in our map but *is* a valid Playwright locator method.
  */
 export async function fallbackLocatorMethod(ctx: MethodHandlerContext) {
-  const { locator, xpath, method, args, logger } = ctx;
+  const { stagehandPage, xpath, method, args, logger } = ctx;
 
   logger({
     category: "action",
     message: "page URL before action",
     level: 2,
     auxiliary: {
-      url: { value: locator.page().url(), type: "string" },
+      url: { value: stagehandPage.page.url(), type: "string" },
     },
   });
 
   try {
-    await (
-      locator[method as keyof Locator] as unknown as (
-        ...a: string[]
-      ) => Promise<void>
-    )(...args.map((arg) => arg?.toString() || ""));
+    await stagehandPage.page.$eval(`xpath/${xpath}`, (element: HTMLElement) => {
+      const fn = element[method as keyof HTMLElement];
+      if (typeof fn === "function") {
+        (fn as (...args: unknown[]) => void).apply(element, args);
+      }
+    });
   } catch (e) {
     logger({
       category: "action",
@@ -339,7 +352,7 @@ async function handlePossiblePageNavigation(
 
   const newOpenedTab = await Promise.race([
     new Promise<Page | null>((resolve) => {
-      stagehandPage.context.once("page", (page) => resolve(page));
+      stagehandPage.context.once("page", (page: Page) => resolve(page));
       setTimeout(() => resolve(null), 1500);
     }),
   ]);
@@ -367,7 +380,9 @@ async function handlePossiblePageNavigation(
     });
     await newOpenedTab.close();
     await stagehandPage.page.goto(newOpenedTab.url());
-    await stagehandPage.page.waitForLoadState("domcontentloaded");
+    await stagehandPage.page.waitForNavigation({
+      waitUntil: "domcontentloaded",
+    });
   }
 
   try {

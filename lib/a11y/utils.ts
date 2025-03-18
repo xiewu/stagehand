@@ -1,11 +1,11 @@
 import { AccessibilityNode, TreeResult, AXNode } from "../../types/context";
 import { StagehandPage } from "../StagehandPage";
 import { LogLine } from "../../types/log";
-import { CDPSession, Page, Locator } from "playwright";
 import {
   PlaywrightCommandMethodNotSupportedException,
   PlaywrightCommandException,
 } from "@/types/playwright";
+import { CDPSession, KeyInput, Locator, Page } from "puppeteer-core/lib/types";
 
 // Parser function for str output
 export function formatSimplifiedTree(
@@ -396,7 +396,7 @@ export async function getXPathByResolvedObjectId(
  *     - During each iteration, we call `Runtime.evaluate` to run `document.evaluate(...)`
  *       with each XPath, obtaining a `RemoteObject` reference if it exists.
  *     - Then, for each valid object reference, we call `DOM.describeNode` to retrieve
- *       the element’s `backendNodeId`.
+ *       the element's `backendNodeId`.
  * - Collects all resulting `backendNodeId`s in a Set and returns them.
  *
  * @param stagehandPage - A StagehandPage instance with built-in CDP helpers.
@@ -455,7 +455,7 @@ export async function performPlaywrightMethod(
   args: unknown[],
   xpath: string,
 ) {
-  const locator = stagehandPage.locator(`xpath=${xpath}`).first();
+  const locator = stagehandPage.locator(`xpath=${xpath}`);
   const initialUrl = stagehandPage.url();
 
   logger({
@@ -487,8 +487,8 @@ export async function performPlaywrightMethod(
       },
     });
     try {
-      await locator
-        .evaluate((element: HTMLElement) => {
+      await stagehandPage
+        .$eval(`xpath/${xpath}`, (element: HTMLElement) => {
           element.scrollIntoView({ behavior: "smooth", block: "center" });
         })
         .catch((e: Error) => {
@@ -571,7 +571,7 @@ export async function performPlaywrightMethod(
   } else if (method === "press") {
     try {
       const key = args[0]?.toString();
-      await stagehandPage.keyboard.press(key);
+      await stagehandPage.keyboard.press(key as KeyInput);
     } catch (e) {
       logger({
         category: "action",
@@ -611,11 +611,20 @@ export async function performPlaywrightMethod(
 
     // Perform the action
     try {
-      await (
-        locator[method as keyof Locator] as unknown as (
-          ...args: string[]
-        ) => Promise<void>
-      )(...args.map((arg) => arg?.toString() || ""));
+      type LocatorMethod = (
+        this: Locator<Element>,
+        ...args: string[]
+      ) => Promise<void>;
+      const methodName = method as keyof Locator<Element>;
+      if (typeof locator[methodName] === "function") {
+        const methodFn = locator[methodName] as LocatorMethod;
+        await methodFn.call(
+          locator,
+          ...args.map((arg) => arg?.toString() || ""),
+        );
+      } else {
+        throw new Error(`Method ${method} not found on locator`);
+      }
     } catch (e) {
       logger({
         category: "action",
@@ -664,8 +673,11 @@ export async function performPlaywrightMethod(
 
       const newOpenedTab = await Promise.race([
         new Promise<Page | null>((resolve) => {
-          Promise.resolve(stagehandPage.context()).then((context) => {
-            context.once("page", (page: Page) => resolve(page));
+          Promise.resolve(stagehandPage.browserContext()).then((context) => {
+            context.once("targetcreated", async (target) => {
+              const page = await target.page();
+              resolve(page);
+            });
             setTimeout(() => resolve(null), 1_500);
           });
         }),
@@ -697,11 +709,13 @@ export async function performPlaywrightMethod(
         });
         await newOpenedTab.close();
         await stagehandPage.goto(newOpenedTab.url());
-        await stagehandPage.waitForLoadState("domcontentloaded");
+        await stagehandPage.waitForNavigation({
+          waitUntil: "domcontentloaded",
+        });
       }
 
       await Promise.race([
-        stagehandPage.waitForLoadState("networkidle"),
+        stagehandPage.waitForNavigation({ waitUntil: "networkidle0" }),
         new Promise((resolve) => setTimeout(resolve, 5_000)),
       ]).catch((e) => {
         logger({

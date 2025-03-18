@@ -1,7 +1,7 @@
 import { LLMClient } from "../lib/llm/LLMClient";
-import { Locator } from "@playwright/test";
 import { Logger } from "@/types/log";
 import { StagehandPage } from "@/lib/StagehandPage";
+import { Locator } from "puppeteer-core/lib/types";
 
 // WARNING: This is NOT to be confused with the ActParams type used in `page.act()`.
 // This is the type for the parameters passed to the `act` command in `inference.ts`.
@@ -44,7 +44,7 @@ export enum SupportedPlaywrightAction {
  */
 export interface MethodHandlerContext {
   method: string;
-  locator: Locator;
+  locator: Locator<Element>;
   xpath: string;
   args: unknown[];
   logger: Logger;
