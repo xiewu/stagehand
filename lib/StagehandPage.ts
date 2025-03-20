@@ -608,10 +608,14 @@ export class StagehandPage {
 
     // check if user called extract() with no arguments
     if (!instructionOrOptions) {
+      let result: ExtractResult<T>;
       if (this.api) {
-        return this.api.extract<T>({});
+        result = await this.api.extract<T>({});
+      } else {
+        result = await this.extractHandler.extract();
       }
-      return this.extractHandler.extract();
+      this.addToHistory("extract", instructionOrOptions, result);
+      return result;
     }
 
     const options: ExtractOptions<T> =
