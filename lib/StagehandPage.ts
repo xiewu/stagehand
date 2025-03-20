@@ -6,6 +6,7 @@ import { Page, defaultExtractSchema } from "../types/page";
 import {
   ExtractOptions,
   ExtractResult,
+  HistoryEntry,
   ObserveOptions,
   ObserveResult,
 } from "../types/stagehand";
@@ -39,19 +40,9 @@ export class StagehandPage {
   private userProvidedInstructions?: string;
   private waitForCaptchaSolves: boolean;
   private initialized: boolean = false;
-  private _history: Array<{
-    method: "act" | "extract" | "observe" | "navigate";
-    parameters: unknown;
-    result: unknown;
-    timestamp: string;
-  }> = [];
+  private _history: Array<HistoryEntry> = [];
 
-  public get history(): ReadonlyArray<{
-    method: "act" | "extract" | "observe" | "navigate";
-    parameters: unknown;
-    result: unknown;
-    timestamp: string;
-  }> {
+  public get history(): ReadonlyArray<HistoryEntry> {
     return this._history;
   }
 
@@ -458,7 +449,7 @@ export class StagehandPage {
   }
 
   private addToHistory(
-    method: "act" | "extract" | "observe" | "navigate",
+    method: HistoryEntry["method"],
     parameters: unknown,
     result?: unknown,
   ): void {
