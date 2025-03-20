@@ -899,6 +899,15 @@ export class Stagehand {
       },
     };
   }
+
+  public get history(): ReadonlyArray<{
+    method: "act" | "extract" | "observe" | "navigate";
+    parameters: unknown;
+    result: unknown;
+    timestamp: string;
+  }> {
+    return this.stagehandPage ? this.stagehandPage.history : [];
+  }
 }
 
 export * from "../types/browser";
