@@ -24,10 +24,10 @@ export function createLogger(options: LoggerOptions = {}) {
     level: options.level || "info",
     base: undefined, // Don't include pid and hostname
     browser: {
-      asObject: true
+      asObject: true,
     },
     // Disable worker threads to avoid issues in tests
-    transport: undefined
+    transport: undefined,
   };
 
   // Add pretty printing for dev environments only if explicitly requested
@@ -48,7 +48,7 @@ export function createLogger(options: LoggerOptions = {}) {
       Object.assign(loggerConfig, transport);
     } catch {
       console.warn(
-        "pino-pretty not available, falling back to standard logging"
+        "pino-pretty not available, falling back to standard logging",
       );
     }
   }
@@ -61,11 +61,11 @@ export function createLogger(options: LoggerOptions = {}) {
  */
 function isTestEnvironment(): boolean {
   return (
-    process.env.NODE_ENV === 'test' || 
-    process.env.JEST_WORKER_ID !== undefined || 
+    process.env.NODE_ENV === "test" ||
+    process.env.JEST_WORKER_ID !== undefined ||
     process.env.PLAYWRIGHT_TEST_BASE_DIR !== undefined ||
     // Check if we're in a CI environment
-    process.env.CI === 'true'
+    process.env.CI === "true"
   );
 }
 
@@ -84,12 +84,10 @@ export class StagehandLogger {
     externalLogger?: (logLine: LogLine) => void,
   ) {
     this.isTest = isTestEnvironment();
-    
+
     // In test environments, default to not using Pino to avoid worker thread issues
-    this.usePino = this.isTest 
-      ? false 
-      : options.usePino !== false; // Default to using Pino if not specified and not in test
-    
+    this.usePino = this.isTest ? false : options.usePino !== false; // Default to using Pino if not specified and not in test
+
     this.logger = this.usePino ? createLogger(options) : null;
     this.verbose = 1; // Default verbosity level
     this.externalLogger = externalLogger;
@@ -130,8 +128,8 @@ export class StagehandLogger {
     // use console for basic logging
     if (this.isTest && !this.externalLogger) {
       const level = logLine.level ?? 1;
-      const prefix = `[${logLine.category || 'log'}] `;
-      
+      const prefix = `[${logLine.category || "log"}] `;
+
       switch (level) {
         case 0:
           console.error(prefix + logLine.message);
