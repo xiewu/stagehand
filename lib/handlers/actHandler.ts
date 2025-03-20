@@ -16,15 +16,22 @@ import {
   ObserveResult,
   ActOptions,
   ObserveOptions,
+  StagehandFunctionName,
 } from "@/types/stagehand";
-import { SupportedPlaywrightAction } from "@/types/act";
+import { MethodHandlerContext, SupportedPlaywrightAction } from "@/types/act";
 import { buildActObservePrompt } from "../prompt";
+import {
+  methodHandlerMap,
+  fallbackLocatorMethod,
+} from "./handlerUtils/actHandlerUtils";
+import { Stagehand } from "@/lib";
 /**
  * NOTE: Vision support has been removed from this version of Stagehand.
  * If useVision or verifierUseVision is set to true, a warning is logged and
  * the flow continues as if vision = false.
  */
 export class StagehandActHandler {
+  private readonly stagehand: Stagehand;
   private readonly stagehandPage: StagehandPage;
   private readonly verbose: 0 | 1 | 2;
   private readonly llmProvider: LLMProvider;
@@ -39,6 +46,7 @@ export class StagehandActHandler {
   private readonly waitForCaptchaSolves: boolean;
 
   constructor({
+    stagehand,
     verbose,
     llmProvider,
     enableCaching,
@@ -48,6 +56,7 @@ export class StagehandActHandler {
     selfHeal,
     waitForCaptchaSolves,
   }: {
+    stagehand: Stagehand;
     verbose: 0 | 1 | 2;
     llmProvider: LLMProvider;
     enableCaching: boolean;
@@ -59,6 +68,7 @@ export class StagehandActHandler {
     selfHeal: boolean;
     waitForCaptchaSolves: boolean;
   }) {
+    this.stagehand = stagehand;
     this.verbose = verbose;
     this.llmProvider = llmProvider;
     this.enableCaching = enableCaching;
@@ -174,7 +184,7 @@ export class StagehandActHandler {
             ? `${method} ${observe.description}`
             : observe.description;
         // Call act with the ObserveResult description
-        await this.stagehandPage.act({
+        return await this.stagehandPage.act({
           action: actCommand,
           slowDomBasedAct: true,
         });
@@ -332,7 +342,7 @@ export class StagehandActHandler {
       });
 
       // Always use text-based DOM verification (no vision).
-      actionCompleted = await verifyActCompletion({
+      const verifyResult = await verifyActCompletion({
         goal: action,
         steps,
         llmProvider: this.llmProvider,
@@ -340,7 +350,9 @@ export class StagehandActHandler {
         domElements,
         logger: this.logger,
         requestId,
+        logInferenceToFile: this.stagehand.logInferenceToFile,
       });
+      actionCompleted = verifyResult.completed;
 
       this.logger({
         category: "action",
@@ -357,6 +369,12 @@ export class StagehandActHandler {
           },
         },
       });
+      this.stagehand.updateMetrics(
+        StagehandFunctionName.ACT,
+        verifyResult.prompt_tokens,
+        verifyResult.completion_tokens,
+        verifyResult.inference_time_ms,
+      );
     }
 
     return actionCompleted;
@@ -376,395 +394,66 @@ export class StagehandActHandler {
       message: "performing playwright method",
       level: 2,
       auxiliary: {
-        xpath: {
-          value: xpath,
-          type: "string",
-        },
-        method: {
-          value: method,
-          type: "string",
-        },
+        xpath: { value: xpath, type: "string" },
+        method: { value: method, type: "string" },
       },
     });
 
-    if (method === "scrollIntoView") {
+    const context: MethodHandlerContext = {
+      method,
+      locator,
+      xpath,
+      args,
+      logger: this.logger,
+      stagehandPage: this.stagehandPage,
+      initialUrl,
+      domSettleTimeoutMs,
+    };
+
+    try {
+      // 1) Look up a function in the map
+      const methodFn = methodHandlerMap[method];
+
+      // 2) If found, call it
+      if (methodFn) {
+        await methodFn(context);
+
+        // 3) Otherwise, see if it's a valid locator method
+      } else if (typeof locator[method as keyof Locator] === "function") {
+        await fallbackLocatorMethod(context);
+
+        // 4) If still unknown, we can’t handle it
+      } else {
+        this.logger({
+          category: "action",
+          message: "chosen method is invalid",
+          level: 1,
+          auxiliary: {
+            method: { value: method, type: "string" },
+          },
+        });
+        throw new PlaywrightCommandMethodNotSupportedException(
+          `Method ${method} not supported`,
+        );
+      }
+
+      // Always wait for DOM to settle
+      await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
+    } catch (e) {
       this.logger({
         category: "action",
-        message: "scrolling element into view",
-        level: 2,
-        auxiliary: {
-          xpath: {
-            value: xpath,
-            type: "string",
-          },
-        },
-      });
-      try {
-        await locator
-          .evaluate((element: HTMLElement) => {
-            element.scrollIntoView({ behavior: "smooth", block: "center" });
-          })
-          .catch((e: Error) => {
-            this.logger({
-              category: "action",
-              message: "error scrolling element into view",
-              level: 1,
-              auxiliary: {
-                error: {
-                  value: e.message,
-                  type: "string",
-                },
-                trace: {
-                  value: e.stack,
-                  type: "string",
-                },
-                xpath: {
-                  value: xpath,
-                  type: "string",
-                },
-              },
-            });
-          });
-      } catch (e) {
-        this.logger({
-          category: "action",
-          message: "error scrolling element into view",
-          level: 1,
-          auxiliary: {
-            error: {
-              value: e.message,
-              type: "string",
-            },
-            trace: {
-              value: e.stack,
-              type: "string",
-            },
-            xpath: {
-              value: xpath,
-              type: "string",
-            },
-          },
-        });
-
-        throw new PlaywrightCommandException(e.message);
-      }
-    } else if (method === "fill" || method === "type") {
-      try {
-        await locator.fill("");
-        await locator.click();
-        const text = args[0]?.toString();
-        for (const char of text) {
-          await this.stagehandPage.page.keyboard.type(char, {
-            delay: Math.random() * 50 + 25,
-          });
-        }
-      } catch (e) {
-        this.logger({
-          category: "action",
-          message: "error filling element",
-          level: 1,
-          auxiliary: {
-            error: {
-              value: e.message,
-              type: "string",
-            },
-            trace: {
-              value: e.stack,
-              type: "string",
-            },
-            xpath: {
-              value: xpath,
-              type: "string",
-            },
-          },
-        });
-
-        throw new PlaywrightCommandException(e.message);
-      }
-    } else if (method === "press") {
-      try {
-        const key = args[0]?.toString();
-        await this.stagehandPage.page.keyboard.press(key);
-      } catch (e) {
-        this.logger({
-          category: "action",
-          message: "error pressing key",
-          level: 1,
-          auxiliary: {
-            error: {
-              value: e.message,
-              type: "string",
-            },
-            trace: {
-              value: e.stack,
-              type: "string",
-            },
-            key: {
-              value: args[0]?.toString() ?? "unknown",
-              type: "string",
-            },
-          },
-        });
-
-        throw new PlaywrightCommandException(e.message);
-      }
-    } else if (method === "click") {
-      // Log the URL before clicking
-      this.logger({
-        category: "action",
-        message: "page URL before click",
-        level: 2,
-        auxiliary: {
-          url: {
-            value: this.stagehandPage.page.url(),
-            type: "string",
-          },
-        },
-      });
-
-      // if the element is a radio button, we should try to click the label instead
-      try {
-        const isRadio = await locator.evaluate((el) => {
-          return el instanceof HTMLInputElement && el.type === "radio";
-        });
-
-        const clickArg = args.length ? args[0] : undefined;
-
-        if (isRadio) {
-          // if it's a radio button, try to find a label to click
-          const inputId = await locator.evaluate((el) => el.id);
-          let labelLocator;
-
-          if (inputId) {
-            // if the radio button has an ID, try label[for="thatId"]
-            labelLocator = this.stagehandPage.page.locator(
-              `label[for="${inputId}"]`,
-            );
-          }
-          if (!labelLocator || (await labelLocator.count()) < 1) {
-            // if no label was found or the label doesn't exist, check if
-            // there is an ancestor <label>
-            labelLocator = this.stagehandPage.page
-              .locator(`xpath=${xpath}/ancestor::label`)
-              .first();
-          }
-          if ((await labelLocator.count()) < 1) {
-            // if still no label, try checking for a following-sibling or preceding-sibling label
-            labelLocator = locator
-              .locator(`xpath=following-sibling::label`)
-              .first();
-            if ((await labelLocator.count()) < 1) {
-              labelLocator = locator
-                .locator(`xpath=preceding-sibling::label`)
-                .first();
-            }
-          }
-          if ((await labelLocator.count()) > 0) {
-            // if we found a label, click it
-            await labelLocator.click(clickArg);
-          } else {
-            // otherwise, just click the radio button itself
-            await locator.click(clickArg);
-          }
-        } else {
-          // here we just do a normal click if it's not a radio input
-          const clickArg = args.length ? args[0] : undefined;
-          await locator.click(clickArg);
-        }
-      } catch (e) {
-        this.logger({
-          category: "action",
-          message: "error performing click",
-          level: 1,
-          auxiliary: {
-            error: {
-              value: e.message,
-              type: "string",
-            },
-            trace: {
-              value: e.stack,
-              type: "string",
-            },
-            xpath: {
-              value: xpath,
-              type: "string",
-            },
-            method: {
-              value: method,
-              type: "string",
-            },
-            args: {
-              value: JSON.stringify(args),
-              type: "object",
-            },
-          },
-        });
-
-        throw new PlaywrightCommandException(e.message);
-      }
-
-      // Handle navigation if a new page is opened
-      this.logger({
-        category: "action",
-        message: "clicking element, checking for page navigation",
+        message: "error performing method",
         level: 1,
         auxiliary: {
-          xpath: {
-            value: xpath,
-            type: "string",
-          },
+          error: { value: e.message, type: "string" },
+          trace: { value: e.stack, type: "string" },
+          method: { value: method, type: "string" },
+          xpath: { value: xpath, type: "string" },
+          args: { value: JSON.stringify(args), type: "object" },
         },
       });
-
-      const newOpenedTab = await Promise.race([
-        new Promise<Page | null>((resolve) => {
-          // TODO: This is a hack to get the new page
-          // We should find a better way to do this
-          this.stagehandPage.context.once("page", (page) => resolve(page));
-          setTimeout(() => resolve(null), 1_500);
-        }),
-      ]);
-
-      this.logger({
-        category: "action",
-        message: "clicked element",
-        level: 1,
-        auxiliary: {
-          newOpenedTab: {
-            value: newOpenedTab ? "opened a new tab" : "no new tabs opened",
-            type: "string",
-          },
-        },
-      });
-
-      if (newOpenedTab) {
-        this.logger({
-          category: "action",
-          message: "new page detected (new tab) with URL",
-          level: 1,
-          auxiliary: {
-            url: {
-              value: newOpenedTab.url(),
-              type: "string",
-            },
-          },
-        });
-        await newOpenedTab.close();
-        await this.stagehandPage.page.goto(newOpenedTab.url());
-        await this.stagehandPage.page.waitForLoadState("domcontentloaded");
-      }
-
-      await this.stagehandPage
-        ._waitForSettledDom(domSettleTimeoutMs)
-        .catch((e) => {
-          this.logger({
-            category: "action",
-            message: "wait for settled dom timeout hit",
-            level: 1,
-            auxiliary: {
-              trace: {
-                value: e.stack,
-                type: "string",
-              },
-              message: {
-                value: e.message,
-                type: "string",
-              },
-            },
-          });
-        });
-
-      this.logger({
-        category: "action",
-        message: "finished waiting for (possible) page navigation",
-        level: 1,
-      });
-
-      if (this.stagehandPage.page.url() !== initialUrl) {
-        this.logger({
-          category: "action",
-          message: "new page detected with URL",
-          level: 1,
-          auxiliary: {
-            url: {
-              value: this.stagehandPage.page.url(),
-              type: "string",
-            },
-          },
-        });
-      }
-    } else if (typeof locator[method as keyof typeof locator] === "function") {
-      // Fallback: any other locator method
-      // Log current URL before action
-      this.logger({
-        category: "action",
-        message: "page URL before action",
-        level: 2,
-        auxiliary: {
-          url: {
-            value: this.stagehandPage.page.url(),
-            type: "string",
-          },
-        },
-      });
-
-      // Perform the action
-      try {
-        await (
-          locator[method as keyof Locator] as unknown as (
-            ...args: string[]
-          ) => Promise<void>
-        )(...args.map((arg) => arg?.toString() || ""));
-      } catch (e) {
-        this.logger({
-          category: "action",
-          message: "error performing method",
-          level: 1,
-          auxiliary: {
-            error: {
-              value: e.message,
-              type: "string",
-            },
-            trace: {
-              value: e.stack,
-              type: "string",
-            },
-            xpath: {
-              value: xpath,
-              type: "string",
-            },
-            method: {
-              value: method,
-              type: "string",
-            },
-            args: {
-              value: JSON.stringify(args),
-              type: "object",
-            },
-          },
-        });
-
-        throw new PlaywrightCommandException(e.message);
-      }
-    } else {
-      this.logger({
-        category: "action",
-        message: "chosen method is invalid",
-        level: 1,
-        auxiliary: {
-          method: {
-            value: method,
-            type: "string",
-          },
-        },
-      });
-
-      throw new PlaywrightCommandMethodNotSupportedException(
-        `Method ${method} not supported`,
-      );
+      throw new PlaywrightCommandException(e.message);
     }
-
-    await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
   }
 
   private async _getComponentString(locator: Locator) {
@@ -796,6 +485,110 @@ export class StagehandActHandler {
     });
   }
 
+  private async handlePossiblePageNavigation(
+    actionDescription: string,
+    xpath: string,
+    initialUrl: string,
+    domSettleTimeoutMs: number,
+  ): Promise<void> {
+    // 1) Log that we’re about to check for page navigation
+    this.logger({
+      category: "action",
+      message: `${actionDescription}, checking for page navigation`,
+      level: 1,
+      auxiliary: {
+        xpath: {
+          value: xpath,
+          type: "string",
+        },
+      },
+    });
+
+    // 2) Race against a new page opening in a tab or timing out
+    const newOpenedTab = await Promise.race([
+      new Promise<Page | null>((resolve) => {
+        // TODO: This is a hack to get the new page.
+        // We should find a better way to do this.
+        this.stagehandPage.context.once("page", (page) => resolve(page));
+        setTimeout(() => resolve(null), 1_500);
+      }),
+    ]);
+
+    // 3) Log whether a new tab was opened
+    this.logger({
+      category: "action",
+      message: `${actionDescription} complete`,
+      level: 1,
+      auxiliary: {
+        newOpenedTab: {
+          value: newOpenedTab ? "opened a new tab" : "no new tabs opened",
+          type: "string",
+        },
+      },
+    });
+
+    // 4) If new page opened in new tab, close the tab, then navigate our main page
+    if (newOpenedTab) {
+      this.logger({
+        category: "action",
+        message: "new page detected (new tab) with URL",
+        level: 1,
+        auxiliary: {
+          url: {
+            value: newOpenedTab.url(),
+            type: "string",
+          },
+        },
+      });
+      await newOpenedTab.close();
+      await this.stagehandPage.page.goto(newOpenedTab.url());
+      await this.stagehandPage.page.waitForLoadState("domcontentloaded");
+    }
+
+    // 5) Wait for the DOM to settle
+    await this.stagehandPage
+      ._waitForSettledDom(domSettleTimeoutMs)
+      .catch((e) => {
+        this.logger({
+          category: "action",
+          message: "wait for settled DOM timeout hit",
+          level: 1,
+          auxiliary: {
+            trace: {
+              value: e.stack,
+              type: "string",
+            },
+            message: {
+              value: e.message,
+              type: "string",
+            },
+          },
+        });
+      });
+
+    // 6) Log that we finished waiting for possible navigation
+    this.logger({
+      category: "action",
+      message: "finished waiting for (possible) page navigation",
+      level: 1,
+    });
+
+    // 7) If URL changed from initial, log the new URL
+    if (this.stagehandPage.page.url() !== initialUrl) {
+      this.logger({
+        category: "action",
+        message: "new page detected with URL",
+        level: 1,
+        auxiliary: {
+          url: {
+            value: this.stagehandPage.page.url(),
+            type: "string",
+          },
+        },
+      });
+    }
+  }
+
   public async act({
     action,
     steps = "",
@@ -825,7 +618,6 @@ export class StagehandActHandler {
   }): Promise<{ success: boolean; message: string; action: string }> {
     try {
       await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-      await this.stagehandPage.startDomDebug();
 
       if (timeoutMs && startTime) {
         const elapsedTime = Date.now() - startTime;
@@ -902,6 +694,15 @@ export class StagehandActHandler {
         requestId,
         variables,
         userProvidedInstructions: this.userProvidedInstructions,
+        onActMetrics: (promptTokens, completionTokens, inferenceTimeMs) => {
+          this.stagehand.updateMetrics(
+            StagehandFunctionName.ACT,
+            promptTokens,
+            completionTokens,
+            inferenceTimeMs,
+          );
+        },
+        logInferenceToFile: this.stagehand.logInferenceToFile,
       });
 
       this.logger({
@@ -915,8 +716,6 @@ export class StagehandActHandler {
           },
         },
       });
-
-      await this.stagehandPage.cleanupDomDebug();
 
       if (!response) {
         if (chunksSeen.length + 1 < chunks.length) {

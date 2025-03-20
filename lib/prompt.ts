@@ -401,7 +401,7 @@ export function buildActObservePrompt(
   let instruction = `Find the most relevant element to perform an action on given the following action: ${action}. 
   Provide an action for this element such as ${supportedActions.join(", ")}, or any other playwright locator method. Remember that to users, buttons and links look the same in most cases.
   If the action is completely unrelated to a potential action to be taken on the page, return an empty array. 
-  ONLY return one action. If multiple actions are relevant, return the most relevant one.`;
+  ONLY return one action. If multiple actions are relevant, return the most relevant one. If the user is asking to scroll to a position on the page, e.g., 'halfway' or 0.75, etc, you must return the argument formatted as the correct percentage, e.g., '50%' or '75%', etc.`;
 
   // Add variable names (not values) to the instruction if any
   if (variables && Object.keys(variables).length > 0) {
@@ -410,4 +410,25 @@ export function buildActObservePrompt(
   }
 
   return instruction;
+}
+
+export function buildOperatorSystemPrompt(goal: string): ChatMessage {
+  return {
+    role: "system",
+    content: `You are a general-purpose agent whose job is to accomplish the user's goal across multiple model calls by running actions on the page.
+
+You will be given a goal and a list of steps that have been taken so far. Your job is to determine if either the user's goal has been completed or if there are still steps that need to be taken.
+
+# Your current goal
+${goal}
+
+# Important guidelines
+1. Break down complex actions into individual atomic steps
+2. For \`act\` commands, use only one action at a time, such as:
+   - Single click on a specific element
+   - Type into a single input field
+   - Select a single option
+3. Avoid combining multiple actions in one instruction
+4. If multiple actions are needed, they should be separate steps`,
+  };
 }

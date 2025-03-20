@@ -25,6 +25,9 @@ import {
   LocalBrowserLaunchOptions,
   ObserveOptions,
   ObserveResult,
+  AgentConfig,
+  StagehandMetrics,
+  StagehandFunctionName,
 } from "../types/stagehand";
 import { StagehandContext } from "./StagehandContext";
 import { StagehandPage } from "./StagehandPage";
@@ -34,6 +37,9 @@ import { LLMClient } from "./llm/LLMClient";
 import { LLMProvider } from "./llm/LLMProvider";
 import { logLineToString, isRunningInBun } from "./utils";
 import { ApiResponse, ErrorResponse } from "@/types/api";
+import { AgentExecuteOptions, AgentResult } from "../types/agent";
+import { StagehandAgentHandler } from "./handlers/agentHandler";
+import { StagehandOperatorHandler } from "./handlers/operatorHandler";
 
 dotenv.config({ path: ".env" });
 
@@ -261,8 +267,8 @@ async function getBrowser(
       acceptDownloads: localBrowserLaunchOptions?.acceptDownloads ?? true,
       headless: localBrowserLaunchOptions?.headless ?? headless,
       viewport: {
-        width: localBrowserLaunchOptions?.viewport?.width ?? 1250,
-        height: localBrowserLaunchOptions?.viewport?.height ?? 800,
+        width: localBrowserLaunchOptions?.viewport?.width ?? 1024,
+        height: localBrowserLaunchOptions?.viewport?.height ?? 768,
       },
       locale: localBrowserLaunchOptions?.locale ?? "en-US",
       timezoneId: localBrowserLaunchOptions?.timezoneId ?? "America/New_York",
@@ -379,6 +385,7 @@ export class Stagehand {
   public readonly selfHeal: boolean;
   private cleanupCalled = false;
   public readonly actTimeoutMs: number;
+  public readonly logInferenceToFile?: boolean;
   protected setActivePage(page: StagehandPage): void {
     this.stagehandPage = page;
   }
@@ -390,6 +397,63 @@ export class Stagehand {
       );
     }
     return this.stagehandPage.page;
+  }
+
+  public stagehandMetrics: StagehandMetrics = {
+    actPromptTokens: 0,
+    actCompletionTokens: 0,
+    actInferenceTimeMs: 0,
+    extractPromptTokens: 0,
+    extractCompletionTokens: 0,
+    extractInferenceTimeMs: 0,
+    observePromptTokens: 0,
+    observeCompletionTokens: 0,
+    observeInferenceTimeMs: 0,
+    totalPromptTokens: 0,
+    totalCompletionTokens: 0,
+    totalInferenceTimeMs: 0,
+  };
+
+  public get metrics(): StagehandMetrics {
+    return this.stagehandMetrics;
+  }
+
+  public updateMetrics(
+    functionName: StagehandFunctionName,
+    promptTokens: number,
+    completionTokens: number,
+    inferenceTimeMs: number,
+  ): void {
+    switch (functionName) {
+      case StagehandFunctionName.ACT:
+        this.stagehandMetrics.actPromptTokens += promptTokens;
+        this.stagehandMetrics.actCompletionTokens += completionTokens;
+        this.stagehandMetrics.actInferenceTimeMs += inferenceTimeMs;
+        break;
+
+      case StagehandFunctionName.EXTRACT:
+        this.stagehandMetrics.extractPromptTokens += promptTokens;
+        this.stagehandMetrics.extractCompletionTokens += completionTokens;
+        this.stagehandMetrics.extractInferenceTimeMs += inferenceTimeMs;
+        break;
+
+      case StagehandFunctionName.OBSERVE:
+        this.stagehandMetrics.observePromptTokens += promptTokens;
+        this.stagehandMetrics.observeCompletionTokens += completionTokens;
+        this.stagehandMetrics.observeInferenceTimeMs += inferenceTimeMs;
+        break;
+    }
+    this.updateTotalMetrics(promptTokens, completionTokens, inferenceTimeMs);
+  }
+
+  private updateTotalMetrics(
+    promptTokens: number,
+    completionTokens: number,
+    inferenceTimeMs: number,
+  ): void {
+    this.stagehandMetrics.totalPromptTokens += promptTokens;
+    this.stagehandMetrics.totalCompletionTokens += completionTokens;
+    this.stagehandMetrics.totalInferenceTimeMs += inferenceTimeMs;
   }
 
   constructor(
@@ -415,6 +479,7 @@ export class Stagehand {
       selfHeal = true,
       waitForCaptchaSolves = false,
       actTimeoutMs = 60_000,
+      logInferenceToFile = false,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
@@ -459,8 +524,15 @@ export class Stagehand {
       throw new Error(
         "STAGEHAND_API_URL is required when using the API. Please set it in your environment variables.",
       );
+    } else if (
+      this.usingAPI &&
+      this.llmClient.type !== "openai" &&
+      this.llmClient.type !== "anthropic"
+    ) {
+      throw new Error(
+        "API mode requires an OpenAI or Anthropic LLM. Please provide a compatible model.",
+      );
     }
-
     this.waitForCaptchaSolves = waitForCaptchaSolves;
 
     this.selfHeal = selfHeal;
@@ -469,6 +541,7 @@ export class Stagehand {
     if (this.usingAPI) {
       this.registerSignalHandlers();
     }
+    this.logInferenceToFile = logInferenceToFile;
   }
 
   private registerSignalHandlers() {
@@ -548,6 +621,9 @@ export class Stagehand {
         verbose: this.verbose,
         debugDom: this.debugDom,
         systemPrompt: this.userProvidedInstructions,
+        selfHeal: this.selfHeal,
+        waitForCaptchaSolves: this.waitForCaptchaSolves,
+        actionTimeoutMs: this.actTimeoutMs,
         browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
       });
       this.browserbaseSessionID = sessionId;
@@ -738,6 +814,91 @@ export class Stagehand {
       }
     }
   }
+
+  /**
+   * Create an agent instance that can be executed with different instructions
+   * @returns An agent instance with execute() method
+   */
+  agent(options?: AgentConfig): {
+    execute: (
+      instructionOrOptions: string | AgentExecuteOptions,
+    ) => Promise<AgentResult>;
+  } {
+    if (!options || !options.provider) {
+      // use open operator agent
+      return {
+        execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
+          return new StagehandOperatorHandler(
+            this.stagehandPage,
+            this.logger,
+            this.llmClient,
+          ).execute(instructionOrOptions);
+        },
+      };
+    }
+
+    const agentHandler = new StagehandAgentHandler(
+      this.stagehandPage,
+      this.logger,
+      {
+        modelName: options.model,
+        clientOptions: options.options,
+        userProvidedInstructions:
+          options.instructions ??
+          `You are a helpful assistant that can use a web browser.
+      You are currently on the following page: ${this.stagehandPage.page.url()}.
+      Do not ask follow up questions, the user will trust your judgement.`,
+        agentType: options.provider,
+      },
+    );
+
+    this.log({
+      category: "agent",
+      message: "Creating agent instance",
+      level: 1,
+    });
+
+    return {
+      execute: async (instructionOrOptions: string | AgentExecuteOptions) => {
+        const executeOptions: AgentExecuteOptions =
+          typeof instructionOrOptions === "string"
+            ? { instruction: instructionOrOptions }
+            : instructionOrOptions;
+
+        if (!executeOptions.instruction) {
+          throw new Error("Instruction is required for agent execution");
+        }
+
+        if (this.usingAPI) {
+          if (!this.apiClient) {
+            throw new Error(
+              "API client not initialized. Ensure that you have initialized Stagehand via `await stagehand.init()`.",
+            );
+          }
+
+          if (!options.options) {
+            options.options = {};
+          }
+
+          if (options.provider === "anthropic") {
+            options.options.apiKey = process.env.ANTHROPIC_API_KEY;
+          } else if (options.provider === "openai") {
+            options.options.apiKey = process.env.OPENAI_API_KEY;
+          }
+
+          if (!options.options.apiKey) {
+            throw new Error(
+              `API key not found for \`${options.provider}\` provider. Please set the ${options.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} environment variable or pass an apiKey in the options object.`,
+            );
+          }
+
+          return await this.apiClient.agentExecute(options, executeOptions);
+        }
+
+        return await agentHandler.execute(executeOptions);
+      },
+    };
+  }
 }
 
 export * from "../types/browser";
@@ -746,4 +907,6 @@ export * from "../types/model";
 export * from "../types/page";
 export * from "../types/playwright";
 export * from "../types/stagehand";
+export * from "../types/operator";
+export * from "../types/agent";
 export * from "./llm/LLMClient";

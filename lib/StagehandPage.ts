@@ -89,6 +89,7 @@ export class StagehandPage {
 
     if (this.llmClient) {
       this.actHandler = new StagehandActHandler({
+        stagehand: this.stagehand,
         verbose: this.stagehand.verbose,
         llmProvider: this.stagehand.llmProvider,
         enableCaching: this.stagehand.enableCaching,
@@ -149,10 +150,12 @@ export class StagehandPage {
     this.intPage = newStagehandPage.page;
 
     if (this.stagehand.debugDom) {
-      await this.intPage.evaluate(
-        (debugDom) => (window.showChunks = debugDom),
-        this.stagehand.debugDom,
-      );
+      this.stagehand.log({
+        category: "deprecation",
+        message:
+          "Warning: debugDom is not supported in this version of Stagehand",
+        level: 1,
+      });
     }
     await this.intPage.waitForLoadState("domcontentloaded");
     await this._waitForSettledDom();
@@ -248,6 +251,41 @@ export class StagehandPage {
           };
         }
 
+        // Handle screenshots with CDP
+        if (prop === "screenshot") {
+          return async (
+            options: {
+              type?: "png" | "jpeg";
+              quality?: number;
+              fullPage?: boolean;
+              clip?: { x: number; y: number; width: number; height: number };
+              omitBackground?: boolean;
+            } = {},
+          ) => {
+            const cdpOptions: Record<string, unknown> = {
+              format: options.type === "jpeg" ? "jpeg" : "png",
+              quality: options.quality,
+              clip: options.clip,
+              omitBackground: options.omitBackground,
+              fromSurface: true,
+            };
+
+            if (options.fullPage) {
+              cdpOptions.captureBeyondViewport = true;
+            }
+
+            const data = await this.sendCDP<{ data: string }>(
+              "Page.captureScreenshot",
+              cdpOptions,
+            );
+
+            // Convert base64 to buffer
+            const buffer = Buffer.from(data.data, "base64");
+
+            return buffer;
+          };
+        }
+
         // Handle goto specially
         if (prop === "goto") {
           return async (url: string, options: GotoOptions) => {
@@ -268,10 +306,12 @@ export class StagehandPage {
               await this._refreshPageFromAPI();
             } else {
               if (stagehand.debugDom) {
-                await target.evaluate(
-                  (debugDom) => (window.showChunks = debugDom),
-                  stagehand.debugDom,
-                );
+                this.stagehand.log({
+                  category: "deprecation",
+                  message:
+                    "Warning: debugDom is not supported in this version of Stagehand",
+                  level: 1,
+                });
               }
               await target.waitForLoadState("domcontentloaded");
               await this._waitForSettledDom();
@@ -397,48 +437,6 @@ export class StagehandPage {
           },
         },
       });
-    }
-  }
-
-  public async startDomDebug() {
-    if (this.stagehand.debugDom) {
-      try {
-        await this.page
-          .evaluate(() => {
-            if (typeof window.debugDom === "function") {
-              window.debugDom();
-            } else {
-              this.stagehand.log({
-                category: "dom",
-                message: "debugDom is not defined",
-                level: 1,
-              });
-            }
-          })
-          .catch(() => {});
-      } catch (e) {
-        this.stagehand.log({
-          category: "dom",
-          message: "Error in startDomDebug",
-          level: 1,
-          auxiliary: {
-            error: {
-              value: e.message,
-              type: "string",
-            },
-            trace: {
-              value: e.stack,
-              type: "string",
-            },
-          },
-        });
-      }
-    }
-  }
-
-  public async cleanupDomDebug() {
-    if (this.stagehand.debugDom) {
-      await this.page.evaluate(() => window.cleanupDebug()).catch(() => {});
     }
   }
 
@@ -584,6 +582,9 @@ export class StagehandPage {
 
     // check if user called extract() with no arguments
     if (!instructionOrOptions) {
+      if (this.api) {
+        return this.api.extract<T>({});
+      }
       return this.extractHandler.extract();
     }
 

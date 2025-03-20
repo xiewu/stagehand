@@ -5,7 +5,7 @@ import { extract } from "../inference";
 import { LLMClient } from "../llm/LLMClient";
 import { formatText } from "../utils";
 import { StagehandPage } from "../StagehandPage";
-import { Stagehand } from "../index";
+import { Stagehand, StagehandFunctionName } from "../index";
 import { pageTextSchema } from "../../types/page";
 
 const PROXIMITY_THRESHOLD = 15;
@@ -164,7 +164,6 @@ export class StagehandExtractHandler {
 
   private async extractPageText(): Promise<{ page_text?: string }> {
     await this.stagehandPage._waitForSettledDom();
-    await this.stagehandPage.startDomDebug();
 
     const originalDOM = await this.stagehandPage.page.evaluate(() =>
       window.storeDOM(undefined),
@@ -202,8 +201,6 @@ export class StagehandExtractHandler {
       containerDims.width,
     );
 
-    await this.stagehandPage.cleanupDomDebug();
-
     const result = { page_text: formattedText };
     return pageTextSchema.parse(result);
   }
@@ -239,7 +236,6 @@ export class StagehandExtractHandler {
 
     // **1:** Wait for the DOM to settle and start DOM debugging
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-    await this.stagehandPage.startDomDebug();
 
     const targetXpath = selector?.replace(/^xpath=/, "") ?? "";
 
@@ -357,15 +353,23 @@ export class StagehandExtractHandler {
       requestId,
       userProvidedInstructions: this.userProvidedInstructions,
       logger: this.logger,
+      logInferenceToFile: this.stagehand.logInferenceToFile,
     });
 
     const {
       metadata: { completed },
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      inference_time_ms: inferenceTimeMs,
       ...output
     } = extractionResponse;
 
-    // Clean up debug
-    await this.stagehandPage.cleanupDomDebug();
+    this.stagehand.updateMetrics(
+      StagehandFunctionName.EXTRACT,
+      promptTokens,
+      completionTokens,
+      inferenceTimeMs,
+    );
 
     // **11:** Handle the extraction response and log the results
     this.logger({
@@ -439,7 +443,6 @@ export class StagehandExtractHandler {
     // **1:** Wait for the DOM to settle and start DOM debugging
     // This ensures the page is stable before extracting any data.
     await this.stagehandPage._waitForSettledDom(domSettleTimeoutMs);
-    await this.stagehandPage.startDomDebug();
 
     // **2:** Call processDom() to handle chunk-based extraction
     // processDom determines which chunk of the page to process next.
@@ -489,14 +492,23 @@ export class StagehandExtractHandler {
       isUsingTextExtract: false,
       userProvidedInstructions: this.userProvidedInstructions,
       logger: this.logger,
+      logInferenceToFile: this.stagehand.logInferenceToFile,
     });
 
     const {
       metadata: { completed },
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      inference_time_ms: inferenceTimeMs,
       ...output
     } = extractionResponse;
 
-    await this.stagehandPage.cleanupDomDebug();
+    this.stagehand.updateMetrics(
+      StagehandFunctionName.EXTRACT,
+      promptTokens,
+      completionTokens,
+      inferenceTimeMs,
+    );
 
     this.logger({
       category: "extraction",
