@@ -238,7 +238,9 @@ export class StagehandPage {
         // Handle enhanced methods
         if (prop === "act" || prop === "extract" || prop === "observe") {
           if (!this.llmClient) {
-            throw new MissingLLMConfigurationError();
+            return () => {
+              throw new MissingLLMConfigurationError();
+            };
           }
 
           // Use type assertion to safely call the method with proper typing
