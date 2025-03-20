@@ -23,10 +23,16 @@ export function createLogger(options: LoggerOptions = {}) {
   const loggerConfig: pino.LoggerOptions = {
     level: options.level || "info",
     base: undefined, // Don't include pid and hostname
+    browser: {
+      asObject: true
+    },
+    // Disable worker threads to avoid issues in tests
+    transport: undefined
   };
 
-  // Add pretty printing for dev environments
-  if (options.pretty) {
+  // Add pretty printing for dev environments only if explicitly requested
+  // and not in a test environment
+  if (options.pretty && !isTestEnvironment()) {
     try {
       // Use require for dynamic import
       const transport = {
@@ -40,15 +46,27 @@ export function createLogger(options: LoggerOptions = {}) {
         },
       };
       Object.assign(loggerConfig, transport);
-    } catch (error) {
+    } catch {
       console.warn(
-        "pino-pretty not available, falling back to standard logging",
-        error,
+        "pino-pretty not available, falling back to standard logging"
       );
     }
   }
 
   return pino(loggerConfig, options.destination);
+}
+
+/**
+ * Check if we're running in a test environment
+ */
+function isTestEnvironment(): boolean {
+  return (
+    process.env.NODE_ENV === 'test' || 
+    process.env.JEST_WORKER_ID !== undefined || 
+    process.env.PLAYWRIGHT_TEST_BASE_DIR !== undefined ||
+    // Check if we're in a CI environment
+    process.env.CI === 'true'
+  );
 }
 
 /**
@@ -59,12 +77,19 @@ export class StagehandLogger {
   private verbose: 0 | 1 | 2;
   private externalLogger?: (logLine: LogLine) => void;
   private usePino: boolean;
+  private isTest: boolean;
 
   constructor(
     options: LoggerOptions = {},
     externalLogger?: (logLine: LogLine) => void,
   ) {
-    this.usePino = options.usePino !== false; // Default to using Pino if not specified
+    this.isTest = isTestEnvironment();
+    
+    // In test environments, default to not using Pino to avoid worker thread issues
+    this.usePino = this.isTest 
+      ? false 
+      : options.usePino !== false; // Default to using Pino if not specified and not in test
+    
     this.logger = this.usePino ? createLogger(options) : null;
     this.verbose = 1; // Default verbosity level
     this.externalLogger = externalLogger;
@@ -76,7 +101,7 @@ export class StagehandLogger {
   setVerbosity(level: 0 | 1 | 2) {
     this.verbose = level;
 
-    if (this.usePino) {
+    if (this.usePino && this.logger) {
       // Map our verbosity levels to Pino log levels
       switch (level) {
         case 0:
@@ -101,7 +126,26 @@ export class StagehandLogger {
       return;
     }
 
-    if (this.usePino) {
+    // If we're in a test environment but no external logger is provided,
+    // use console for basic logging
+    if (this.isTest && !this.externalLogger) {
+      const level = logLine.level ?? 1;
+      const prefix = `[${logLine.category || 'log'}] `;
+      
+      switch (level) {
+        case 0:
+          console.error(prefix + logLine.message);
+          break;
+        case 1:
+          console.log(prefix + logLine.message);
+          break;
+        case 2:
+          console.debug(prefix + logLine.message);
+          break;
+      }
+    }
+
+    if (this.usePino && this.logger) {
       // Determine the Pino log level
       const pinoLevel = levelMapping[logLine.level ?? 1] || "info";
 
@@ -128,8 +172,8 @@ export class StagehandLogger {
       }
     }
 
-    // Only use external logger if provided and Pino is disabled
-    if (this.externalLogger && !this.usePino) {
+    // Use external logger if provided and either Pino is disabled or we're in a test
+    if (this.externalLogger && (!this.usePino || this.isTest)) {
       this.externalLogger(logLine);
     }
   }

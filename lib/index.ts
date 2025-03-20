@@ -59,9 +59,10 @@ let globalLogger: StagehandLogger;
 const defaultLogger = async (logLine: LogLine) => {
   if (!globalLogger) {
     // Create a global logger with Pino enabled for the default logger
+    // but disable it in test environments
     globalLogger = new StagehandLogger({
       pretty: true,
-      usePino: true, // Explicitly enable Pino for default logger
+      // Let StagehandLogger auto-detect test environment and disable Pino if needed
     });
   }
   globalLogger.log(logLine);
