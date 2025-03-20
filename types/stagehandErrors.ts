@@ -83,3 +83,15 @@ export class StagehandDeprecationError extends StagehandError {
     super(`DeprecationError: ${message}`);
   }
 }
+
+export class StagehandInvalidArgumentError extends StagehandError {
+  constructor(message: string) {
+    super(`InvalidArgumentError: ${message}`);
+  }
+}
+
+export class StagehandElementNotFoundError extends StagehandError {
+  constructor(xpaths: string[]) {
+    super(`Could not find an element for the given xPath(s): ${xpaths}`);
+  }
+}
