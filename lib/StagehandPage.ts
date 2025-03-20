@@ -18,6 +18,17 @@ import { LLMClient } from "./llm/LLMClient";
 import { StagehandContext } from "./StagehandContext";
 import { EnhancedContext } from "../types/context";
 import { clearOverlays } from "./utils";
+import {
+  StagehandError,
+  StagehandNotInitializedError,
+  StagehandEnvironmentError,
+  CaptchaTimeoutError,
+  StagehandNotImplementedError,
+  StagehandDeprecationError,
+  BrowserbaseSessionNotFoundError,
+  MissingLLMConfigurationError,
+  HandlerNotInitializedError,
+} from "../types/stagehandErrors";
 
 const BROWSERBASE_REGION_DOMAIN = {
   "us-west-2": "wss://connect.usw2.browserbase.com",
@@ -61,9 +72,7 @@ export class StagehandPage {
             prop === ("on" as keyof Page))
         ) {
           return () => {
-            throw new Error(
-              `You seem to be calling \`${String(prop)}\` on a page in an uninitialized \`Stagehand\` object. Ensure you are running \`await stagehand.init()\` on the Stagehand object before referencing the \`page\` object.`,
-            );
+            throw new StagehandNotInitializedError(String(prop));
           };
         }
 
@@ -121,7 +130,7 @@ export class StagehandPage {
 
     const sessionId = this.stagehand.browserbaseSessionID;
     if (!sessionId) {
-      throw new Error("No Browserbase session ID found");
+      throw new BrowserbaseSessionNotFoundError();
     }
 
     const browserbase = new Browserbase({
@@ -165,14 +174,16 @@ export class StagehandPage {
    * Waits for a captcha to be solved when using Browserbase environment.
    *
    * @param timeoutMs - Optional timeout in milliseconds. If provided, the promise will reject if the captcha solving hasn't started within the given time.
-   * @throws Error if called in a LOCAL environment
-   * @throws Error if the timeout is reached before captcha solving starts
+   * @throws StagehandEnvironmentError if called in a LOCAL environment
+   * @throws CaptchaTimeoutError if the timeout is reached before captcha solving starts
    * @returns Promise that resolves when the captcha is solved
    */
   public async waitForCaptchaSolve(timeoutMs?: number) {
     if (this.stagehand.env === "LOCAL") {
-      throw new Error(
-        "The waitForCaptcha method may only be used when using the Browserbase environment.",
+      throw new StagehandEnvironmentError(
+        this.stagehand.env,
+        "BROWSERBASE",
+        "waitForCaptcha method",
       );
     }
 
@@ -189,7 +200,7 @@ export class StagehandPage {
       if (timeoutMs) {
         timeoutId = setTimeout(() => {
           if (!started) {
-            reject(new Error("Captcha timeout"));
+            reject(new CaptchaTimeoutError());
           }
         }, timeoutMs);
       }
@@ -227,11 +238,7 @@ export class StagehandPage {
         // Handle enhanced methods
         if (prop === "act" || prop === "extract" || prop === "observe") {
           if (!this.llmClient) {
-            return () => {
-              throw new Error(
-                "No LLM API key or LLM Client configured. An LLM API key or a custom LLM Client is required to use act, extract, or observe.",
-              );
-            };
+            throw new MissingLLMConfigurationError();
           }
 
           // Use type assertion to safely call the method with proper typing
@@ -298,7 +305,7 @@ export class StagehandPage {
               try {
                 await this.waitForCaptchaSolve(1000);
               } catch {
-                // ignore
+                // ignore if it times out quickly
               }
             }
 
@@ -444,7 +451,7 @@ export class StagehandPage {
     actionOrOptions: string | ActOptions | ObserveResult,
   ): Promise<ActResult> {
     if (!this.actHandler) {
-      throw new Error("Act handler not initialized");
+      throw new HandlerNotInitializedError("Act");
     }
 
     await clearOverlays(this.page);
@@ -461,7 +468,7 @@ export class StagehandPage {
         // If it's an object but no selector/method,
         // check that it's truly ActOptions (i.e., has an `action` field).
         if (!("action" in actionOrOptions)) {
-          throw new Error(
+          throw new StagehandError(
             "Invalid argument. Valid arguments are: a string, an ActOptions object, " +
               "or an ObserveResult WITH 'selector' and 'method' fields.",
           );
@@ -471,7 +478,7 @@ export class StagehandPage {
       // Convert string to ActOptions
       actionOrOptions = { action: actionOrOptions };
     } else {
-      throw new Error(
+      throw new StagehandError(
         "Invalid argument: you may have called act with an empty ObserveResult.\n" +
           "Valid arguments are: a string, an ActOptions object, or an ObserveResult " +
           "WITH 'selector' and 'method' fields.",
@@ -575,7 +582,7 @@ export class StagehandPage {
     instructionOrOptions?: string | ExtractOptions<T>,
   ): Promise<ExtractResult<T>> {
     if (!this.extractHandler) {
-      throw new Error("Extract handler not initialized");
+      throw new HandlerNotInitializedError("Extract");
     }
 
     await clearOverlays(this.page);
@@ -609,8 +616,8 @@ export class StagehandPage {
     // Throw a NotImplementedError if the user passed in an `xpath`
     // and `useTextExtract` is false
     if (selector && useTextExtract !== true) {
-      throw new Error(
-        "NotImplementedError: Passing an xpath into extract is only supported when `useTextExtract: true`.",
+      throw new StagehandNotImplementedError(
+        "Passing an xpath into extract is only supported when `useTextExtract: true`.",
       );
     }
 
@@ -682,7 +689,7 @@ export class StagehandPage {
     instructionOrOptions?: string | ObserveOptions,
   ): Promise<ObserveResult[]> {
     if (!this.observeHandler) {
-      throw new Error("Observe handler not initialized");
+      throw new HandlerNotInitializedError("Observe");
     }
 
     await clearOverlays(this.page);
@@ -714,7 +721,7 @@ export class StagehandPage {
           "    2. Don't declare useAccessibilityTree",
         level: 1,
       });
-      throw new Error(
+      throw new StagehandDeprecationError(
         "useAccessibilityTree is deprecated. Use onlyVisible instead.",
       );
     }
