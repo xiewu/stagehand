@@ -307,7 +307,7 @@ export class StagehandPage {
               try {
                 await this.waitForCaptchaSolve(1000);
               } catch {
-                // ignore if it times out quickly
+                // ignore
               }
             }
 

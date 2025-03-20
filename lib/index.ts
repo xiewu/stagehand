@@ -91,7 +91,6 @@ async function getBrowser(
 
   if (env === "BROWSERBASE") {
     if (!apiKey) {
-      // Replace plain error with a custom or generic error
       throw new StagehandError("BROWSERBASE_API_KEY is required.");
     }
 
@@ -140,11 +139,11 @@ async function getBrowser(
           level: 1,
           auxiliary: {
             error: {
-              value: (error as Error).message,
+              value: error.message,
               type: "string",
             },
             trace: {
-              value: (error as Error).stack,
+              value: error.stack,
               type: "string",
             },
           },

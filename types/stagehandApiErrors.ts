@@ -5,10 +5,6 @@ export class StagehandAPIError extends Error {
   }
 }
 
-/** --------------------------------------------------------------------
- *  New custom errors for HTTP/server responses, unauthorized, etc.
- *  --------------------------------------------------------------------
- */
 export class StagehandAPIUnauthorizedError extends StagehandAPIError {
   constructor(message?: string) {
     super(message || "Unauthorized request");
