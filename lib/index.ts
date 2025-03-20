@@ -906,7 +906,13 @@ export class Stagehand {
     result: unknown;
     timestamp: string;
   }> {
-    return this.stagehandPage ? this.stagehandPage.history : [];
+    if (!this.stagehandPage) {
+      throw new Error(
+        "History is only available after a page has been initialized",
+      );
+    }
+
+    return this.stagehandPage.history;
   }
 }
 
