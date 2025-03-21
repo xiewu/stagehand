@@ -36,9 +36,21 @@ export class MissingEnvironmentVariableError extends StagehandError {
 }
 
 export class UnsupportedModelError extends StagehandError {
-  constructor(supportedModels: string[], feature: string) {
+  constructor(supportedModels: string[], feature?: string) {
     super(
-      `${feature} requires one of the following models: ${supportedModels}`,
+      feature
+        ? `${feature} requires one of the following models: ${supportedModels}`
+        : `please use one of the supported models: ${supportedModels}`,
+    );
+  }
+}
+
+export class UnsupportedModelProviderError extends StagehandError {
+  constructor(supportedProviders: string[], feature?: string) {
+    super(
+      feature
+        ? `${feature} requires one of the following model providers: ${supportedProviders}`
+        : `please use one of the supported model providers: ${supportedProviders}`,
     );
   }
 }
@@ -101,5 +113,35 @@ export class StagehandInvalidArgumentError extends StagehandError {
 export class StagehandElementNotFoundError extends StagehandError {
   constructor(xpaths: string[]) {
     super(`Could not find an element for the given xPath(s): ${xpaths}`);
+  }
+}
+
+export class AgentScreenshotProviderError extends StagehandError {
+  constructor(message: string) {
+    super(`ScreenshotProviderError: ${message}`);
+  }
+}
+
+export class StagehandMissingArgumentError extends StagehandError {
+  constructor(message: string) {
+    super(`MissingArgumentError: ${message}`);
+  }
+}
+
+export class CreateChatCompletionResponseError extends StagehandError {
+  constructor(message: string) {
+    super(`CreateChatCompletionResponseError: ${message}`);
+  }
+}
+
+export class StagehandEvalError extends StagehandError {
+  constructor(message: string) {
+    super(`StagehandEvalError: ${message}`);
+  }
+}
+
+export class StagehandDomProcessError extends StagehandError {
+  constructor(message: string) {
+    super(`Error Processing Dom: ${message}`);
   }
 }

@@ -907,9 +907,7 @@ export class Stagehand {
 
   public get history(): ReadonlyArray<HistoryEntry> {
     if (!this.stagehandPage) {
-      throw new Error(
-        "History is only available after a page has been initialized",
-      );
+      throw new StagehandNotInitializedError("history()");
     }
 
     return this.stagehandPage.history;
