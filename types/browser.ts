@@ -1,4 +1,4 @@
-import { Browser, BrowserContext } from "./page";
+import { Browser, BrowserContext } from "puppeteer-core/lib/types";
 
 export interface BrowserResult {
   env: "LOCAL" | "BROWSERBASE";

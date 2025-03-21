@@ -6,6 +6,7 @@ import { Stagehand } from "./index";
 import { StagehandPage } from "./StagehandPage";
 import { Page } from "../types/page";
 import { EnhancedContext } from "../types/context";
+import { BrowserContext } from "puppeteer-core/lib/types";
 
 export class StagehandContext {
   private readonly stagehand: Stagehand;
@@ -13,7 +14,7 @@ export class StagehandContext {
   private pageMap: WeakMap<PlaywrightPage, StagehandPage>;
   private activeStagehandPage: StagehandPage | null = null;
 
-  private constructor(context: PlaywrightContext, stagehand: Stagehand) {
+  private constructor(context: BrowserContext, stagehand: Stagehand) {
     this.stagehand = stagehand;
     this.pageMap = new WeakMap();
 

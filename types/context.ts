@@ -1,4 +1,4 @@
-import type { BrowserContext as PlaywrightContext } from "@playwright/test";
+import { BrowserContext } from "puppeteer-core/lib/types";
 import { Page } from "../types/page";
 
 export interface AXNode {
@@ -31,7 +31,7 @@ export interface TreeResult {
 }
 
 export interface EnhancedContext
-  extends Omit<PlaywrightContext, "newPage" | "pages"> {
+  extends Omit<BrowserContext, "newPage" | "pages"> {
   newPage(): Promise<Page>;
   pages(): Page[];
 }

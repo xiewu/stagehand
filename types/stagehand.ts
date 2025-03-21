@@ -7,6 +7,7 @@ import { AvailableModel, ClientOptions } from "./model";
 import { LLMClient } from "../lib/llm/LLMClient";
 import { Cookie } from "@playwright/test";
 import { AgentProviderType } from "./agent";
+import { LaunchOptions } from "puppeteer-core/lib/types";
 
 export interface ConstructorParams {
   env: "LOCAL" | "BROWSERBASE";
@@ -41,7 +42,7 @@ export interface ConstructorParams {
    * @default false
    */
   waitForCaptchaSolves?: boolean;
-  localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
+  localBrowserLaunchOptions?: LaunchOptions;
   actTimeoutMs?: number;
   logInferenceToFile?: boolean;
 }

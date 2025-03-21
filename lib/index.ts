@@ -1,46 +1,45 @@
+import { ApiResponse, ErrorResponse } from "@/types/api";
 import { Browserbase } from "@browserbasehq/sdk";
-import { chromium } from "@playwright/test";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import puppeteer, { BrowserContext, LaunchOptions } from "puppeteer-core";
 import { z } from "zod";
+import { AgentExecuteOptions, AgentResult } from "../types/agent";
 import { BrowserResult } from "../types/browser";
 import { EnhancedContext } from "../types/context";
 import { LogLine } from "../types/log";
 import { AvailableModel } from "../types/model";
-import { BrowserContext, Page } from "../types/page";
+import { Page } from "../types/page";
 import { GotoOptions } from "../types/playwright";
 import {
   ActOptions,
   ActResult,
+  AgentConfig,
   ConstructorParams,
   ExtractOptions,
   ExtractResult,
+  HistoryEntry,
   InitFromPageOptions,
   InitFromPageResult,
   InitOptions,
   InitResult,
-  LocalBrowserLaunchOptions,
   ObserveOptions,
   ObserveResult,
-  AgentConfig,
-  StagehandMetrics,
   StagehandFunctionName,
-  HistoryEntry,
+  StagehandMetrics,
 } from "../types/stagehand";
 import { StagehandContext } from "./StagehandContext";
 import { StagehandPage } from "./StagehandPage";
 import { StagehandAPI } from "./api";
 import { scriptContent } from "./dom/build/scriptContent";
-import { LLMClient } from "./llm/LLMClient";
-import { LLMProvider } from "./llm/LLMProvider";
-import { logLineToString, isRunningInBun } from "./utils";
-import { ApiResponse, ErrorResponse } from "@/types/api";
-import { AgentExecuteOptions, AgentResult } from "../types/agent";
 import { StagehandAgentHandler } from "./handlers/agentHandler";
 import { StagehandOperatorHandler } from "./handlers/operatorHandler";
+import { LLMClient } from "./llm/LLMClient";
+import { LLMProvider } from "./llm/LLMProvider";
+import { isRunningInBun, logLineToString } from "./utils";
 
 dotenv.config({ path: ".env" });
 
@@ -60,7 +59,7 @@ async function getBrowser(
   logger: (message: LogLine) => void,
   browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams,
   browserbaseSessionID?: string,
-  localBrowserLaunchOptions?: LocalBrowserLaunchOptions,
+  localBrowserLaunchOptions?: LaunchOptions,
 ): Promise<BrowserResult> {
   if (env === "BROWSERBASE") {
     if (!apiKey) {
@@ -92,9 +91,7 @@ async function getBrowser(
     let sessionId: string;
     let connectUrl: string;
 
-    const browserbase = new Browserbase({
-      apiKey,
-    });
+    const browserbase = new Browserbase({ apiKey });
 
     if (browserbaseSessionID) {
       // Validate the session status
@@ -118,12 +115,7 @@ async function getBrowser(
           category: "init",
           message: "resuming existing browserbase session...",
           level: 1,
-          auxiliary: {
-            sessionId: {
-              value: sessionId,
-              type: "string",
-            },
-          },
+          auxiliary: { sessionId: { value: sessionId, type: "string" } },
         });
       } catch (error) {
         logger({
@@ -131,14 +123,8 @@ async function getBrowser(
           message: "failed to resume session",
           level: 1,
           auxiliary: {
-            error: {
-              value: error.message,
-              type: "string",
-            },
-            trace: {
-              value: error.stack,
-              type: "string",
-            },
+            error: { value: error.message, type: "string" },
+            trace: { value: error.stack, type: "string" },
           },
         });
         throw error;
@@ -168,16 +154,11 @@ async function getBrowser(
         category: "init",
         message: "created new browserbase session",
         level: 1,
-        auxiliary: {
-          sessionId: {
-            value: sessionId,
-            type: "string",
-          },
-        },
+        auxiliary: { sessionId: { value: sessionId, type: "string" } },
       });
     }
 
-    const browser = await chromium.connectOverCDP(connectUrl);
+    const browser = await puppeteer.connect({ browserWSEndpoint: connectUrl });
     const { debuggerUrl } = await browserbase.sessions.debug(sessionId);
 
     debugUrl = debuggerUrl;
@@ -190,22 +171,13 @@ async function getBrowser(
         : "browserbase session started",
       level: 0,
       auxiliary: {
-        sessionUrl: {
-          value: sessionUrl,
-          type: "string",
-        },
-        debugUrl: {
-          value: debugUrl,
-          type: "string",
-        },
-        sessionId: {
-          value: sessionId,
-          type: "string",
-        },
+        sessionUrl: { value: sessionUrl, type: "string" },
+        debugUrl: { value: debugUrl, type: "string" },
+        sessionId: { value: sessionId, type: "string" },
       },
     });
 
-    const context = browser.contexts()[0];
+    const context = await browser.createBrowserContext();
 
     return { browser, context, debugUrl, sessionUrl, sessionId, env };
   } else {
@@ -213,12 +185,7 @@ async function getBrowser(
       category: "init",
       message: "launching local browser",
       level: 0,
-      auxiliary: {
-        headless: {
-          value: headless.toString(),
-          type: "boolean",
-        },
-      },
+      auxiliary: { headless: { value: headless.toString(), type: "boolean" } },
     });
 
     if (localBrowserLaunchOptions) {
@@ -246,9 +213,7 @@ async function getBrowser(
       fs.mkdirSync(path.join(tmpDir, "userdir/Default"), { recursive: true });
 
       const defaultPreferences = {
-        plugins: {
-          always_open_pdf_externally: true,
-        },
+        plugins: { always_open_pdf_externally: true },
       };
 
       fs.writeFileSync(
@@ -258,22 +223,16 @@ async function getBrowser(
       userDataDir = path.join(tmpDir, "userdir");
     }
 
-    let downloadsPath = localBrowserLaunchOptions?.downloadsPath;
+    let downloadsPath =
+      localBrowserLaunchOptions?.downloadBehavior.downloadPath;
     if (!downloadsPath) {
       downloadsPath = path.join(process.cwd(), "downloads");
       fs.mkdirSync(downloadsPath, { recursive: true });
     }
 
-    const context = await chromium.launchPersistentContext(userDataDir, {
-      acceptDownloads: localBrowserLaunchOptions?.acceptDownloads ?? true,
+    const browser = await puppeteer.launch({
       headless: localBrowserLaunchOptions?.headless ?? headless,
-      viewport: {
-        width: localBrowserLaunchOptions?.viewport?.width ?? 1024,
-        height: localBrowserLaunchOptions?.viewport?.height ?? 768,
-      },
-      locale: localBrowserLaunchOptions?.locale ?? "en-US",
-      timezoneId: localBrowserLaunchOptions?.timezoneId ?? "America/New_York",
-      deviceScaleFactor: localBrowserLaunchOptions?.deviceScaleFactor ?? 1,
+      userDataDir: userDataDir,
       args: localBrowserLaunchOptions?.args ?? [
         "--enable-webgl",
         "--use-gl=swiftshader",
@@ -281,29 +240,21 @@ async function getBrowser(
         "--disable-blink-features=AutomationControlled",
         "--disable-web-security",
       ],
-      bypassCSP: localBrowserLaunchOptions?.bypassCSP ?? true,
-      proxy: localBrowserLaunchOptions?.proxy,
-      geolocation: localBrowserLaunchOptions?.geolocation,
-      hasTouch: localBrowserLaunchOptions?.hasTouch ?? true,
-      ignoreHTTPSErrors: localBrowserLaunchOptions?.ignoreHTTPSErrors ?? true,
-      permissions: localBrowserLaunchOptions?.permissions,
-      recordHar: localBrowserLaunchOptions?.recordHar,
-      recordVideo: localBrowserLaunchOptions?.recordVideo,
-      tracesDir: localBrowserLaunchOptions?.tracesDir,
-      extraHTTPHeaders: localBrowserLaunchOptions?.extraHTTPHeaders,
-      chromiumSandbox: localBrowserLaunchOptions?.chromiumSandbox ?? false,
       devtools: localBrowserLaunchOptions?.devtools ?? false,
-      env: localBrowserLaunchOptions?.env,
       executablePath: localBrowserLaunchOptions?.executablePath,
       handleSIGHUP: localBrowserLaunchOptions?.handleSIGHUP ?? true,
       handleSIGINT: localBrowserLaunchOptions?.handleSIGINT ?? true,
       handleSIGTERM: localBrowserLaunchOptions?.handleSIGTERM ?? true,
       ignoreDefaultArgs: localBrowserLaunchOptions?.ignoreDefaultArgs,
+      defaultViewport: {
+        width: localBrowserLaunchOptions?.defaultViewport?.width ?? 1024,
+        height: localBrowserLaunchOptions?.defaultViewport?.height ?? 768,
+        deviceScaleFactor:
+          localBrowserLaunchOptions?.defaultViewport?.deviceScaleFactor ?? 1,
+        hasTouch: localBrowserLaunchOptions?.defaultViewport?.hasTouch ?? true,
+      },
     });
-
-    if (localBrowserLaunchOptions?.cookies) {
-      context.addCookies(localBrowserLaunchOptions.cookies);
-    }
+    const context = await browser.createBrowserContext();
 
     logger({
       category: "init",
@@ -317,39 +268,36 @@ async function getBrowser(
 }
 
 async function applyStealthScripts(context: BrowserContext) {
-  await context.addInitScript(() => {
-    // Override the navigator.webdriver property
-    Object.defineProperty(navigator, "webdriver", {
-      get: () => undefined,
-    });
+  await context.on("page", async () => {
+    for (const page of await context.pages()) {
+      page.evaluateOnNewDocument(() => {
+        // Override the navigator.webdriver property
+        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+        // Override the navigator.webdriver property
+        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
 
-    // Mock languages and plugins to mimic a real browser
-    Object.defineProperty(navigator, "languages", {
-      get: () => ["en-US", "en"],
-    });
+        // Mock languages and plugins to mimic a real browser
+        Object.defineProperty(navigator, "languages", {
+          get: () => ["en-US", "en"],
+        });
 
-    Object.defineProperty(navigator, "plugins", {
-      get: () => [1, 2, 3, 4, 5],
-    });
+        Object.defineProperty(navigator, "plugins", {
+          get: () => [1, 2, 3, 4, 5],
+        });
 
-    // Remove Playwright-specific properties
-    delete window.__playwright;
-    delete window.__pw_manual;
-    delete window.__PW_inspect;
+        // Redefine the headless property
+        Object.defineProperty(navigator, "headless", { get: () => false });
 
-    // Redefine the headless property
-    Object.defineProperty(navigator, "headless", {
-      get: () => false,
-    });
-
-    // Override the permissions API
-    const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = (parameters) =>
-      parameters.name === "notifications"
-        ? Promise.resolve({
-            state: Notification.permission,
-          } as PermissionStatus)
-        : originalQuery(parameters);
+        // Override the permissions API
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) =>
+          parameters.name === "notifications"
+            ? Promise.resolve({
+                state: Notification.permission,
+              } as PermissionStatus)
+            : originalQuery(parameters);
+      });
+    }
   });
 }
 
@@ -382,7 +330,7 @@ export class Stagehand {
   private modelName: AvailableModel;
   public apiClient: StagehandAPI | undefined;
   public readonly waitForCaptchaSolves: boolean;
-  private localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
+  private localBrowserLaunchOptions?: LaunchOptions;
   public readonly selfHeal: boolean;
   private cleanupCalled = false;
   public readonly actTimeoutMs: number;
@@ -481,9 +429,7 @@ export class Stagehand {
       waitForCaptchaSolves = false,
       actTimeoutMs = 60_000,
       logInferenceToFile = false,
-    }: ConstructorParams = {
-      env: "BROWSERBASE",
-    },
+    }: ConstructorParams = { env: "BROWSERBASE" },
   ) {
     this.externalLogger = logger || defaultLogger;
     this.enableCaching =
@@ -663,9 +609,7 @@ export class Stagehand {
       await this.page.setViewportSize({ width: 1280, height: 720 });
     }
 
-    await this.context.addInitScript({
-      content: scriptContent,
-    });
+    await this.context.addInitScript({ content: scriptContent });
 
     this.browserbaseSessionID = sessionId;
 
@@ -702,9 +646,7 @@ export class Stagehand {
       await this.page.setViewportSize({ width: 1280, height: 720 });
     }
 
-    await this.context.addInitScript({
-      content: scriptContent,
-    });
+    await this.context.addInitScript({ content: scriptContent });
 
     return { context: this.context };
   }
@@ -912,12 +854,12 @@ export class Stagehand {
   }
 }
 
+export * from "../types/agent";
 export * from "../types/browser";
 export * from "../types/log";
 export * from "../types/model";
+export * from "../types/operator";
 export * from "../types/page";
 export * from "../types/playwright";
 export * from "../types/stagehand";
-export * from "../types/operator";
-export * from "../types/agent";
 export * from "./llm/LLMClient";
