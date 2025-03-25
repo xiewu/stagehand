@@ -1,37 +1,5 @@
 import path from "path";
 import fs from "fs";
-import pino from "pino";
-import { StagehandLogger } from "./logger";
-
-// Logger for inference operations
-let inferenceLogger: StagehandLogger | null = null;
-
-/**
- * Initialize the inference logger
- */
-export function initInferenceLogger(
-  logToFile: boolean = false,
-): StagehandLogger {
-  if (inferenceLogger) {
-    return inferenceLogger;
-  }
-
-  let destination: pino.DestinationStream | undefined;
-
-  if (logToFile) {
-    const inferenceDir = ensureInferenceSummaryDir();
-    const logFile = path.join(inferenceDir, "inference.log");
-    destination = fs.createWriteStream(logFile, { flags: "a" });
-  }
-
-  inferenceLogger = new StagehandLogger({
-    pretty: true,
-    level: "debug",
-    destination,
-  });
-
-  return inferenceLogger;
-}
 
 /**
  * Create (or ensure) a parent directory named "inference_summary".
@@ -48,12 +16,6 @@ function ensureInferenceSummaryDir(): string {
  * Appends a new entry to the act_summary.json file, then writes the file back out.
  */
 export function appendSummary<T>(inferenceType: string, entry: T) {
-  if (inferenceLogger) {
-    inferenceLogger.debug(`Adding new ${inferenceType} entry to summary`, {
-      entry,
-    });
-  }
-
   const summaryPath = getSummaryJsonPath(inferenceType);
   const arrayKey = `${inferenceType}_summary`;
 
@@ -95,14 +57,6 @@ export function writeTimestampedTxtFile(
     filePath,
     JSON.stringify(data, null, 2).replace(/\\n/g, "\n"),
   );
-
-  if (inferenceLogger) {
-    inferenceLogger.debug(`Wrote file for ${prefix}`, {
-      filePath,
-      directory,
-      timestamp,
-    });
-  }
 
   return { fileName, timestamp };
 }
@@ -153,17 +107,8 @@ function readSummaryFile<T>(inferenceType: string): Record<string, T[]> {
     ) {
       return parsed;
     }
-  } catch (error) {
+  } catch {
     // If we fail to parse for any reason, fall back to empty array
-    if (inferenceLogger) {
-      inferenceLogger.error(
-        `Failed to parse summary file for ${inferenceType}`,
-        {
-          path: summaryPath,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      );
-    }
   }
   return { [arrayKey]: [] };
 }

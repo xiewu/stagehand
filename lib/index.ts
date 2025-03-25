@@ -41,7 +41,6 @@ import { AgentExecuteOptions, AgentResult } from "../types/agent";
 import { StagehandAgentHandler } from "./handlers/agentHandler";
 import { StagehandOperatorHandler } from "./handlers/operatorHandler";
 import { StagehandLogger } from "./logger";
-import { initInferenceLogger } from "./inferenceLogUtils";
 
 dotenv.config({ path: ".env" });
 
@@ -506,11 +505,6 @@ export class Stagehand {
       },
       this.externalLogger,
     );
-
-    // If inference logging is enabled, initialize the inference logger
-    if (logInferenceToFile) {
-      initInferenceLogger(logInferenceToFile);
-    }
 
     this.enableCaching =
       enableCaching ??
