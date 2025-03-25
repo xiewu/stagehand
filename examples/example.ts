@@ -17,7 +17,6 @@ async function example() {
   /**
    * Add your code here!
    */
-  await stagehand.page.act("click the quickstart");
   await stagehand.close();
 }
 
