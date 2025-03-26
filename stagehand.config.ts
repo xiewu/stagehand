@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const StagehandConfig: ConstructorParams = {
-  verbose: 2,
+  verbose: 1,
   env:
     process.env.BROWSERBASE_API_KEY && process.env.BROWSERBASE_PROJECT_ID
       ? "BROWSERBASE"
