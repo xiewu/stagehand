@@ -4,7 +4,7 @@ import Browserbase from "@browserbasehq/sdk";
 import StagehandConfig from "@/evals/deterministic/bb.stagehand.config";
 
 test.describe("Stagehand - resume Browserbase Session", () => {
-  test.only("should resume an existing BB session", async () => {
+  test("should resume an existing BB session", async () => {
     const bb = new Browserbase();
     const session = await bb.sessions.create({
       projectId: process.env.BROWSERBASE_PROJECT_ID,
