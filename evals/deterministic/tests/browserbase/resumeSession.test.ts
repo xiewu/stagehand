@@ -14,7 +14,7 @@ test.describe("Stagehand - resume Browserbase Session", () => {
       browserbaseSessionID: session.id,
     });
     await stagehand.init();
-    // expect(stagehand.browserbaseSessionID).toBeDefined();
+    expect(stagehand.browserbaseSessionID).toBeDefined();
     expect(stagehand.browserbaseSessionID).toBe(session.id);
 
     const page = stagehand.page;
