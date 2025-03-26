@@ -47,15 +47,30 @@ export async function scrollToNextChunk(ctx: MethodHandlerContext) {
         }
 
         const element = elementNode as HTMLElement;
-        const height = element.getBoundingClientRect().height;
+        const tagName = element.tagName.toLowerCase();
+        let height: number;
 
-        element.scrollBy({
-          top: height,
-          left: 0,
-          behavior: "smooth",
-        });
+        if (tagName === "html" || tagName === "body") {
+          height = window.visualViewport.height;
+          window.scrollBy({
+            top: height,
+            left: 0,
+            behavior: "smooth",
+          });
 
-        return window.waitForElementScrollEnd(element);
+          const scrollingEl =
+            document.scrollingElement || document.documentElement;
+          return window.waitForElementScrollEnd(scrollingEl as HTMLElement);
+        } else {
+          height = element.getBoundingClientRect().height;
+          element.scrollBy({
+            top: height,
+            left: 0,
+            behavior: "smooth",
+          });
+
+          return window.waitForElementScrollEnd(element);
+        }
       },
       { xpath },
     );
@@ -96,15 +111,29 @@ export async function scrollToPreviousChunk(ctx: MethodHandlerContext) {
         }
 
         const element = elementNode as HTMLElement;
-        const height = element.getBoundingClientRect().height;
+        const tagName = element.tagName.toLowerCase();
+        let height: number;
 
-        element.scrollBy({
-          top: -height,
-          left: 0,
-          behavior: "smooth",
-        });
+        if (tagName === "html" || tagName === "body") {
+          height = window.visualViewport.height;
+          window.scrollBy({
+            top: -height,
+            left: 0,
+            behavior: "smooth",
+          });
 
-        return window.waitForElementScrollEnd(element);
+          const scrollingEl =
+            document.scrollingElement || document.documentElement;
+          return window.waitForElementScrollEnd(scrollingEl as HTMLElement);
+        } else {
+          height = element.getBoundingClientRect().height;
+          element.scrollBy({
+            top: -height,
+            left: 0,
+            behavior: "smooth",
+          });
+          return window.waitForElementScrollEnd(element);
+        }
       },
       { xpath },
     );
