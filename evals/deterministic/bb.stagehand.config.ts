@@ -3,14 +3,21 @@ import type { ConstructorParams } from "@/dist";
 import dotenv from "dotenv";
 dotenv.config({ path: "../../.env" });
 
+if (!process.env.BROWSERBASE_PROJECT_ID) {
+  throw new Error("BROWSERBASE_PROJECT_ID is not set");
+}
+
+if (!process.env.BROWSERBASE_API_KEY) {
+  throw new Error("BROWSERBASE_API_KEY is not set");
+}
+
 const StagehandConfig: ConstructorParams = {
   ...DefaultStagehandConfig,
-  env: "LOCAL" /* Environment to run Stagehand in */,
-  verbose: 1 /* Logging verbosity level (0=quiet, 1=normal, 2=verbose) */,
-  headless: true /* Run browser in headless mode */,
+  env: "BROWSERBASE" /* Environment to run Stagehand in */,
+  apiKey: process.env.BROWSERBASE_API_KEY,
+  projectId: process.env.BROWSERBASE_PROJECT_ID,
   browserbaseSessionCreateParams: {
     projectId: process.env.BROWSERBASE_PROJECT_ID,
   },
-  enableCaching: false /* Enable caching functionality */,
 };
 export default StagehandConfig;
