@@ -1,4 +1,4 @@
-import { Locator, Page } from "@playwright/test";
+import { Locator } from "@playwright/test";
 import { LogLine } from "../../types/log";
 import {
   PlaywrightCommandException,
@@ -25,6 +25,11 @@ import {
   fallbackLocatorMethod,
 } from "./handlerUtils/actHandlerUtils";
 import { Stagehand } from "@/lib";
+import { StagehandObserveHandler } from "@/lib/handlers/observeHandler";
+import {
+  StagehandElementNotFoundError,
+  StagehandInvalidArgumentError,
+} from "@/types/stagehandErrors";
 /**
  * NOTE: Vision support has been removed from this version of Stagehand.
  * If useVision or verifierUseVision is set to true, a warning is logged and
@@ -211,14 +216,19 @@ export class StagehandActHandler {
    * Perform an act based on an instruction.
    * This method will observe the page and then perform the act on the first element returned.
    */
-  public async observeAct(actionOrOptions: ActOptions): Promise<ActResult> {
-    // Extract action string and observe options
+  public async observeAct(
+    actionOrOptions: ActOptions,
+    observeHandler: StagehandObserveHandler,
+    llmClient: LLMClient,
+    requestId: string,
+  ): Promise<ActResult> {
+    // Extract the action string
     let action: string;
     const observeOptions: Partial<ObserveOptions> = {};
 
     if (typeof actionOrOptions === "object" && actionOrOptions !== null) {
       if (!("action" in actionOrOptions)) {
-        throw new Error(
+        throw new StagehandInvalidArgumentError(
           "Invalid argument. Action options must have an `action` field.",
         );
       }
@@ -227,7 +237,9 @@ export class StagehandActHandler {
         typeof actionOrOptions.action !== "string" ||
         actionOrOptions.action.length === 0
       ) {
-        throw new Error("Invalid argument. No action provided.");
+        throw new StagehandInvalidArgumentError(
+          "Invalid argument. No action provided.",
+        );
       }
 
       action = actionOrOptions.action;
@@ -238,7 +250,7 @@ export class StagehandActHandler {
       if (actionOrOptions.modelClientOptions)
         observeOptions.modelClientOptions = actionOrOptions.modelClientOptions;
     } else {
-      throw new Error(
+      throw new StagehandInvalidArgumentError(
         "Invalid argument. Valid arguments are: a string, an ActOptions object with an `action` field not empty, or an ObserveResult with a `selector` and `method` field.",
       );
     }
@@ -251,9 +263,13 @@ export class StagehandActHandler {
     );
 
     // Call observe with the instruction and extracted options
-    const observeResults = await this.stagehandPage.observe({
+    const observeResults = await observeHandler.observe({
       instruction,
-      ...observeOptions,
+      llmClient: llmClient,
+      requestId,
+      onlyVisible: false,
+      drawOverlay: false,
+      returnAction: true,
     });
 
     if (observeResults.length === 0) {
@@ -265,7 +281,7 @@ export class StagehandActHandler {
     }
 
     // Perform the action on the first observed element
-    const element = observeResults[0];
+    const element: ObserveResult = observeResults[0];
     // Replace the arguments with the variables if any
     if (actionOrOptions.variables) {
       Object.keys(actionOrOptions.variables).forEach((key) => {
@@ -483,110 +499,6 @@ export class StagehandActHandler {
       const outerHtml = clone.outerHTML;
       return outerHtml.trim().replace(/\s+/g, " ");
     });
-  }
-
-  private async handlePossiblePageNavigation(
-    actionDescription: string,
-    xpath: string,
-    initialUrl: string,
-    domSettleTimeoutMs: number,
-  ): Promise<void> {
-    // 1) Log that we’re about to check for page navigation
-    this.logger({
-      category: "action",
-      message: `${actionDescription}, checking for page navigation`,
-      level: 1,
-      auxiliary: {
-        xpath: {
-          value: xpath,
-          type: "string",
-        },
-      },
-    });
-
-    // 2) Race against a new page opening in a tab or timing out
-    const newOpenedTab = await Promise.race([
-      new Promise<Page | null>((resolve) => {
-        // TODO: This is a hack to get the new page.
-        // We should find a better way to do this.
-        this.stagehandPage.context.once("page", (page) => resolve(page));
-        setTimeout(() => resolve(null), 1_500);
-      }),
-    ]);
-
-    // 3) Log whether a new tab was opened
-    this.logger({
-      category: "action",
-      message: `${actionDescription} complete`,
-      level: 1,
-      auxiliary: {
-        newOpenedTab: {
-          value: newOpenedTab ? "opened a new tab" : "no new tabs opened",
-          type: "string",
-        },
-      },
-    });
-
-    // 4) If new page opened in new tab, close the tab, then navigate our main page
-    if (newOpenedTab) {
-      this.logger({
-        category: "action",
-        message: "new page detected (new tab) with URL",
-        level: 1,
-        auxiliary: {
-          url: {
-            value: newOpenedTab.url(),
-            type: "string",
-          },
-        },
-      });
-      await newOpenedTab.close();
-      await this.stagehandPage.page.goto(newOpenedTab.url());
-      await this.stagehandPage.page.waitForLoadState("domcontentloaded");
-    }
-
-    // 5) Wait for the DOM to settle
-    await this.stagehandPage
-      ._waitForSettledDom(domSettleTimeoutMs)
-      .catch((e) => {
-        this.logger({
-          category: "action",
-          message: "wait for settled DOM timeout hit",
-          level: 1,
-          auxiliary: {
-            trace: {
-              value: e.stack,
-              type: "string",
-            },
-            message: {
-              value: e.message,
-              type: "string",
-            },
-          },
-        });
-      });
-
-    // 6) Log that we finished waiting for possible navigation
-    this.logger({
-      category: "action",
-      message: "finished waiting for (possible) page navigation",
-      level: 1,
-    });
-
-    // 7) If URL changed from initial, log the new URL
-    if (this.stagehandPage.page.url() !== initialUrl) {
-      this.logger({
-        category: "action",
-        message: "new page detected with URL",
-        level: 1,
-        auxiliary: {
-          url: {
-            value: this.stagehandPage.page.url(),
-            type: "string",
-          },
-        },
-      });
-    }
   }
 
   public async act({
@@ -839,7 +751,7 @@ export class StagehandActHandler {
 
         // If no XPath was valid, we cannot proceed
         if (!foundXpath || !locator) {
-          throw new Error("None of the provided XPaths could be located.");
+          throw new StagehandElementNotFoundError(xpaths);
         }
 
         const originalUrl = this.stagehandPage.page.url();

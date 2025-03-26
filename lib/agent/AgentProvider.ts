@@ -3,11 +3,14 @@ import { AgentClient } from "./AgentClient";
 import { AgentType } from "@/types/agent";
 import { OpenAICUAClient } from "./OpenAICUAClient";
 import { AnthropicCUAClient } from "./AnthropicCUAClient";
+import {
+  UnsupportedModelError,
+  UnsupportedModelProviderError,
+} from "@/types/stagehandErrors";
 
 // Map model names to their provider types
 const modelToAgentProviderMap: Record<string, AgentType> = {
-  "computer-use-preview-2025-02-04": "openai",
-  "computer-use-preview-2025-03-11": "openai",
+  "computer-use-preview": "openai",
   "claude-3-5-sonnet-20240620": "anthropic",
   "claude-3-7-sonnet-20250219": "anthropic", // Add newer Claude models
 };
@@ -56,7 +59,10 @@ export class AgentProvider {
             clientOptions,
           );
         default:
-          throw new Error(`Unknown agent type: ${type}`);
+          throw new UnsupportedModelProviderError(
+            ["openai", "anthropic"],
+            "Computer Use Agent",
+          );
       }
     } catch (error) {
       const errorMessage =
@@ -76,7 +82,9 @@ export class AgentProvider {
       return modelToAgentProviderMap[modelName];
     }
 
-    // Default to OpenAI CUA for unrecognized models with warning
-    throw new Error(`Unknown model name: ${modelName}`);
+    throw new UnsupportedModelError(
+      Object.keys(modelToAgentProviderMap),
+      "Computer Use Agent",
+    );
   }
 }
