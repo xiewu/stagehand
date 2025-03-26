@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { Stagehand } from "@/dist";
 import Browserbase from "@browserbasehq/sdk";
-import StagehandConfig from "@/evals/deterministic/stagehand.config";
+import StagehandConfig from "@/evals/deterministic/bb.stagehand.config";
 
 test.describe("Stagehand - resume Browserbase Session", () => {
-  test("should resume an existing BB session", async () => {
+  test.only("should resume an existing BB session", async () => {
     const bb = new Browserbase();
     const session = await bb.sessions.create({
       projectId: process.env.BROWSERBASE_PROJECT_ID,
@@ -14,6 +14,7 @@ test.describe("Stagehand - resume Browserbase Session", () => {
       browserbaseSessionID: session.id,
     });
     await stagehand.init();
+    // expect(stagehand.browserbaseSessionID).toBeDefined();
     expect(stagehand.browserbaseSessionID).toBe(session.id);
 
     const page = stagehand.page;
