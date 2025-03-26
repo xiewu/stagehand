@@ -5,13 +5,11 @@ export const expect_act_timeout_global: EvalFunction = async ({
   modelName,
   logger,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
     actTimeoutMs: 1_000,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://docs.stagehand.dev");
 

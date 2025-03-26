@@ -7,12 +7,10 @@ export const extract_partners: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   try {
     await stagehand.page.goto("https://ramp.com");

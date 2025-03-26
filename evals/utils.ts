@@ -11,6 +11,7 @@
 import { LogLine } from "@/dist";
 import stringComparison from "string-comparison";
 const { jaroWinkler } = stringComparison;
+import Browserbase from "@browserbasehq/sdk";
 
 /**
  * normalizeString:
@@ -118,4 +119,21 @@ export function logLineToString(logLine: LogLine): string {
     console.error(`Error logging line:`, error);
     return "error logging line";
   }
+}
+
+export async function getSessionUrls(sessionId: string): Promise<{
+  debugUrl: string;
+  cdpUrl: string;
+  sessionUrl: string;
+}> {
+  const bb = new Browserbase({
+    apiKey: process.env.BROWSERBASE_API_KEY,
+  });
+  const session = await bb.sessions.retrieve(sessionId);
+  const debugUrl = await bb.sessions.debug(sessionId);
+  return {
+    debugUrl: debugUrl.debuggerFullscreenUrl,
+    cdpUrl: session.connectUrl,
+    sessionUrl: `https://www.browserbase.com/sessions/${sessionId}`,
+  };
 }

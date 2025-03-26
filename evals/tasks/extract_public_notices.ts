@@ -8,12 +8,10 @@ export const extract_public_notices: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.init();
   await stagehand.page.goto(

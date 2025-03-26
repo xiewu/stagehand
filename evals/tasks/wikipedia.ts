@@ -2,12 +2,10 @@ import { EvalFunction } from "@/types/evals";
 import { initStagehand } from "@/evals/initStagehand";
 
 export const wikipedia: EvalFunction = async ({ modelName, logger }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(`https://en.wikipedia.org/wiki/Baseball`);
   await stagehand.page.act({

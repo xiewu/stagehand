@@ -7,13 +7,11 @@ export const extract_aigrant_targeted_2: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
     domSettleTimeoutMs: 3000,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://aigrant.com/");
   const selector = "/html/body/div/ul[5]/li[28]";

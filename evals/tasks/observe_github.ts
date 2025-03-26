@@ -2,12 +2,10 @@ import { initStagehand } from "@/evals/initStagehand";
 import { EvalFunction } from "@/types/evals";
 
 export const observe_github: EvalFunction = async ({ modelName, logger }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://github.com/numpy/numpy/tree/main/numpy");
 

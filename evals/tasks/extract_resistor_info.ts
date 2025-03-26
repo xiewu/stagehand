@@ -8,12 +8,10 @@ export const extract_resistor_info: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://vniva-3.surge.sh/vniva/");
 

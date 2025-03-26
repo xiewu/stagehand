@@ -7,12 +7,10 @@ export const extract_recipe: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
     "https://www.allrecipes.com/recipe/8539032/perfect-pan-seared-filet-mignon/",

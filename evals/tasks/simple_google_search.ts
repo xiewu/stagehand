@@ -5,12 +5,10 @@ export const simple_google_search: EvalFunction = async ({
   modelName,
   logger,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://www.google.com");
 

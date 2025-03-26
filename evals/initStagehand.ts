@@ -13,6 +13,7 @@
 import { enableCaching, env } from "./env";
 import { AvailableModel, ConstructorParams, LogLine, Stagehand } from "@/dist";
 import { EvalLogger } from "./logger";
+import { getSessionUrls } from "./utils";
 
 /**
  * StagehandConfig:
@@ -62,7 +63,14 @@ export const initStagehand = async ({
   logger: EvalLogger;
   configOverrides?: Partial<ConstructorParams>;
   actTimeoutMs?: number;
-}) => {
+}): Promise<{
+  stagehand: Stagehand;
+  logger: EvalLogger;
+  sessionId?: string;
+  cdpUrl?: string;
+  debugUrl?: string;
+  sessionUrl?: string;
+}> => {
   let chosenApiKey: string | undefined = process.env.OPENAI_API_KEY;
   if (modelName.startsWith("claude")) {
     chosenApiKey = process.env.ANTHROPIC_API_KEY;
@@ -87,6 +95,9 @@ export const initStagehand = async ({
   // Associate the logger with the Stagehand instance
   logger.init(stagehand);
 
-  const initResponse = await stagehand.init();
-  return { stagehand, logger, initResponse };
+  await stagehand.init();
+  const { debugUrl, cdpUrl, sessionUrl } = await getSessionUrls(
+    stagehand.browserbaseSessionID,
+  );
+  return { stagehand, logger, debugUrl, cdpUrl, sessionUrl };
 };

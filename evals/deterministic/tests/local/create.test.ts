@@ -5,6 +5,7 @@ import fs from "fs";
 import os from "os";
 import type { Cookie } from "@playwright/test";
 import StagehandConfig from "../../e2e.stagehand.config";
+import Browserbase from "@browserbasehq/sdk";
 
 test.describe("Local browser launch options", () => {
   test("launches with default options when no localBrowserLaunchOptions provided", async () => {
@@ -176,5 +177,49 @@ test.describe("Local browser launch options", () => {
 
     // Cleanup
     fs.rmSync(videoDir, { recursive: true, force: true });
+  });
+
+  test("respects custom CDP URL", async () => {
+    const bb = new Browserbase({
+      apiKey: process.env.BROWSERBASE_API_KEY,
+    });
+    const customCdpUrl = await bb.sessions.create({
+      projectId: process.env.BROWSERBASE_PROJECT_ID,
+    });
+
+    const stagehand = new Stagehand({
+      ...StagehandConfig,
+      localBrowserLaunchOptions: {
+        cdpUrl: customCdpUrl.connectUrl,
+      },
+    });
+    await stagehand.init();
+
+    /**
+     * Test context.pages() functionality
+     */
+    test("should return array of enhanced pages via context.pages()", async () => {
+      const context = stagehand.context;
+
+      // Create multiple pages
+      const page1 = await context.newPage();
+      const page2 = await context.newPage();
+
+      await page1.goto(`https://www.google.com`);
+      await page2.goto(`https://www.bing.com`);
+
+      const pages = context.pages();
+      expect(pages).toContain(page1);
+      expect(pages).toContain(page2);
+
+      // Verify all pages have enhanced capabilities
+      for (const page of pages) {
+        expect(typeof page.act).toBe("function");
+        expect(typeof page.extract).toBe("function");
+        expect(typeof page.observe).toBe("function");
+      }
+
+      await stagehand.close();
+    });
   });
 });

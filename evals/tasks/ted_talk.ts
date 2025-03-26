@@ -8,12 +8,10 @@ export const ted_talk: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
     "https://www.ted.com/talks/sir_ken_robinson_do_schools_kill_creativity",

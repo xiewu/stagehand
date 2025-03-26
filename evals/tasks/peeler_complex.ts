@@ -7,12 +7,10 @@ export const peeler_complex: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   try {
     await stagehand.page.goto(`https://chefstoys.com/`, { timeout: 60000 });

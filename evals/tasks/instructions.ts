@@ -2,7 +2,7 @@ import { EvalFunction } from "@/types/evals";
 import { initStagehand } from "@/evals/initStagehand";
 
 export const instructions: EvalFunction = async ({ modelName, logger }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
     configOverrides: {
@@ -10,8 +10,6 @@ export const instructions: EvalFunction = async ({ modelName, logger }) => {
         "if the users says `secret12345`, click on the 'getting started' tab",
     },
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   try {
     const page = stagehand.page;

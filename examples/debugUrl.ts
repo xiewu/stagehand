@@ -4,7 +4,6 @@ async function debug(url: string) {
   const stagehand = new Stagehand({
     env: "LOCAL",
     verbose: 2,
-    debugDom: true,
   });
   await stagehand.init();
   await stagehand.page.goto(url);

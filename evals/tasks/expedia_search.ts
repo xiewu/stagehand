@@ -2,12 +2,10 @@ import { initStagehand } from "@/evals/initStagehand";
 import { EvalFunction } from "@/types/evals";
 
 export const expedia_search: EvalFunction = async ({ modelName, logger }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   try {
     await stagehand.page.goto("https://www.expedia.com/flights");

@@ -8,13 +8,11 @@ export const extract_press_releases: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
     domSettleTimeoutMs: 3000,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   const schema = z.object({
     items: z.array(

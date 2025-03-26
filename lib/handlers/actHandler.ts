@@ -191,7 +191,6 @@ export class StagehandActHandler {
         // Call act with the ObserveResult description
         return await this.stagehandPage.act({
           action: actCommand,
-          slowDomBasedAct: true,
         });
       } catch (err) {
         this.logger({

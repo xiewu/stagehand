@@ -7,12 +7,11 @@ export const costar: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
 
-  const { debugUrl, sessionUrl } = initResponse;
   // TODO: fix this eval - does not work in headless mode
   try {
     await Promise.race([

@@ -7,13 +7,11 @@ export const extract_apartments: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
     domSettleTimeoutMs: 3000,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
     "https://www.apartments.com/san-francisco-ca/2-bedrooms/",

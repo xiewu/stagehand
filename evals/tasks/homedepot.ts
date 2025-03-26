@@ -7,13 +7,11 @@ export const homedepot: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
     domSettleTimeoutMs: 60_000,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   try {
     await stagehand.page.goto("https://www.homedepot.com/");

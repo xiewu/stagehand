@@ -2,17 +2,15 @@ import { initStagehand } from "@/evals/initStagehand";
 import { EvalFunction } from "@/types/evals";
 
 export const scroll_75: EvalFunction = async ({ modelName, logger }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
     domSettleTimeoutMs: 3000,
   });
 
-  const { debugUrl, sessionUrl } = initResponse;
   await stagehand.page.goto("https://aigrant.com/");
   await stagehand.page.act({
     action: "Scroll 75% down the page",
-    slowDomBasedAct: false,
   });
 
   await new Promise((resolve) => setTimeout(resolve, 5000));

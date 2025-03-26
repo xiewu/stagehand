@@ -5,12 +5,10 @@ export const observe_yc_startup: EvalFunction = async ({
   modelName,
   logger,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://www.ycombinator.com/companies");
   await stagehand.page.waitForLoadState("networkidle");

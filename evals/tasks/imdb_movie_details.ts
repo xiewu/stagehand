@@ -7,12 +7,10 @@ export const imdb_movie_details: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://www.imdb.com/title/tt0111161/", {
     waitUntil: "domcontentloaded",

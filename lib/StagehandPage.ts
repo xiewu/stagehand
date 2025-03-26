@@ -25,7 +25,6 @@ import {
   StagehandEnvironmentError,
   CaptchaTimeoutError,
   StagehandNotImplementedError,
-  StagehandDeprecationError,
   BrowserbaseSessionNotFoundError,
   MissingLLMConfigurationError,
   HandlerNotInitializedError,
@@ -750,37 +749,11 @@ export class StagehandPage {
         instruction,
         modelName,
         modelClientOptions,
-        useVision, // still destructure but will not pass it on
         domSettleTimeoutMs,
         returnAction = true,
         onlyVisible = false,
-        useAccessibilityTree,
         drawOverlay,
       } = options;
-
-      if (useAccessibilityTree !== undefined) {
-        this.stagehand.log({
-          category: "deprecation",
-          message:
-            "useAccessibilityTree is deprecated.\n" +
-            "  To use accessibility tree as context:\n" +
-            "    1. Set onlyVisible to false (default)\n" +
-            "    2. Don't declare useAccessibilityTree",
-          level: 1,
-        });
-        throw new StagehandDeprecationError(
-          "useAccessibilityTree is deprecated. Use onlyVisible instead.",
-        );
-      }
-
-      if (typeof useVision !== "undefined") {
-        this.stagehand.log({
-          category: "deprecation",
-          message:
-            "Warning: vision is not supported in this version of Stagehand",
-          level: 1,
-        });
-      }
 
       if (this.api) {
         const result = await this.api.observe(options);

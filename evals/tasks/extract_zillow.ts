@@ -7,16 +7,11 @@ export const extract_zillow: EvalFunction = async ({
   logger,
   useTextExtract,
 }) => {
-  const { stagehand, initResponse } = await initStagehand({
+  const { stagehand, debugUrl, sessionUrl } = await initStagehand({
     modelName,
     logger,
     domSettleTimeoutMs: 3000,
-    configOverrides: {
-      debugDom: false,
-    },
   });
-
-  const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto("https://zillow-eval.surge.sh/");
   // timeout for 5 seconds
