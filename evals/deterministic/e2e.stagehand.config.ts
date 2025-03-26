@@ -6,6 +6,8 @@ dotenv.config({ path: "../../.env" });
 const StagehandConfig: ConstructorParams = {
   ...DefaultStagehandConfig,
   env: "LOCAL" /* Environment to run Stagehand in */,
-  headless: true /* Run browser in headless mode */,
+  localBrowserLaunchOptions: {
+    headless: true,
+  },
 };
 export default StagehandConfig;

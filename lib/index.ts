@@ -67,27 +67,15 @@ async function getBrowser(
 ): Promise<BrowserResult> {
   if (env === "BROWSERBASE") {
     if (!apiKey) {
-      logger({
-        category: "init",
-        message:
-          "BROWSERBASE_API_KEY is required to use BROWSERBASE env. Defaulting to LOCAL.",
-        level: 0,
-      });
-      env = "LOCAL";
+      throw new StagehandError(
+        "BROWSERBASE_API_KEY is required. Please set the BROWSERBASE_API_KEY environment variable or pass it via apiKey in Stagehand config.",
+      );
     }
-    if (!projectId) {
-      logger({
-        category: "init",
-        message:
-          "BROWSERBASE_PROJECT_ID is required for some Browserbase features that may not work without it.",
-        level: 1,
-      });
-    }
-  }
 
-  if (env === "BROWSERBASE") {
-    if (!apiKey) {
-      throw new StagehandError("BROWSERBASE_API_KEY is required.");
+    if (!projectId) {
+      throw new StagehandError(
+        "BROWSERBASE_PROJECT_ID is required. Please set the BROWSERBASE_PROJECT_ID environment variable or pass it via projectId in Stagehand config.",
+      );
     }
 
     let debugUrl: string | undefined = undefined;

@@ -120,13 +120,9 @@ export interface ObserveOptions {
   instruction?: string;
   modelName?: AvailableModel;
   modelClientOptions?: ClientOptions;
-  /** @deprecated Vision is not supported in this version of Stagehand. */
-  useVision?: boolean;
   domSettleTimeoutMs?: number;
   returnAction?: boolean;
   onlyVisible?: boolean;
-  /** @deprecated `useAccessibilityTree` is now deprecated. Use `onlyVisible` instead. */
-  useAccessibilityTree?: boolean;
   drawOverlay?: boolean;
 }
 
@@ -140,6 +136,7 @@ export interface ObserveResult {
 
 export interface LocalBrowserLaunchOptions {
   args?: string[];
+  cdpUrl?: string;
   chromiumSandbox?: boolean;
   devtools?: boolean;
   env?: Record<string, string | number | boolean>;

@@ -522,21 +522,10 @@ export class StagehandPage {
         action,
         modelName,
         modelClientOptions,
-        useVision, // still destructure this but will not pass it on
         variables = {},
         domSettleTimeoutMs,
-        slowDomBasedAct = true,
         timeoutMs = this.stagehand.actTimeoutMs,
       } = actionOrOptions;
-
-      if (typeof useVision !== "undefined") {
-        this.stagehand.log({
-          category: "deprecation",
-          message:
-            "Warning: vision is not supported in this version of Stagehand",
-          level: 1,
-        });
-      }
 
       if (this.api) {
         const result = await this.api.act(actionOrOptions);
@@ -549,15 +538,6 @@ export class StagehandPage {
       const llmClient: LLMClient = modelName
         ? this.stagehand.llmProvider.getClient(modelName, modelClientOptions)
         : this.llmClient;
-
-      if (!slowDomBasedAct) {
-        return this.actHandler.observeAct(
-          actionOrOptions,
-          this.observeHandler,
-          llmClient,
-          requestId,
-        );
-      }
 
       this.stagehand.log({
         category: "act",
