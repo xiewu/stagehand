@@ -1,5 +1,4 @@
 import Browserbase from "@browserbasehq/sdk";
-import { Page, BrowserContext } from "../types/page";
 import { z } from "zod";
 import { LLMProvider } from "../lib/llm/LLMProvider";
 import { LogLine } from "./log";
@@ -9,85 +8,93 @@ import { Cookie } from "@playwright/test";
 import { AgentProviderType } from "./agent";
 
 export interface ConstructorParams {
+  /**
+   * The environment to run in.
+   */
   env: "LOCAL" | "BROWSERBASE";
+  /**
+   * The API key for the Browserbase project.
+   * @default process.env.BROWSERBASE_API_KEY
+   */
   apiKey?: string;
+  /**
+   * The project ID for the Browserbase project.
+   * @default process.env.BROWSERBASE_PROJECT_ID
+   */
   projectId?: string;
+  /**
+   * The verbosity level. 0 is silent, 1 is verbose, 2 is debug.
+   */
   verbose?: 0 | 1 | 2;
-  /** @deprecated Dom Debugging is no longer supported in this version of Stagehand. */
-  debugDom?: boolean;
+  /**
+   * The LLM provider to use.
+   */
   llmProvider?: LLMProvider;
-  /** @deprecated Please use `localBrowserLaunchOptions` instead. That will override this. */
-  headless?: boolean;
+  /**
+   * Override the default logger.
+   */
   logger?: (message: LogLine) => void | Promise<void>;
+  /**
+   * The timeout for the DOM to settle.
+   */
   domSettleTimeoutMs?: number;
+  /**
+   * The Browserbase session create params.
+   * https://docs.browserbase.com/reference/api/create-a-session
+   */
   browserbaseSessionCreateParams?: Browserbase.Sessions.SessionCreateParams;
-  enableCaching?: boolean;
+  /**
+   * The Browserbase session ID. Useful for resuming a Browserbase session.
+   */
   browserbaseSessionID?: string;
+  /**
+   * The model name to use for a supported LLM provider.
+   */
   modelName?: AvailableModel;
-  llmClient?: LLMClient;
+  /**
+   * Configure the LLM client options.
+   * Most useful for { apiKey: model_api_key }
+   */
   modelClientOptions?: ClientOptions;
+  /**
+   * Configure the LLM client. Use custom LLM clients like Langchain, AI SDK, etc.
+   */
+  llmClient?: LLMClient;
   /**
    * Instructions for stagehand.
    */
   systemPrompt?: string;
   /**
    * Offload Stagehand method calls to the Stagehand API.
+   * Requires STAGEHAND_API_URL env to be set.
    */
   useAPI?: boolean;
-  selfHeal?: boolean;
   /**
    * Wait for captchas to be solved after navigation when using Browserbase environment.
    *
    * @default false
    */
   waitForCaptchaSolves?: boolean;
+  /**
+   * Configure the local browser launch options.
+   */
   localBrowserLaunchOptions?: LocalBrowserLaunchOptions;
+  /**
+   * The timeout for the action to complete.
+   */
   actTimeoutMs?: number;
+  /**
+   * Log the inference to a file.
+   */
   logInferenceToFile?: boolean;
-}
-
-export interface InitOptions {
-  /** @deprecated Pass this into the Stagehand constructor instead. This will be removed in the next major version. */
-  modelName?: AvailableModel;
-  /** @deprecated Pass this into the Stagehand constructor instead. This will be removed in the next major version. */
-  modelClientOptions?: ClientOptions;
-  /** @deprecated Pass this into the Stagehand constructor instead. This will be removed in the next major version. */
-  domSettleTimeoutMs?: number;
-}
-
-export interface InitResult {
-  debugUrl: string;
-  sessionUrl: string;
-  sessionId: string;
-}
-
-export interface InitFromPageOptions {
-  page: Page;
-  /** @deprecated Pass this into the Stagehand constructor instead. This will be removed in the next major version. */
-  modelName?: AvailableModel;
-  /** @deprecated Pass this into the Stagehand constructor instead. This will be removed in the next major version. */
-  modelClientOptions?: ClientOptions;
-}
-
-export interface InitFromPageResult {
-  context: BrowserContext;
 }
 
 export interface ActOptions {
   action: string;
   modelName?: AvailableModel;
   modelClientOptions?: ClientOptions;
-  /** @deprecated Vision is not supported in this version of Stagehand. */
-  useVision?: boolean;
   variables?: Record<string, string>;
   domSettleTimeoutMs?: number;
-  /**
-   * If true, the action will be performed in a slow manner that allows the DOM to settle.
-   * This is useful for debugging.
-   *
-   * @default true
-   */
-  slowDomBasedAct?: boolean;
   timeoutMs?: number;
 }
 

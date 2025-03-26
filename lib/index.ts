@@ -11,17 +11,12 @@ import { EnhancedContext } from "../types/context";
 import { LogLine } from "../types/log";
 import { AvailableModel } from "../types/model";
 import { BrowserContext, Page } from "../types/page";
-import { GotoOptions } from "../types/playwright";
 import {
   ActOptions,
   ActResult,
   ConstructorParams,
   ExtractOptions,
   ExtractResult,
-  InitFromPageOptions,
-  InitFromPageResult,
-  InitOptions,
-  InitResult,
   LocalBrowserLaunchOptions,
   ObserveOptions,
   ObserveResult,
@@ -469,21 +464,17 @@ export class Stagehand {
       apiKey,
       projectId,
       verbose,
-      debugDom,
       llmProvider,
       llmClient,
-      headless,
       logger,
       browserbaseSessionCreateParams,
       domSettleTimeoutMs,
-      enableCaching,
       browserbaseSessionID,
       modelName,
       modelClientOptions,
       systemPrompt,
       useAPI,
       localBrowserLaunchOptions,
-      selfHeal = true,
       waitForCaptchaSolves = false,
       actTimeoutMs = 60_000,
       logInferenceToFile = false,
@@ -492,16 +483,12 @@ export class Stagehand {
     },
   ) {
     this.externalLogger = logger || defaultLogger;
-    this.enableCaching =
-      enableCaching ??
-      (process.env.ENABLE_CACHING && process.env.ENABLE_CACHING === "true");
     this.llmProvider =
       llmProvider || new LLMProvider(this.logger, this.enableCaching);
     this.intEnv = env;
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
     this.verbose = verbose ?? 0;
-    this.debugDom = debugDom ?? false;
     if (llmClient) {
       this.llmClient = llmClient;
     } else {
@@ -517,7 +504,6 @@ export class Stagehand {
     }
 
     this.domSettleTimeoutMs = domSettleTimeoutMs ?? 30_000;
-    this.headless = headless ?? false;
     this.browserbaseSessionCreateParams = browserbaseSessionCreateParams;
     this.browserbaseSessionID = browserbaseSessionID;
     this.userProvidedInstructions = systemPrompt;
@@ -542,7 +528,6 @@ export class Stagehand {
     }
     this.waitForCaptchaSolves = waitForCaptchaSolves;
 
-    this.selfHeal = selfHeal;
     this.localBrowserLaunchOptions = localBrowserLaunchOptions;
 
     if (this.usingAPI) {
@@ -591,21 +576,19 @@ export class Stagehand {
     return this.stagehandContext.context;
   }
 
-  async init(
-    /** @deprecated Use constructor options instead */
-    initOptions?: InitOptions,
-  ): Promise<InitResult> {
+  async init(constructorParams?: ConstructorParams): Promise<Stagehand> {
+    // if constructorParams are passed, use them to initialize the Stagehand instance
+    if (constructorParams) {
+      const stagehand = new Stagehand(constructorParams);
+      await stagehand.init();
+      return stagehand;
+    }
+
     if (isRunningInBun()) {
       throw new StagehandError(
         "Playwright does not currently support the Bun runtime environment. " +
           "Please use Node.js instead. For more information, see: " +
           "https://github.com/microsoft/playwright/issues/27139",
-      );
-    }
-
-    if (initOptions) {
-      console.warn(
-        "Passing parameters to init() is deprecated and will be removed in the next major version. Use constructor options instead.",
       );
     }
 
@@ -635,27 +618,26 @@ export class Stagehand {
       this.browserbaseSessionID = sessionId;
     }
 
-    const { context, debugUrl, sessionUrl, contextPath, sessionId, env } =
-      await getBrowser(
-        this.apiKey,
-        this.projectId,
-        this.env,
-        this.headless,
-        this.logger,
-        this.browserbaseSessionCreateParams,
-        this.browserbaseSessionID,
-        this.localBrowserLaunchOptions,
-      ).catch((e) => {
-        console.error("Error in init:", e);
-        const br: BrowserResult = {
-          context: undefined,
-          debugUrl: undefined,
-          sessionUrl: undefined,
-          sessionId: undefined,
-          env: this.env,
-        };
-        return br;
-      });
+    const { context, contextPath, sessionId, env } = await getBrowser(
+      this.apiKey,
+      this.projectId,
+      this.env,
+      this.headless,
+      this.logger,
+      this.browserbaseSessionCreateParams,
+      this.browserbaseSessionID,
+      this.localBrowserLaunchOptions,
+    ).catch((e) => {
+      console.error("Error in init:", e);
+      const br: BrowserResult = {
+        context: undefined,
+        debugUrl: undefined,
+        sessionUrl: undefined,
+        sessionId: undefined,
+        env: this.env,
+      };
+      return br;
+    });
     this.intEnv = env;
     this.contextPath = contextPath;
 
@@ -674,44 +656,7 @@ export class Stagehand {
 
     this.browserbaseSessionID = sessionId;
 
-    return { debugUrl, sessionUrl, sessionId };
-  }
-
-  /** @deprecated initFromPage is deprecated and will be removed in the next major version. */
-  async initFromPage({
-    page,
-  }: InitFromPageOptions): Promise<InitFromPageResult> {
-    console.warn(
-      "initFromPage is deprecated and will be removed in the next major version. To instantiate from a page, use `browserbaseSessionID` in the constructor.",
-    );
-    this.stagehandPage = await new StagehandPage(
-      page,
-      this,
-      this.stagehandContext,
-      this.llmClient,
-    ).init();
-    this.stagehandContext = await StagehandContext.init(page.context(), this);
-
-    const originalGoto = this.page.goto.bind(this.page);
-    this.page.goto = async (url: string, options?: GotoOptions) => {
-      const result = await originalGoto(url, options);
-      if (this.debugDom) {
-        await this.page.evaluate(() => (window.showChunks = this.debugDom));
-      }
-      await this.page.waitForLoadState("domcontentloaded");
-      await this.stagehandPage._waitForSettledDom();
-      return result;
-    };
-
-    if (this.headless) {
-      await this.page.setViewportSize({ width: 1280, height: 720 });
-    }
-
-    await this.context.addInitScript({
-      content: scriptContent,
-    });
-
-    return { context: this.context };
+    return this;
   }
 
   private pending_logs_to_send_to_browserbase: LogLine[] = [];
