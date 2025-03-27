@@ -239,6 +239,26 @@ async function getBrowser(
       });
     }
 
+    if (localBrowserLaunchOptions?.cdpUrl) {
+      logger({
+        category: "init",
+        message: "connecting to local browser via CDP URL",
+        level: 0,
+        auxiliary: {
+          cdpUrl: {
+            value: localBrowserLaunchOptions.cdpUrl,
+            type: "string",
+          },
+        },
+      });
+
+      const browser = await chromium.connectOverCDP(
+        localBrowserLaunchOptions.cdpUrl,
+      );
+      const context = browser.contexts()[0];
+      return { browser, context, env: "LOCAL" };
+    }
+
     let userDataDir = localBrowserLaunchOptions?.userDataDir;
     if (!userDataDir) {
       const tmpDirPath = path.join(os.tmpdir(), "stagehand");

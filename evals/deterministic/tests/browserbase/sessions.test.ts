@@ -53,14 +53,12 @@ test.describe("Browserbase Sessions", () => {
       ...StagehandConfig,
       env: "LOCAL",
       localBrowserLaunchOptions: {
+        headless: true,
         cdpUrl: session.connectUrl,
       },
     });
     await stagehand.init();
-
-    // Init from CDP URL creates a new page
     const page = stagehand.page;
-    await page.goto("https://docs.stagehand.dev/get_started/introduction");
 
     expect(page.url()).toBe(
       "https://docs.stagehand.dev/get_started/introduction",
