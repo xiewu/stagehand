@@ -558,19 +558,8 @@ export class StagehandPage {
         },
       });
 
-      // `useVision` is no longer passed to the handler
       const result = await this.actHandler
-        .act({
-          action,
-          llmClient,
-          chunksSeen: [],
-          requestId,
-          variables,
-          previousSelectors: [],
-          skipActionCacheForThisStep: false,
-          domSettleTimeoutMs,
-          timeoutMs,
-        })
+        .observeAct(actionOrOptions, this.observeHandler, llmClient, requestId)
         .catch((e) => {
           this.stagehand.log({
             category: "act",
