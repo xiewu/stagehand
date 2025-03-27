@@ -4,28 +4,39 @@ import StagehandConfig from "@/evals/deterministic/stagehand.config";
 import Browserbase from "@browserbasehq/sdk";
 
 test.describe("Browserbase Sessions", () => {
-  let stagehand: Stagehand;
   let browserbase: Browserbase;
   let sessionId: string;
+  let bigStagehand: Stagehand;
 
   test.beforeAll(async () => {
     browserbase = new Browserbase({
       apiKey: process.env.BROWSERBASE_API_KEY,
     });
-    const session = await browserbase.sessions.create({
-      projectId: process.env.BROWSERBASE_PROJECT_ID,
+    bigStagehand = new Stagehand({
+      ...StagehandConfig,
+      env: "BROWSERBASE",
+      browserbaseSessionCreateParams: {
+        projectId: process.env.BROWSERBASE_PROJECT_ID,
+        keepAlive: true,
+      },
     });
-    sessionId = session.id;
+    await bigStagehand.init();
+    await bigStagehand.page.goto(
+      "https://docs.stagehand.dev/get_started/introduction",
+    );
+    sessionId = bigStagehand.browserbaseSessionID;
+  });
+  test.afterAll(async () => {
+    await bigStagehand.close();
   });
   test("resumes a session via sessionId", async () => {
-    stagehand = new Stagehand({
+    const stagehand = new Stagehand({
       ...StagehandConfig,
       browserbaseSessionID: sessionId,
     });
     await stagehand.init();
 
     const page = stagehand.page;
-    await page.goto("https://docs.stagehand.dev/get_started/introduction");
 
     expect(page.url()).toBe(
       "https://docs.stagehand.dev/get_started/introduction",
@@ -34,12 +45,18 @@ test.describe("Browserbase Sessions", () => {
   });
   test("resumes a session via CDP URL", async () => {
     const session = await browserbase.sessions.retrieve(sessionId);
-    stagehand = new Stagehand({
+    const stagehand = new Stagehand({
       ...StagehandConfig,
       localBrowserLaunchOptions: {
-        cdpUrl: session.cdpUrl,
+        cdpUrl: session.connectUrl,
       },
     });
     await stagehand.init();
+
+    const page = stagehand.page;
+
+    expect(page.url()).toBe(
+      "https://docs.stagehand.dev/get_started/introduction",
+    );
   });
 });

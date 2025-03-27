@@ -184,7 +184,7 @@ export interface LocalBrowserLaunchOptions {
   timezoneId?: string;
   bypassCSP?: boolean;
   cookies?: Cookie[];
-  cdpUrl?: boolean;
+  cdpUrl?: string;
 }
 
 export interface StagehandMetrics {
