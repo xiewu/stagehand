@@ -517,14 +517,7 @@ export class StagehandPage {
         );
       }
 
-      const {
-        action,
-        modelName,
-        modelClientOptions,
-        variables = {},
-        domSettleTimeoutMs,
-        timeoutMs = this.stagehand.actTimeoutMs,
-      } = actionOrOptions;
+      const { action, modelName, modelClientOptions } = actionOrOptions;
 
       if (this.api) {
         const result = await this.api.act(actionOrOptions);
@@ -558,35 +551,13 @@ export class StagehandPage {
         },
       });
 
-      const result = await this.actHandler
-        .observeAct(actionOrOptions, this.observeHandler, llmClient, requestId)
-        .catch((e) => {
-          this.stagehand.log({
-            category: "act",
-            message: "error acting",
-            level: 1,
-            auxiliary: {
-              error: {
-                value: e.message,
-                type: "string",
-              },
-              trace: {
-                value: e.stack,
-                type: "string",
-              },
-            },
-          });
-
-          return {
-            success: false,
-            message: `Internal error: Error acting: ${e.message}`,
-            action: action,
-          };
-        });
-
-      this.addToHistory("act", actionOrOptions, result);
-
-      return result;
+      // `useVision` is no longer passed to the handler
+      return this.actHandler.observeAct(
+        actionOrOptions,
+        this.observeHandler,
+        llmClient,
+        requestId,
+      );
     } catch (err: unknown) {
       if (err instanceof StagehandError || err instanceof StagehandAPIError) {
         throw err;
