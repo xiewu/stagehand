@@ -25,6 +25,9 @@ test.describe("Browserbase Sessions", () => {
       "https://docs.stagehand.dev/get_started/introduction",
     );
     sessionId = bigStagehand.browserbaseSessionID;
+    if (!sessionId) {
+      throw new Error("Failed to get browserbase session ID");
+    }
   });
   test.afterAll(async () => {
     await bigStagehand.close();
@@ -32,6 +35,7 @@ test.describe("Browserbase Sessions", () => {
   test("resumes a session via sessionId", async () => {
     const stagehand = new Stagehand({
       ...StagehandConfig,
+      env: "BROWSERBASE",
       browserbaseSessionID: sessionId,
     });
     await stagehand.init();
@@ -47,13 +51,16 @@ test.describe("Browserbase Sessions", () => {
     const session = await browserbase.sessions.retrieve(sessionId);
     const stagehand = new Stagehand({
       ...StagehandConfig,
+      env: "LOCAL",
       localBrowserLaunchOptions: {
         cdpUrl: session.connectUrl,
       },
     });
     await stagehand.init();
 
+    // Init from CDP URL creates a new page
     const page = stagehand.page;
+    await page.goto("https://docs.stagehand.dev/get_started/introduction");
 
     expect(page.url()).toBe(
       "https://docs.stagehand.dev/get_started/introduction",
