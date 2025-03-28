@@ -186,7 +186,7 @@ async function getBrowser(
         ...browserbaseSessionCreateParams,
         userMetadata: {
           ...(browserbaseSessionCreateParams?.userMetadata || {}),
-          stagehand_created: "true",
+          stagehand: "true",
         },
       });
 
