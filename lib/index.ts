@@ -172,7 +172,7 @@ async function getBrowser(
       logger({
         category: "init",
         message: "creating new browserbase session...",
-        level: 0,
+        level: 1,
       });
 
       if (!projectId) {
@@ -184,6 +184,10 @@ async function getBrowser(
       const session = await browserbase.sessions.create({
         projectId,
         ...browserbaseSessionCreateParams,
+        userMetadata: {
+          ...(browserbaseSessionCreateParams?.userMetadata || {}),
+          "stagehand_created": "true",
+        },
       });
 
       sessionId = session.id;
