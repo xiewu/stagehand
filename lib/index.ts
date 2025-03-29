@@ -37,6 +37,7 @@ import { ApiResponse, ErrorResponse } from "@/types/api";
 import { AgentExecuteOptions, AgentResult } from "../types/agent";
 import { StagehandAgentHandler } from "./handlers/agentHandler";
 import { StagehandOperatorHandler } from "./handlers/operatorHandler";
+import { StagehandLogger } from "./logger";
 
 import {
   StagehandError,
@@ -49,6 +50,21 @@ import {
 dotenv.config({ path: ".env" });
 
 const DEFAULT_MODEL_NAME = "gpt-4o";
+
+// Initialize the global logger
+let globalLogger: StagehandLogger;
+
+const defaultLogger = async (logLine: LogLine) => {
+  if (!globalLogger) {
+    // Create a global logger with Pino enabled for the default logger
+    // but disable it in test environments
+    globalLogger = new StagehandLogger({
+      pretty: true,
+      // Let StagehandLogger auto-detect test environment and disable Pino if needed
+    });
+  }
+  globalLogger.log(logLine);
+};
 
 async function getBrowser(
   apiKey: string | undefined,
@@ -125,7 +141,7 @@ async function getBrowser(
         logger({
           category: "init",
           message: "failed to resume session",
-          level: 1,
+          level: 0,
           auxiliary: {
             error: {
               value: error.message,
@@ -144,7 +160,7 @@ async function getBrowser(
       logger({
         category: "init",
         message: "creating new browserbase session...",
-        level: 0,
+        level: 1,
       });
 
       if (!projectId) {
@@ -156,6 +172,10 @@ async function getBrowser(
       const session = await browserbase.sessions.create({
         projectId,
         ...browserbaseSessionCreateParams,
+        userMetadata: {
+          ...(browserbaseSessionCreateParams?.userMetadata || {}),
+          stagehand: "true",
+        },
       });
 
       sessionId = session.id;
@@ -184,7 +204,6 @@ async function getBrowser(
       message: browserbaseSessionID
         ? "browserbase session resumed"
         : "browserbase session started",
-      level: 0,
       auxiliary: {
         sessionUrl: {
           value: sessionUrl,
@@ -208,7 +227,6 @@ async function getBrowser(
     logger({
       category: "init",
       message: "launching local browser",
-      level: 0,
       auxiliary: {
         headless: {
           value: headless.toString(),
@@ -221,7 +239,6 @@ async function getBrowser(
       logger({
         category: "init",
         message: "local browser launch options",
-        level: 0,
         auxiliary: {
           localLaunchOptions: {
             value: JSON.stringify(localBrowserLaunchOptions),
@@ -369,10 +386,6 @@ async function applyStealthScripts(context: BrowserContext) {
   });
 }
 
-const defaultLogger = async (logLine: LogLine) => {
-  console.log(logLineToString(logLine));
-};
-
 export class Stagehand {
   private stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
@@ -403,6 +416,8 @@ export class Stagehand {
   private cleanupCalled = false;
   public readonly actTimeoutMs: number;
   public readonly logInferenceToFile?: boolean;
+  private stagehandLogger: StagehandLogger;
+
   protected setActivePage(page: StagehandPage): void {
     this.stagehandPage = page;
   }
@@ -496,15 +511,31 @@ export class Stagehand {
     },
   ) {
     this.externalLogger = logger || defaultLogger;
+
+    // Initialize the Stagehand logger
+    this.stagehandLogger = new StagehandLogger(
+      {
+        pretty: true,
+        usePino: !logger, // Only use Pino if no custom logger is provided
+      },
+      this.externalLogger,
+    );
+
     this.enableCaching =
       enableCaching ??
       (process.env.ENABLE_CACHING && process.env.ENABLE_CACHING === "true");
+
     this.llmProvider =
       llmProvider || new LLMProvider(this.logger, this.enableCaching);
+
     this.intEnv = env;
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
     this.verbose = verbose ?? 0;
+    // Update logger verbosity level
+    this.stagehandLogger.setVerbosity(this.verbose);
+
+    this.debugDom = debugDom ?? false;
     if (llmClient) {
       this.llmClient = llmClient;
     } else {
@@ -555,11 +586,15 @@ export class Stagehand {
       if (this.cleanupCalled) return;
       this.cleanupCalled = true;
 
-      console.log(`[${signal}] received. Ending Browserbase session...`);
+      this.stagehandLogger.info(
+        `[${signal}] received. Ending Browserbase session...`,
+      );
       try {
         await this.close();
       } catch (err) {
-        console.error("Error ending Browserbase session:", err);
+        this.stagehandLogger.error("Error ending Browserbase session:", {
+          error: String(err),
+        });
       } finally {
         // Exit explicitly once cleanup is done
         process.exit(0);
@@ -620,7 +655,7 @@ export class Stagehand {
         waitForCaptchaSolves: this.waitForCaptchaSolves,
         actionTimeoutMs: this.actTimeoutMs,
         browserbaseSessionCreateParams: this.browserbaseSessionCreateParams,
-        browserbaseSessionId: this.browserbaseSessionID,
+        browserbaseSessionID: this.browserbaseSessionID,
       });
       this.browserbaseSessionID = sessionId;
     }
@@ -636,7 +671,7 @@ export class Stagehand {
         this.browserbaseSessionID,
         this.localBrowserLaunchOptions,
       ).catch((e) => {
-        console.error("Error in init:", e);
+        this.stagehandLogger.error("Error in init:", { error: String(e) });
         const br: BrowserResult = {
           context: undefined,
           debugUrl: undefined,
@@ -674,9 +709,8 @@ export class Stagehand {
   log(logObj: LogLine): void {
     logObj.level = logObj.level ?? 1;
 
-    if (this.externalLogger) {
-      this.externalLogger(logObj);
-    }
+    // Use our Pino-based logger
+    this.stagehandLogger.log(logObj);
 
     this.pending_logs_to_send_to_browserbase.push({
       ...logObj,

@@ -1,17 +1,15 @@
-import type { ConstructorParams, LogLine } from "@/dist";
+import type { ConstructorParams } from "@/dist";
 import dotenv from "dotenv";
-import { logLineToString } from "@/lib/utils";
 dotenv.config();
 
 const StagehandConfig: ConstructorParams = {
+  verbose: 1,
   env:
     process.env.BROWSERBASE_API_KEY && process.env.BROWSERBASE_PROJECT_ID
       ? "BROWSERBASE"
       : "LOCAL",
   apiKey: process.env.BROWSERBASE_API_KEY /* API key for authentication */,
   projectId: process.env.BROWSERBASE_PROJECT_ID /* Project identifier */,
-  logger: (message: LogLine) =>
-    console.log(logLineToString(message)) /* Custom logging function */,
   domSettleTimeoutMs: 30_000 /* Timeout for DOM to settle in milliseconds */,
   browserbaseSessionCreateParams: {
     projectId: process.env.BROWSERBASE_PROJECT_ID!,
