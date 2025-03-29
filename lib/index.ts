@@ -535,7 +535,6 @@ export class Stagehand {
     // Update logger verbosity level
     this.stagehandLogger.setVerbosity(this.verbose);
 
-    this.debugDom = debugDom ?? false;
     if (llmClient) {
       this.llmClient = llmClient;
     } else {
