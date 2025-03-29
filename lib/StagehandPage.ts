@@ -56,7 +56,7 @@ export class StagehandPage {
   private _history: Array<HistoryEntry> = [];
 
   public get history(): ReadonlyArray<HistoryEntry> {
-    return this._history;
+    return Object.freeze([...this._history]);
   }
 
   constructor(
@@ -466,9 +466,14 @@ export class StagehandPage {
     }
   }
 
-  private addToHistory(
+  public addToHistory(
     method: HistoryEntry["method"],
-    parameters: unknown,
+    parameters:
+      | ActOptions
+      | ExtractOptions<z.AnyZodObject>
+      | ObserveOptions
+      | { url: string; options: GotoOptions }
+      | string,
     result?: unknown,
   ): void {
     this._history.push({
@@ -551,12 +556,14 @@ export class StagehandPage {
         : this.llmClient;
 
       if (!slowDomBasedAct) {
-        return this.actHandler.observeAct(
+        const result = await this.actHandler.observeAct(
           actionOrOptions,
           this.observeHandler,
           llmClient,
           requestId,
         );
+        this.addToHistory("act", actionOrOptions, result);
+        return result;
       }
 
       this.stagehand.log({
