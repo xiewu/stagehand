@@ -4,10 +4,7 @@ import {
   PlaywrightCommandException,
   PlaywrightCommandMethodNotSupportedException,
 } from "../../types/playwright";
-import { ActionCache } from "../cache/ActionCache";
 import { LLMClient } from "../llm/LLMClient";
-import { LLMProvider } from "../llm/LLMProvider";
-import { StagehandContext } from "../StagehandContext";
 import { StagehandPage } from "../StagehandPage";
 import {
   ActResult,
@@ -21,7 +18,6 @@ import {
   methodHandlerMap,
   fallbackLocatorMethod,
 } from "./handlerUtils/actHandlerUtils";
-import { Stagehand } from "@/lib";
 import { StagehandObserveHandler } from "@/lib/handlers/observeHandler";
 import { StagehandInvalidArgumentError } from "@/types/stagehandErrors";
 /**
@@ -30,54 +26,22 @@ import { StagehandInvalidArgumentError } from "@/types/stagehandErrors";
  * the flow continues as if vision = false.
  */
 export class StagehandActHandler {
-  private readonly stagehand: Stagehand;
   private readonly stagehandPage: StagehandPage;
-  private readonly verbose: 0 | 1 | 2;
-  private readonly llmProvider: LLMProvider;
-  private readonly enableCaching: boolean;
   private readonly logger: (logLine: LogLine) => void;
-  private readonly actionCache: ActionCache | undefined;
-  private readonly actions: {
-    [key: string]: { result: string; action: string };
-  };
-  private readonly userProvidedInstructions?: string;
   private readonly selfHeal: boolean;
-  private readonly waitForCaptchaSolves: boolean;
 
   constructor({
-    stagehand,
-    verbose,
-    llmProvider,
-    enableCaching,
     logger,
     stagehandPage,
-    userProvidedInstructions,
     selfHeal,
-    waitForCaptchaSolves,
   }: {
-    stagehand: Stagehand;
-    verbose: 0 | 1 | 2;
-    llmProvider: LLMProvider;
-    enableCaching: boolean;
     logger: (logLine: LogLine) => void;
-    llmClient: LLMClient;
     stagehandPage: StagehandPage;
-    stagehandContext: StagehandContext;
-    userProvidedInstructions?: string;
     selfHeal: boolean;
-    waitForCaptchaSolves: boolean;
   }) {
-    this.stagehand = stagehand;
-    this.verbose = verbose;
-    this.llmProvider = llmProvider;
-    this.enableCaching = enableCaching;
     this.logger = logger;
-    this.actionCache = enableCaching ? new ActionCache(this.logger) : undefined;
-    this.actions = {};
     this.stagehandPage = stagehandPage;
-    this.userProvidedInstructions = userProvidedInstructions;
     this.selfHeal = selfHeal;
-    this.waitForCaptchaSolves = waitForCaptchaSolves;
   }
 
   /**
