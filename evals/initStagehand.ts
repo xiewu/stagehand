@@ -19,6 +19,7 @@ import {
   Stagehand,
 } from "@/dist";
 import { EvalLogger } from "./logger";
+import { StagehandEvalError } from "@/types/stagehandErrors";
 
 /**
  * StagehandConfig:
@@ -72,11 +73,11 @@ export const initStagehand = async ({
   actTimeoutMs?: number;
 }) => {
   if (llmClient && modelName) {
-    throw new Error("Cannot provide both llmClient and modelName");
+    throw new StagehandEvalError("Cannot provide both llmClient and modelName");
   }
 
   if (!llmClient && !modelName) {
-    throw new Error("Must provide either llmClient or modelName");
+    throw new StagehandEvalError("Must provide either llmClient or modelName");
   }
 
   let chosenApiKey: string | undefined = process.env.OPENAI_API_KEY;
