@@ -34,21 +34,7 @@ export class CustomOpenAIClient extends LLMClient {
   public type = "openai" as const;
   private client: OpenAI;
 
-  constructor({
-    modelName,
-    client,
-    enableCaching = false,
-  }: {
-    modelName?: string;
-    client?: OpenAI;
-    enableCaching?: boolean;
-  }) {
-    if (enableCaching) {
-      console.warn(
-        "Caching is not supported yet. Setting enableCaching to true will have no effect.",
-      );
-    }
-
+  constructor({ modelName, client }: { modelName: string; client: OpenAI }) {
     super(modelName as AvailableModel);
     this.client = client;
     this.modelName = modelName as AvailableModel;
