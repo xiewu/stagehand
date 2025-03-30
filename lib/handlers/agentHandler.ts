@@ -211,7 +211,6 @@ export class StagehandAgentHandler {
             });
             await newOpenedTab.close();
             await this.stagehandPage.page.goto(newOpenedTab.url());
-            // await this.stagehandPage.page.waitForLoadState("commit");
             await this.stagehandPage.page.waitForURL(newOpenedTab.url());
           }
           return { success: true };
