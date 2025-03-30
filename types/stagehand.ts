@@ -93,7 +93,7 @@ export interface ConstructorParams {
   logInferenceToFile?: boolean;
   selfHeal?: boolean;
   /**
-   * Whether Stagehand is running in a test environment
+   * Disable Pino (helpful for Next.js or test environments)
    */
   disablePino?: boolean;
 }
