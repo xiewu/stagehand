@@ -151,7 +151,10 @@ export class StagehandOperatorHandler {
         success: true,
         message: await this.getSummary(options.instruction),
         actions,
-        completed: actions[actions.length - 1].taskCompleted as boolean,
+        completed:
+          actions.length > 0
+            ? (actions[actions.length - 1].taskCompleted as boolean)
+            : false,
       };
 
       await options.onSuccess?.(finalResult);
