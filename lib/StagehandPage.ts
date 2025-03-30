@@ -556,7 +556,6 @@ export class StagehandPage {
         },
       });
 
-      // `useVision` is no longer passed to the handler
       const result = await this.actHandler.observeAct(
         actionOrOptions,
         this.observeHandler,
