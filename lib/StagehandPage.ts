@@ -268,6 +268,39 @@ export class StagehandPage {
             };
           }
 
+          // Handle screenshots with CDP
+          if (prop === "screenshot" && this.stagehand.env === "BROWSERBASE") {
+            return async (
+              options: {
+                type?: "png" | "jpeg";
+                quality?: number;
+                fullPage?: boolean;
+                clip?: { x: number; y: number; width: number; height: number };
+                omitBackground?: boolean;
+              } = {},
+            ) => {
+              const cdpOptions: Record<string, unknown> = {
+                format: options.type === "jpeg" ? "jpeg" : "png",
+                quality: options.quality,
+                clip: options.clip,
+              };
+
+              if (options.fullPage) {
+                cdpOptions.captureBeyondViewport = true;
+              }
+
+              const data = await this.sendCDP<{ data: string }>(
+                "Page.captureScreenshot",
+                cdpOptions,
+              );
+
+              // Convert base64 to buffer
+              const buffer = Buffer.from(data.data, "base64");
+
+              return buffer;
+            };
+          }
+
           // Handle goto specially
           if (prop === "goto") {
             return async (url: string, options: GotoOptions) => {
