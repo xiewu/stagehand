@@ -40,7 +40,6 @@ async function main() {
     await stagehand.page.goto("https://www.google.com");
     console.log(`${chalk.green("✓")} Loaded: ${chalk.dim(page.url())}`);
 
-    // Execute the agent again with a different instruction
     const firstInstruction =
       "Search for openai news on google and extract the name of the first 3 results";
     console.log(
