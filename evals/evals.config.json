@@ -94,6 +94,10 @@
       "categories": ["combination", "regression_dom_extract"]
     },
     {
+      "name": "hn_customOpenAI",
+      "categories": ["combination", "regression_dom_extract"]
+    },
+    {
       "name": "apple",
       "categories": ["experimental"]
     },
