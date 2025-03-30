@@ -15,6 +15,8 @@ async function main() {
   console.log(`${chalk.cyan("→")} Initializing Stagehand...`);
   const stagehand = new Stagehand({
     ...StagehandConfig,
+    env: "BROWSERBASE",
+    useAPI: false,
   });
 
   await stagehand.init();
@@ -26,32 +28,32 @@ async function main() {
     console.log(`\n${chalk.magenta.bold("⚡ First Agent Execution")}`);
 
     const agent = stagehand.agent({
-      provider: "openai",
-      model: "computer-use-preview-2025-02-04",
+      provider: "anthropic",
+      model: "claude-3-7-sonnet-20250219",
       instructions: `You are a helpful assistant that can use a web browser.
       You are currently on the following page: ${page.url()}.
       Do not ask follow up questions, the user will trust your judgement.`,
       options: {
-        apiKey: process.env.OPENAI_API_KEY,
+        apiKey: process.env.ANTHROPIC_API_KEY,
       },
     });
 
-    console.log(`${chalk.yellow("→")} Navigating to Google...`);
-    await stagehand.page.goto("https://www.google.com");
-    console.log(`${chalk.green("✓")} Loaded: ${chalk.dim(page.url())}`);
+    // console.log(`${chalk.yellow("→")} Navigating to Google...`);
+    // await stagehand.page.goto("https://www.google.com");
+    // console.log(`${chalk.green("✓")} Loaded: ${chalk.dim(page.url())}`);
 
-    // Execute the agent again with a different instruction
-    const firstInstruction =
-      "Search for openai news on google and extract the name of the first 3 results";
-    console.log(
-      `${chalk.cyan("↳")} Instruction: ${chalk.white(firstInstruction)}`,
-    );
+    // // Execute the agent again with a different instruction
+    // const firstInstruction =
+    //   "Search for openai news on google and extract the name of the first 3 results";
+    // console.log(
+    //   `${chalk.cyan("↳")} Instruction: ${chalk.white(firstInstruction)}`,
+    // );
 
-    const result1 = await agent.execute(firstInstruction);
+    // const result1 = await agent.execute(firstInstruction);
 
-    console.log(`${chalk.green("✓")} Execution complete`);
-    console.log(`${chalk.yellow("⤷")} Result:`);
-    console.log(chalk.white(JSON.stringify(result1, null, 2)));
+    // console.log(`${chalk.green("✓")} Execution complete`);
+    // console.log(`${chalk.yellow("⤷")} Result:`);
+    // console.log(chalk.white(JSON.stringify(result1, null, 2)));
 
     console.log(`\n${chalk.magenta.bold("⚡ Second Agent Execution")}`);
 
@@ -62,7 +64,7 @@ async function main() {
     console.log(`${chalk.green("✓")} Loaded: ${chalk.dim(page.url())}`);
 
     const instruction =
-      "Apply for the full-stack engineer position with mock data. Don't submit the form.";
+      "Apply for the first engineer position with mock data. Don't submit the form.";
     console.log(`${chalk.cyan("↳")} Instruction: ${chalk.white(instruction)}`);
 
     const result = await agent.execute({
