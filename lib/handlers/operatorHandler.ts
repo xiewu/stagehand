@@ -139,7 +139,7 @@ export class StagehandOperatorHandler {
           extractionResult,
         };
 
-        await this.options.onStep?.(action);
+        await options.onStep?.(action);
 
         await this.executeAction(result, playwrightArguments, extractionResult);
 
@@ -154,11 +154,11 @@ export class StagehandOperatorHandler {
         completed: actions[actions.length - 1].taskCompleted as boolean,
       };
 
-      await this.options.onSuccess?.(finalResult);
+      await options.onSuccess?.(finalResult);
 
       return finalResult;
     } catch (error) {
-      await this.options.onFailure?.(error as Error);
+      await options.onFailure?.(error as Error);
       throw error;
     }
   }
