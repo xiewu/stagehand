@@ -824,6 +824,7 @@ export class Stagehand {
             this.stagehandPage,
             this.logger,
             this.llmClient,
+            options,
           ).execute(instructionOrOptions);
         },
       };
