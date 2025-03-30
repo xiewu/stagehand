@@ -54,17 +54,14 @@ const DEFAULT_MODEL_NAME = "gpt-4o";
 // Initialize the global logger
 let globalLogger: StagehandLogger;
 
-const defaultLogger = async (
-  logLine: LogLine,
-  userDefinedIsTestEnvironment?: boolean,
-) => {
+const defaultLogger = async (logLine: LogLine, disablePino?: boolean) => {
   if (!globalLogger) {
     globalLogger = new StagehandLogger(
       {
         pretty: true,
+        usePino: !disablePino,
       },
       undefined,
-      userDefinedIsTestEnvironment,
     );
   }
   globalLogger.log(logLine);
@@ -421,7 +418,7 @@ export class Stagehand {
   public readonly actTimeoutMs: number;
   public readonly logInferenceToFile?: boolean;
   private stagehandLogger: StagehandLogger;
-  private isTestEnvironment: boolean;
+  private disablePino: boolean;
 
   protected setActivePage(page: StagehandPage): void {
     this.stagehandPage = page;
@@ -512,23 +509,22 @@ export class Stagehand {
       waitForCaptchaSolves = false,
       logInferenceToFile = false,
       selfHeal = false,
-      isTestEnvironment,
+      disablePino,
     }: ConstructorParams = {
       env: "BROWSERBASE",
     },
   ) {
     this.externalLogger =
-      logger ||
-      ((logLine: LogLine) => defaultLogger(logLine, isTestEnvironment));
+      logger || ((logLine: LogLine) => defaultLogger(logLine, disablePino));
 
     // Initialize the Stagehand logger
     this.stagehandLogger = new StagehandLogger(
       {
         pretty: true,
-        usePino: !logger, // Only use Pino if no custom logger is provided
+        // use pino if pino is enabled, and there is no custom logger
+        usePino: !logger && !disablePino,
       },
       this.externalLogger,
-      isTestEnvironment,
     );
 
     this.enableCaching =
@@ -589,7 +585,7 @@ export class Stagehand {
     }
     this.logInferenceToFile = logInferenceToFile;
     this.selfHeal = selfHeal;
-    this.isTestEnvironment = isTestEnvironment;
+    this.disablePino = disablePino;
   }
 
   private registerSignalHandlers() {

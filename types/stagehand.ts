@@ -95,7 +95,7 @@ export interface ConstructorParams {
   /**
    * Whether Stagehand is running in a test environment
    */
-  isTestEnvironment?: boolean;
+  disablePino?: boolean;
 }
 
 export interface InitResult {
