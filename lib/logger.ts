@@ -82,8 +82,12 @@ export class StagehandLogger {
   constructor(
     options: LoggerOptions = {},
     externalLogger?: (logLine: LogLine) => void,
+    userDefinedIsTestEnvironment?: boolean,
   ) {
-    this.isTest = isTestEnvironment();
+    this.isTest =
+      userDefinedIsTestEnvironment !== undefined
+        ? userDefinedIsTestEnvironment
+        : isTestEnvironment();
 
     // In test environments, default to not using Pino to avoid worker thread issues
     this.usePino = this.isTest ? false : options.usePino !== false; // Default to using Pino if not specified and not in test

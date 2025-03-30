@@ -92,6 +92,10 @@ export interface ConstructorParams {
    */
   logInferenceToFile?: boolean;
   selfHeal?: boolean;
+  /**
+   * Whether Stagehand is running in a test environment
+   */
+  isTestEnvironment?: boolean;
 }
 
 export interface InitResult {
