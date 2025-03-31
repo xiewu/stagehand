@@ -7,7 +7,6 @@
 
 import { Stagehand } from "@/dist";
 import StagehandConfig from "@/stagehand.config";
-import { z } from "zod";
 
 async function example() {
   const stagehand = new Stagehand({
