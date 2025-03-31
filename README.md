@@ -35,7 +35,7 @@
 
 ## Why Stagehand?
 
-Most existing browser automation tools either require you to write low-level code in a framework like Selenium, Playwright, or Puppeteer, or use high-level agents that are not yet ready for production. By letting developers choose what to write in code vs. natural language, Stagehand is the natural choice for browser automations in production.
+Most existing browser automation tools either require you to write low-level code in a framework like Selenium, Playwright, or Puppeteer, or use high-level agents that can be unpredictable in production. By letting developers choose what to write in code vs. natural language, Stagehand is the natural choice for browser automations in production.
 
 1. **Combine AI and code**: use AI when you want to navigate unfamiliar pages, and use code ([Playwright](https://playwright.dev/)) when you know exactly what you want to do.
 
