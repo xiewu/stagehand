@@ -201,6 +201,7 @@ async function getBrowser(
 
     logger({
       category: "init",
+      level: 1,
       message: browserbaseSessionID
         ? "browserbase session resumed"
         : "browserbase session started",
@@ -886,7 +887,14 @@ export class Stagehand {
             );
           }
 
-          return await this.apiClient.agentExecute(options, executeOptions);
+          const result = await this.apiClient.agentExecute(
+            options,
+            executeOptions,
+          );
+
+          if (result !== null) {
+            return result;
+          }
         }
 
         return await agentHandler.execute(executeOptions);
