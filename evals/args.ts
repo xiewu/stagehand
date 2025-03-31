@@ -63,6 +63,7 @@ const DEFAULT_EVAL_CATEGORIES = process.env.EVAL_CATEGORIES
       "experimental",
       "text_extract",
       "targeted_extract",
+      "llm_providers",
     ];
 
 // Finally, interpret leftover arguments to see if user typed "category X" or a single eval name
