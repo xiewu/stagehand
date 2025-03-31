@@ -33,7 +33,10 @@
 	<a href="https://trendshift.io/repositories/12122" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12122" alt="browserbase%2Fstagehand | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
-![See Stagehand in Action](/media/github_demo.gif)
+<p align="center">
+  <strong>Go to the Browserbase GitHub repo, click on the stagehand repo, and get details on the latest PR</strong><br>
+  <img src="/media/github_demo.gif" alt="See Stagehand in Action">
+</p>
 
 Here's how to build the above browser automation with Stagehand:
 
