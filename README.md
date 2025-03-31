@@ -45,7 +45,7 @@ Most existing browser automation tools either require you to write low-level cod
 
 ## Example
 
-Here's how to build a browser automation with Stagehand:
+Here's how to build a sample browser automation with Stagehand:
 
 <div align="center">
   <div style="max-width:300px;">
@@ -63,8 +63,8 @@ await page.act("click on the stagehand repo");
 
 // Use Computer Use agents for larger actions
 const agent = stagehand.agent({
-	provider: "openai",
-	model: "computer-use-preview",
+    provider: "openai",
+    model: "computer-use-preview",
 });
 await agent.execute("Get to the latest PR");
 
