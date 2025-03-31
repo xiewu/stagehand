@@ -283,6 +283,8 @@ export class StagehandPage {
                 format: options.type === "jpeg" ? "jpeg" : "png",
                 quality: options.quality,
                 clip: options.clip,
+                omitBackground: options.omitBackground,
+                fromSurface: true,
               };
 
               if (options.fullPage) {
