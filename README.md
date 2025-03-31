@@ -32,6 +32,7 @@
 <p align="center">
 	<a href="https://trendshift.io/repositories/12122" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12122" alt="browserbase%2Fstagehand | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
+
 ---
 
 Stagehand can do anything a web browser can do! Browser automations written with Stagehand are designed to be repeatable, customizable, and maintainable. Getting started is as easy as running `npx create-browser-app` to create a new Stagehand project.
