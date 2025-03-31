@@ -33,6 +33,8 @@
 	<a href="https://trendshift.io/repositories/12122" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12122" alt="browserbase%2Fstagehand | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
+## Why Stagehand?
+
 Most existing browser automation tools either require you to write low-level code in a framework like Playwright, or use high-level agents that are not yet ready for production. By letting developers choose what to write in code vs. natural language, Stagehand is the natural choice for browser automations in production.
 
 1. **Combine AI and code**: use AI when you want to navigate unfamiliar pages, and use code ([Playwright](https://playwright.dev/)) when you know exactly what you want to do.
@@ -41,13 +43,15 @@ Most existing browser automation tools either require you to write low-level cod
 
 3. **Computer use models with one line of code**: Stagehand lets you integrate computer use from OpenAI and Anthropic with one line of code.
 
+## Example
+
+Here's how to build a browser automation with Stagehand:
+
 <div align="center">
   <div style="max-width:300px;">
     <img src="/media/github_demo.gif" alt="See Stagehand in Action">
   </div>
 </div>
-
-Here's how to build the above browser automation with Stagehand:
 
 ```typescript
 // Use Playwright functions on the page object
