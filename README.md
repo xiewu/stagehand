@@ -32,35 +32,42 @@
 <p align="center">
 	<a href="https://trendshift.io/repositories/12122" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12122" alt="browserbase%2Fstagehand | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
+---
 
-Here's how you can use Stagehand to automate a web browser:
+<div align="center">
+  <img src="/media/create-browser-app.gif" alt="See Stagehand in Action with create-browser-app">
+</div>
+
+Stagehand is the easiest way to build browser automations. It is fully compatible with [Playwright](https://playwright.dev/), offering three simple AI APIs (`act`, `extract`, and `observe`) on top of the base Playwright `Page` class that provide the building blocks for web automation via natural language. 
+
+Here's a sample of what you can do with Stagehand:
 
 ```typescript
-// Use Playwright functions on the page object
-const page = stagehand.page;
-await page.goto("https://github.com/browserbase");
+// Keep your existing Playwright code unchanged
+await page.goto("https://docs.stagehand.dev");
 
-// Use act() to execute individual actions
-await page.act("click on the stagehand repo");
+// Stagehand AI: Act on the page
+await page.act("click on the 'Quickstart'");
 
-// Use Computer Use agents for larger actions
-const agent = stagehand.agent({
-	provider: "openai",
-	model: "computer-use-preview",
-});
-await agent.execute("Get to the latest PR");
-
-// Use extract() to read data from the page
-const { author, title } = await page.extract({
-  instruction: "extract the author and title of the PR",
+// Stagehand AI: Extract data from the page
+const { description } = await page.extract({
+  instruction: "extract the description of the page",
   schema: z.object({
-    author: z.string().describe("The username of the PR author"),
-    title: z.string().describe("The title of the PR"),
+    description: z.string(),
   }),
 });
 ```
 
-![See Stagehand in Action](/media/github_demo.gif)
+> [!WARNING]  
+> We highly recommend using the Node.js runtime environment to run Stagehand scripts, as opposed to newer alternatives like Bun. This is solely due to the fact that [Bun's runtime is not yet fully compatible with Playwright](https://github.com/microsoft/playwright/issues/27139).
+
+## Why?
+**Stagehand adds determinism to otherwise unpredictable agents.**
+
+While there's no limit to what you could instruct Stagehand to do, our primitives allow you to control how much you want to leave to an AI. It works best when your code is a sequence of atomic actions. Instead of writing a single script for a single website, Stagehand allows you to write durable, self-healing, and repeatable web automation workflows that actually work.
+
+> [!NOTE] 
+> `Stagehand` is currently available as an early release, and we're actively seeking feedback from the community. Please join our [Slack community](https://stagehand.dev/slack) to stay updated on the latest developments and provide feedback.
 
 ## Documentation
 
@@ -90,7 +97,7 @@ Read our [Quickstart Guide](https://docs.stagehand.dev/get_started/quickstart) i
 You can also add Stagehand to an existing Typescript project by running:
 
 ```bash
-npm install @browserbasehq/stagehand zod playwright
+npm install @browserbasehq/stagehand zod
 npx playwright install # if running locally
 ```
 
@@ -125,15 +132,12 @@ For more information, please see our [Contributing Guide](https://docs.stagehand
 
 This project heavily relies on [Playwright](https://playwright.dev/) as a resilient backbone to automate the web. It also would not be possible without the awesome techniques and discoveries made by [tarsier](https://github.com/reworkd/tarsier), and [fuji-web](https://github.com/normal-computing/fuji-web).
 
-We'd like to thank the following people for their major contributions to Stagehand:
-- [Paul Klein](https://github.com/pkiv)
-- [Anirudh Kamath](https://github.com/kamath)
-- [Sean McGuire](https://github.com/seanmcguire12)
-- [Miguel Gonzalez](https://github.com/miguelg719)
-- [Sameel Arif](https://github.com/sameelarif)
-- [Filip Michalsky](https://github.com/filip-michalsky)
-- [Jeremy Press](https://x.com/jeremypress)
-- [Navid Pour](https://github.com/navidpour)
+We'd like to thank the following people for their contributions to Stagehand:
+- [Jeremy Press](https://x.com/jeremypress) wrote the original MVP of Stagehand and continues to be an ally to the project.
+- [Navid Pour](https://github.com/navidpour) is heavily responsible for the current architecture of Stagehand and the `act` API.
+- [Sean McGuire](https://github.com/seanmcguire12) is a major contributor to the project and has been a great help with improving the `extract` API and getting evals to a high level.
+- [Filip Michalsky](https://github.com/filip-michalsky) has been doing a lot of work on building out integrations like [Langchain](https://js.langchain.com/docs/integrations/tools/stagehand/) and [Claude MCP](https://github.com/browserbase/mcp-server-browserbase), generally improving the repository, and unblocking users.
+- [Sameel Arif](https://github.com/sameelarif) is a major contributor to the project, especially around improving the developer experience.
 
 ## License
 
