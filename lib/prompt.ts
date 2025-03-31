@@ -237,7 +237,7 @@ export function buildActSystemPrompt(
   userProvidedInstructions?: string,
 ): ChatMessage {
   const actSystemPrompt = `
-You are helping the user automate the browser by finding elements based an action that the user wants to take on the page.
+You are helping the user automate the browser by finding elements based on an action that the user wants to take on the page.
 
 You will be given:
 1. a instruction of elements to observe
