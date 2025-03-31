@@ -38,7 +38,7 @@ Most existing browser automation tools either require you to write low-level cod
 **Stagehand lets you choose what to write in code, and what to write in natural language.**
 
 <div align="center">
-  <img src="/media/github_demo.gif" alt="See Stagehand in Action" style="max-width: 300px;">
+  <img style="max-width:300px;" src="/media/github_demo.gif" alt="See Stagehand in Action">
 </div>
 
 Here's how to build the above browser automation with Stagehand:
