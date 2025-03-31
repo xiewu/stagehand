@@ -35,13 +35,11 @@
 
 ---
 
-Stagehand can do anything a web browser can do! Browser automations written with Stagehand are designed to be repeatable, customizable, and maintainable. 
-
-Getting started is as easy as running `npx create-browser-app` to create a new Stagehand project.
-
 <div align="center">
   <img src="/media/create-browser-app.gif" alt="See Stagehand in Action with create-browser-app">
 </div>
+
+# Get Started
 
 Stagehand is the easiest way to build browser automations. It is fully compatible with [Playwright](https://playwright.dev/), offering three simple AI APIs (`act`, `extract`, and `observe`) on top of the base Playwright `Page` class that provide the building blocks for web automation via natural language. 
 
