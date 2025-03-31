@@ -194,8 +194,8 @@ jobs:
     outputs:
       regression_llm_providers_score: ${{ steps.set-llm-providers-score.outputs.regression_llm_providers_score }}
     env:
+      EVAL_MODELS: "gpt-4o-mini"
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
       BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
       BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
