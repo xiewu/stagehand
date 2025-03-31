@@ -237,6 +237,12 @@ jobs:
           echo "View regression_llm_providers results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameRegressionLlmProviders}"
           echo "regression_llm_providers_score=$regression_llm_providers_score" >> "$GITHUB_OUTPUT"
 
+          # Fail if regression_llm_providers_score is below 83%
+          if (( $(echo "${regression_llm_providers_score} < 83" | bc -l) )); then
+            echo "regression_llm_providers score is below 83%. Failing CI."
+            exit 1
+          fi
+
   run-regression-evals-dom-extract:
     needs:
       [run-e2e-bb-tests, run-e2e-tests, run-e2e-local-tests, determine-evals]
