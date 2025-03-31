@@ -33,10 +33,11 @@
 	<a href="https://trendshift.io/repositories/12122" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12122" alt="browserbase%2Fstagehand | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
-Most existing browser automation tools either require you to write low-level code in a framework like Playwright, or use high-level agents that are not yet ready for production. Stagehand lets you choose what to write in code, and what to write in natural language.
+Most existing browser automation tools either require you to write low-level code in a framework like Playwright, or use high-level agents that are not yet ready for production. 
+
+**Stagehand lets you choose what to write in code, and what to write in natural language.**
 
 <div align="center">
-  <strong>Go to the Browserbase GitHub repo, click on the stagehand repo, and get details on the latest PR</strong><br>
   <img src="/media/github_demo.gif" alt="See Stagehand in Action" style="max-width: 300px;">
 </div>
 
