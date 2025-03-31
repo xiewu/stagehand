@@ -33,8 +33,6 @@
 	<a href="https://trendshift.io/repositories/12122" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12122" alt="browserbase%2Fstagehand | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
----
-
 <div align="center">
   <img src="/media/create-browser-app.gif" alt="See Stagehand in Action with create-browser-app">
 </div>
