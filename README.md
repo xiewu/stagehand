@@ -10,7 +10,7 @@
 </div>
 
 <p align="center">
-  An AI web browsing framework focused on simplicity and extensibility.<br>
+  The framework for automating browsers with natural language and code.<br>
   <a href="https://docs.stagehand.dev">Read the Docs</a>
 </p>
 
@@ -32,8 +32,11 @@
 <p align="center">
 	<a href="https://trendshift.io/repositories/12122" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12122" alt="browserbase%2Fstagehand | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
-
 ---
+
+<div align="center">
+  <img src="/media/create-browser-app.gif" alt="See Stagehand in Action with create-browser-app">
+</div>
 
 Stagehand is the easiest way to build browser automations. It is fully compatible with [Playwright](https://playwright.dev/), offering three simple AI APIs (`act`, `extract`, and `observe`) on top of the base Playwright `Page` class that provide the building blocks for web automation via natural language. 
 
