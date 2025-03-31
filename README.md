@@ -35,7 +35,9 @@
 
 ---
 
-Stagehand can do anything a web browser can do! Browser automations written with Stagehand are designed to be repeatable, customizable, and maintainable. Getting started is as easy as running `npx create-browser-app` to create a new Stagehand project.
+Stagehand can do anything a web browser can do! Browser automations written with Stagehand are designed to be repeatable, customizable, and maintainable. 
+
+Getting started is as easy as running `npx create-browser-app` to create a new Stagehand project.
 
 <div align="center">
   <img src="/media/create-browser-app.gif" alt="See Stagehand in Action with create-browser-app">
