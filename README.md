@@ -41,7 +41,7 @@ Most existing browser automation tools either require you to write low-level cod
 
 2. **Preview and cache actions**: Stagehand lets you preview AI actions before running them, and also helps you easily cache repeatable actions to save time and tokens.
 
-3. **Computer use models with one line of code**: Stagehand lets you integrate computer use from OpenAI and Anthropic with one line of code.
+3. **Computer use models with one line of code**: Stagehand lets you integrate SOTA computer use models from OpenAI and Anthropic with one line of code.
 
 ## Example
 
