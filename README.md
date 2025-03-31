@@ -84,6 +84,12 @@ Visit [docs.stagehand.dev](https://docs.stagehand.dev) to view the full document
 
 ## Getting Started
 
+Start with Stagehand with one line of code, or check out our [Quickstart Guide](https://docs.stagehand.dev/get_started/quickstart) for more information:
+
+```bash
+npx create-browser-app
+```
+
 <div align="center">
     <a href="https://www.loom.com/share/f5107f86d8c94fa0a8b4b1e89740f7a7">
       <p>Watch Anirudh demo create-browser-app to create a Stagehand project!</p>
@@ -92,23 +98,6 @@ Visit [docs.stagehand.dev](https://docs.stagehand.dev) to view the full document
       <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/f5107f86d8c94fa0a8b4b1e89740f7a7-ec3f428b6775ceeb-full-play.gif">
     </a>
   </div>
-
-### Quickstart
-
-To create a new Stagehand project configured to our default settings, run:
-
-```bash
-npx create-browser-app --example quickstart
-```
-
-Read our [Quickstart Guide](https://docs.stagehand.dev/get_started/quickstart) in the docs for more information.
-
-You can also add Stagehand to an existing Typescript project by running:
-
-```bash
-npm install @browserbasehq/stagehand zod playwright
-npx playwright install # if running locally
-```
 
 ### Build and Run from Source
 
