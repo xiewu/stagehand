@@ -10,7 +10,7 @@
 </div>
 
 <p align="center">
-  Automate browsers with natural language and code.<br>
+  The production-ready framework for AI browser automations.<br>
   <a href="https://docs.stagehand.dev">Read the Docs</a>
 </p>
 
@@ -33,9 +33,8 @@
 	<a href="https://trendshift.io/repositories/12122" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12122" alt="browserbase%2Fstagehand | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
-Most existing browser automation tools either require you to write low-level code in a framework like Playwright, or use high-level agents that are not yet ready for production. 
-
-**Stagehand lets you choose what to write in code, and what to write in natural language.**
+# Stagehand is production-ready
+Most existing browser automation tools either require you to write low-level code in a framework like Playwright, or use high-level agents that are not yet ready for production. Stagehand lets you choose what to write in code, and what to write in natural language.
 
 <div align="center">
   <div style="max-width:300px;">
