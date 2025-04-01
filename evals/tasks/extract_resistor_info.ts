@@ -15,7 +15,9 @@ export const extract_resistor_info: EvalFunction = async ({
 
   const { debugUrl, sessionUrl } = initResponse;
 
-  await stagehand.page.goto("https://vniva-3.surge.sh/vniva/");
+  await stagehand.page.goto(
+    "https://seanmcguire12.github.io/stagehand-eval-sites/sites/resistor/www.vniva.com/vniva/",
+  );
 
   const result = await stagehand.page.extract({
     instruction:

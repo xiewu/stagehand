@@ -16,7 +16,7 @@ export const extract_area_codes: EvalFunction = async ({
 
   await stagehand.init();
   await stagehand.page.goto(
-    "https://ncc-area-codes-clone.surge.sh/operators/",
+    "https://seanmcguire12.github.io/stagehand-eval-sites/sites/ncc-area-codes/www.ncc.gov.ng/operators/",
     { waitUntil: "domcontentloaded" },
   );
 

@@ -16,7 +16,7 @@ export const extract_regulations_table: EvalFunction = async ({
 
   try {
     await stagehand.page.goto(
-      "https://ncc-numberingplan-shortened.surge.sh/operators/",
+      "https://seanmcguire12.github.io/stagehand-eval-sites/sites/ncc-numbering-plan/www.ncc.gov.ng/operators/",
     );
 
     const xpath =
