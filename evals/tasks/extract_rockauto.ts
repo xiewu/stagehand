@@ -63,7 +63,13 @@ export const extract_rockauto: EvalFunction = async ({
       sessionUrl,
     };
   }
-  const expectedPartNumbers = ["GREEN5050GAL", "719009", "AF3300", "MV5050GAL"];
+  const expectedPartNumbers = [
+    "GREEN5050GAL",
+    "719009",
+    "AF3300",
+    "AF3100",
+    "MV5050GAL",
+  ];
 
   const missingParts = expectedPartNumbers.filter(
     (expectedPart) =>

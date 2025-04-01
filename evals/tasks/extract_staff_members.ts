@@ -37,7 +37,7 @@ export const extract_staff_members: EvalFunction = async ({
   const staff_members = result.staff_members;
   await stagehand.close();
 
-  const expectedLength = 49;
+  const expectedLength = 50;
 
   const expectedFirstItem = {
     name: "Louis Alvarez",
