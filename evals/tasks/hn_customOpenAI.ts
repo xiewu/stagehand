@@ -8,7 +8,7 @@ export const hn_customOpenAI: EvalFunction = async ({ logger }) => {
   const { stagehand, initResponse } = await initStagehand({
     logger,
     llmClient: new CustomOpenAIClient({
-      modelName: "gpt-4o-mini",
+      modelName: "gpt-4o",
       client: new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
       }),
