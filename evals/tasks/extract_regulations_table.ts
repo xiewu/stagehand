@@ -20,7 +20,7 @@ export const extract_regulations_table: EvalFunction = async ({
     );
 
     const xpath =
-      "/html/body/div[3]/main/div[2]/div[2]/div/div/div[2]/article/div[2]/div[1]/table";
+      "/html/body/div[3]/main/div[2]/div[2]/div/div/div[2]/article/div[2]/div[1]/div/table";
 
     const allottees = await stagehand.page.extract({
       instruction:
