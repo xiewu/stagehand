@@ -16,7 +16,7 @@ export const extract_staff_members: EvalFunction = async ({
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
-    "https://seanmcguire12.github.io/stagehand-eval-sites/sites/panamcs/",
+    "https://browserbase.github.io/stagehand-eval-sites/sites/panamcs/",
   );
 
   const result = await stagehand.page.extract({

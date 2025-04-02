@@ -10,7 +10,7 @@ export const scroll_50: EvalFunction = async ({ modelName, logger }) => {
 
   const { debugUrl, sessionUrl } = initResponse;
   await stagehand.page.goto(
-    "https://seanmcguire12.github.io/stagehand-eval-sites/sites/aigrant/",
+    "https://browserbase.github.io/stagehand-eval-sites/sites/aigrant/",
   );
   await stagehand.page.act({
     action: "Scroll 50% down the page",

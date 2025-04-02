@@ -10,7 +10,7 @@ export const panamcs: EvalFunction = async ({ modelName, logger }) => {
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
-    "https://seanmcguire12.github.io/stagehand-eval-sites/sites/panamcs/",
+    "https://browserbase.github.io/stagehand-eval-sites/sites/panamcs/",
   );
 
   const observations = await stagehand.page.observe({ onlyVisible: true });

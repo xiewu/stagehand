@@ -16,7 +16,7 @@ export const extract_hamilton_weather: EvalFunction = async ({
 
   try {
     await stagehand.page.goto(
-      "https://seanmcguire12.github.io/stagehand-eval-sites/sites/hamilton-weather/",
+      "https://browserbase.github.io/stagehand-eval-sites/sites/hamilton-weather/",
     );
     const xpath =
       "/html/body[1]/div[5]/main[1]/article[1]/div[6]/div[2]/div[1]/table[1]";

@@ -10,7 +10,7 @@ export const prevChunk: EvalFunction = async ({ modelName, logger }) => {
 
   const { debugUrl, sessionUrl } = initResponse;
   await stagehand.page.goto(
-    "https://seanmcguire12.github.io/stagehand-eval-sites/sites/aigrant/",
+    "https://browserbase.github.io/stagehand-eval-sites/sites/aigrant/",
   );
   await new Promise((resolve) => setTimeout(resolve, 2000));
   const { initialScrollTop, chunkHeight } = await stagehand.page.evaluate(

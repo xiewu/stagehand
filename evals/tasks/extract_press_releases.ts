@@ -31,7 +31,7 @@ export const extract_press_releases: EvalFunction = async ({
 
   try {
     await stagehand.page.goto(
-      "https://seanmcguire12.github.io/stagehand-eval-sites/sites/press-releases/",
+      "https://browserbase.github.io/stagehand-eval-sites/sites/press-releases/",
       {
         waitUntil: "networkidle",
       },

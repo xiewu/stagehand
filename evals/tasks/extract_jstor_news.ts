@@ -16,7 +16,7 @@ export const extract_jstor_news: EvalFunction = async ({
 
   await stagehand.init();
   await stagehand.page.goto(
-    "https://seanmcguire12.github.io/stagehand-eval-sites/sites/jstor/",
+    "https://browserbase.github.io/stagehand-eval-sites/sites/jstor/",
     {
       waitUntil: "load",
     },

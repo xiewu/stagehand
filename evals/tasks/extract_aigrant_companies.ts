@@ -16,7 +16,7 @@ export const extract_aigrant_companies: EvalFunction = async ({
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
-    "https://seanmcguire12.github.io/stagehand-eval-sites/sites/aigrant/",
+    "https://browserbase.github.io/stagehand-eval-sites/sites/aigrant/",
   );
   const companyList = await stagehand.page.extract({
     instruction:
