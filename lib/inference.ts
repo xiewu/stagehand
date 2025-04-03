@@ -529,7 +529,9 @@ export async function actInference({
         z
           .string()
           .describe(
-            "the arguments to pass to the method. For example, for a click, the arguments are empty, but for a fill, the arguments are the value to fill in.",
+            "the arguments to pass to the method. For example, for a click, the arguments are empty, but for a fill, the arguments are the value to fill in. " +
+              "If a users instruction contains strings wrapped % (percentage) symbols (eg, %username%), ensure that you include these strings as arguments, keeping them wrapped in " +
+              "% symbols for further processing. ",
           ),
       ),
     }),

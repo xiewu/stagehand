@@ -317,6 +317,14 @@ export class StagehandActHandler {
         arguments: targetElement.arguments,
       };
 
+      if (actionOrOptions.variables) {
+        Object.keys(actionOrOptions.variables).forEach((key) => {
+          observeResult.arguments = observeResult.arguments.map((arg) =>
+            arg.replace(`%${key}%`, actionOrOptions.variables![key]),
+          );
+        });
+      }
+
       return this.actFromObserveResult(
         observeResult,
         actionOrOptions.domSettleTimeoutMs,
