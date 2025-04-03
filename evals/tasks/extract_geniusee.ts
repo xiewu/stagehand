@@ -16,7 +16,7 @@ export const extract_geniusee: EvalFunction = async ({
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
-    "https://browserbase.github.io/stagehand-eval-sites/sites/geniusee/geniusee.com/single-blog/",
+    "https://browserbase.github.io/stagehand-eval-sites/sites/geniusee/",
   );
   const selector = "/html/body/main/div[2]/div[2]/div[2]/table";
   const scalability = await stagehand.page.extract({

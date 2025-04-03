@@ -16,7 +16,7 @@ export const extract_rockauto: EvalFunction = async ({
   const { debugUrl, sessionUrl } = initResponse;
 
   await stagehand.page.goto(
-    "https://www.rockauto.com/en/catalog/alpine,1974,a310,1.6l+l4,1436055,cooling+system,coolant+/+antifreeze,11393",
+    "https://browserbase.github.io/stagehand-eval-sites/sites/rockauto/",
   );
   await new Promise((resolve) => setTimeout(resolve, 5000));
   const result = await stagehand.page.extract({
