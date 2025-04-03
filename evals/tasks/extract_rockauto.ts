@@ -38,7 +38,14 @@ export const extract_rockauto: EvalFunction = async ({
   await stagehand.close();
 
   const coolantProducts = result.coolant_products;
-  const expectedLength = 4;
+  const expectedPartNumbers = [
+    "GREEN5050GAL",
+    "719009",
+    "AF3300",
+    "AF3100",
+    "MV5050GAL",
+  ];
+  const expectedLength = expectedPartNumbers.length;
 
   if (coolantProducts.length !== expectedLength) {
     logger.error({
@@ -63,13 +70,6 @@ export const extract_rockauto: EvalFunction = async ({
       sessionUrl,
     };
   }
-  const expectedPartNumbers = [
-    "GREEN5050GAL",
-    "719009",
-    "AF3300",
-    "AF3100",
-    "MV5050GAL",
-  ];
 
   const missingParts = expectedPartNumbers.filter(
     (expectedPart) =>
