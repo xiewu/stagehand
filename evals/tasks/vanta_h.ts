@@ -8,10 +8,9 @@ export const vanta_h: EvalFunction = async ({
 }) => {
   await stagehand.page.goto("https://www.vanta.com/");
 
-  const observations = await stagehand.page.observe({
-    instruction: "find the buy now button if it is available",
-    onlyVisible: true,
-  });
+  const observations = await stagehand.page.observe(
+    "click the buy now button if it is available",
+  );
 
   await stagehand.close();
 

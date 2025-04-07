@@ -15,10 +15,15 @@
 import fs from "fs";
 import path from "path";
 import process from "process";
-import { filterByCategory, filterByEvalName, useTextExtract } from "./args";
+import {
+  DEFAULT_EVAL_CATEGORIES,
+  filterByCategory,
+  filterByEvalName,
+  useTextExtract,
+} from "./args";
 import { generateExperimentName } from "./utils";
 import { exactMatch, errorMatch } from "./scoring";
-import { tasksByName, MODELS } from "./taskConfig";
+import { tasksByName, MODELS, tasksConfig } from "./taskConfig";
 import { Eval, wrapAISDKModel, wrapOpenAI } from "braintrust";
 import { EvalFunction, SummaryResult, Testcase } from "@/types/evals";
 import { EvalLogger } from "./logger";
@@ -31,7 +36,9 @@ import OpenAI from "openai";
 import { initStagehand } from "./initStagehand";
 import { AISdkClient } from "@/examples/external_clients/aisdk";
 import { google } from "@ai-sdk/google";
-
+import { anthropic } from "@ai-sdk/anthropic";
+import { groq } from "@ai-sdk/groq";
+import { cerebras } from "@ai-sdk/cerebras";
 dotenv.config();
 
 /**
@@ -40,11 +47,11 @@ dotenv.config();
  */
 const MAX_CONCURRENCY = process.env.EVAL_MAX_CONCURRENCY
   ? parseInt(process.env.EVAL_MAX_CONCURRENCY, 10)
-  : 20;
+  : 3;
 
 const TRIAL_COUNT = process.env.EVAL_TRIAL_COUNT
   ? parseInt(process.env.EVAL_TRIAL_COUNT, 10)
-  : 5;
+  : 3;
 
 /**
  * generateSummary:
@@ -146,13 +153,27 @@ const generateFilteredTestcases = (): Testcase[] => {
     Object.keys(tasksByName).map((testName) => ({
       input: { name: testName, modelName: model },
       name: testName,
-      tags: [model, testName],
+      tags: [
+        model,
+        testName,
+        ...(tasksConfig.find((t) => t.name === testName)?.categories || []).map(
+          (x) => `category/${x}`,
+        ),
+      ],
       metadata: {
         model,
         test: testName,
+        categories: tasksConfig.find((t) => t.name === testName)?.categories,
       },
       expected: true,
     })),
+  );
+
+  // Filter test cases to match default eval categories
+  allTestcases = allTestcases.filter((testcase) =>
+    DEFAULT_EVAL_CATEGORIES.some((category) =>
+      tasksByName[testcase.name].categories.includes(category),
+    ),
   );
 
   // Filter by category if a category is specified
@@ -177,6 +198,16 @@ const generateFilteredTestcases = (): Testcase[] => {
       (testcase) => !["peeler_simple", "stock_x"].includes(testcase.name),
     );
   }
+
+  console.log(
+    "All test cases:",
+    allTestcases
+      .map(
+        (t, i) =>
+          `${i}: ${t.name} (${t.input.modelName}): ${t.metadata.categories}`,
+      )
+      .join("\n"),
+  );
 
   return allTestcases;
 };
@@ -244,7 +275,37 @@ const generateFilteredTestcases = (): Testcase[] => {
           });
           if (input.modelName.startsWith("gemini")) {
             llmClient = new AISdkClient({
-              model: wrapAISDKModel(google("gemini-2.0-flash")),
+              model: wrapAISDKModel(google(input.modelName)),
+            });
+          } else if (input.modelName.startsWith("claude")) {
+            llmClient = new AISdkClient({
+              model: wrapAISDKModel(anthropic(input.modelName)),
+            });
+          } else if (input.modelName.includes("groq")) {
+            llmClient = new AISdkClient({
+              model: wrapAISDKModel(
+                groq(
+                  input.modelName.substring(input.modelName.indexOf("/") + 1),
+                ),
+              ),
+            });
+          } else if (input.modelName.includes("cerebras")) {
+            llmClient = new AISdkClient({
+              model: wrapAISDKModel(
+                cerebras(
+                  input.modelName.substring(input.modelName.indexOf("/") + 1),
+                ),
+              ),
+            });
+          } else if (input.modelName.includes("/")) {
+            llmClient = new CustomOpenAIClient({
+              modelName: input.modelName as AvailableModel,
+              client: wrapOpenAI(
+                new OpenAI({
+                  apiKey: process.env.TOGETHER_AI_API_KEY,
+                  baseURL: "https://api.together.xyz/v1",
+                }),
+              ),
             });
           }
           const taskInput = await initStagehand({
@@ -294,6 +355,8 @@ const generateFilteredTestcases = (): Testcase[] => {
       maxConcurrency: MAX_CONCURRENCY,
       trialCount: TRIAL_COUNT,
     });
+
+    if (!process.env.WRITE_FILE) return;
 
     // Map results to the SummaryResult format
     const summaryResults: SummaryResult[] = evalResult.results.map((result) => {

@@ -44,8 +44,12 @@
   "author": "Browserbase",
   "license": "MIT",
   "devDependencies": {
+    "@ai-sdk/anthropic": "^1.2.6",
+    "@ai-sdk/cerebras": "^0.2.6",
     "@ai-sdk/google": "^1.2.6",
+    "@ai-sdk/groq": "^1.2.4",
     "@ai-sdk/openai": "^1.0.14",
+    "@ai-sdk/togetherai": "^0.2.6",
     "@changesets/changelog-github": "^0.5.0",
     "@changesets/cli": "^2.27.9",
     "@eslint/js": "^9.16.0",
