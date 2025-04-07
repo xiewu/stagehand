@@ -6,7 +6,6 @@ import {
   PlaywrightCommandMethodNotSupportedException,
   PlaywrightCommandException,
 } from "@/types/playwright";
-import fs from "fs";
 import {
   formatSimplifiedTree,
 } from "./treeFormatUtils"
