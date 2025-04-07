@@ -81,8 +81,7 @@ async function getBrowser(
     if (!apiKey) {
       logger({
         category: "init",
-        message:
-          "BROWSERBASE_API_KEY is required to use BROWSERBASE env.",
+        message: "BROWSERBASE_API_KEY is required to use BROWSERBASE env.",
         level: 0,
       });
     }
@@ -118,6 +117,17 @@ async function getBrowser(
 
         sessionId = browserbaseSessionID;
         connectUrl = session.connectUrl;
+        logger({
+          category: "init",
+          message: "connect:",
+          level: 1,
+          auxiliary: {
+            connectUrl: {
+              value: connectUrl,
+              type: "string",
+            },
+          },
+        });
 
         logger({
           category: "init",
@@ -186,7 +196,31 @@ async function getBrowser(
       });
     }
 
+    logger({
+      category: "init",
+      message: "Connecting to CDP URL:",
+      level: 2,
+      auxiliary: {
+        connectUrl: {
+          value: connectUrl,
+          type: "string",
+        },
+      },
+    });
+
     const browser = await chromium.connectOverCDP(connectUrl);
+    logger({
+      category: "init",
+      message: "Connected to CDP URL:",
+      level: 2,
+      auxiliary: {
+        connectUrl: {
+          value: connectUrl,
+          type: "string",
+        },
+      },
+    });
+
     const { debuggerUrl } = await browserbase.sessions.debug(sessionId);
 
     debugUrl = debuggerUrl;
@@ -245,7 +279,7 @@ async function getBrowser(
       logger({
         category: "init",
         message: "connecting to local browser via CDP URL",
-        level: 0,
+        level: 1,
         auxiliary: {
           cdpUrl: {
             value: localBrowserLaunchOptions.cdpUrl,
