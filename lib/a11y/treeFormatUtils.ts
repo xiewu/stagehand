@@ -19,7 +19,13 @@ import { AccessibilityNode } from "../../types/context";
  * are considered “inline” and have their text merged into the nearest block’s text flow,
  * rather than forming their own block in the output.
  */
-export const BLOCK_LEVEL_ROLES = new Set(["paragraph", "heading", "list", "listitem", "div"]);
+export const BLOCK_LEVEL_ROLES = new Set([
+  "paragraph",
+  "heading",
+  "list",
+  "listitem",
+  "div",
+]);
 
 /**
  * The maximum character width per line when wrapping text segments.
@@ -170,7 +176,10 @@ export function wrapTextSegments(
  * @param level - The current indentation level (defaults to 0).
  * @returns A string with line-breaks reflecting the node hierarchy and wrapped text.
  */
-export function formatSimplifiedTree(node: AccessibilityNode, level = 0): string {
+export function formatSimplifiedTree(
+  node: AccessibilityNode,
+  level = 0,
+): string {
   const indent = "  ".repeat(level);
 
   // Print a line for the current node
@@ -189,7 +198,11 @@ export function formatSimplifiedTree(node: AccessibilityNode, level = 0): string
       } else {
         // This child is a block-level or container node => flush inline text first
         if (inlineBuffer.length > 0) {
-          const wrapped = wrapTextSegments(inlineBuffer, indent + "  ", MAX_LINE_WIDTH);
+          const wrapped = wrapTextSegments(
+            inlineBuffer,
+            indent + "  ",
+            MAX_LINE_WIDTH,
+          );
           output += wrapped + "\n";
           inlineBuffer = [];
         }
@@ -201,7 +214,11 @@ export function formatSimplifiedTree(node: AccessibilityNode, level = 0): string
 
   // If there's leftover inline text at the end, flush it
   if (inlineBuffer.length > 0) {
-    const wrapped = wrapTextSegments(inlineBuffer, indent + "  ", MAX_LINE_WIDTH);
+    const wrapped = wrapTextSegments(
+      inlineBuffer,
+      indent + "  ",
+      MAX_LINE_WIDTH,
+    );
     output += wrapped + "\n";
   }
 

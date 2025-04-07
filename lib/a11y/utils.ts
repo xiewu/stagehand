@@ -6,9 +6,7 @@ import {
   PlaywrightCommandMethodNotSupportedException,
   PlaywrightCommandException,
 } from "@/types/playwright";
-import {
-  formatSimplifiedTree,
-} from "./treeFormatUtils"
+import { formatSimplifiedTree } from "./treeFormatUtils";
 
 /**
  * Helper function to remove or collapse unnecessary structural nodes
