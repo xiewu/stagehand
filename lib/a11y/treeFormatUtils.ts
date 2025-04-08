@@ -1,33 +1,17 @@
 import { AccessibilityNode } from "../../types/context";
 
 /**
- * In our text‐formatting logic for the accessibility tree, any node whose role
- * is contained in this set (or whose comma‐separated roles include one of these)
- * is treated as a “block‐level” container. That means it:
- *
- * 1) Appears as its own structural block in the final text output (e.g., a paragraph or heading).
- * 2) Usually starts on a new line and may contain nested inline content or further blocks.
- * 3) Receives indentation in our hierarchy, reflecting the parent–child structure.
- *
- * Common examples of block‐level roles are:
- * - "paragraph": Printed as a separate text block/section
- * - "heading": Represented on its own line, possibly with extra emphasis
- * - "list" and "listitem": Each item is shown on a new line
- * - "div": Used as a generic container to encapsulate other content
- *
- * Nodes that are *not* in this set (e.g., "StaticText" or simple "link")
- * are considered “inline” and have their text merged into the nearest block’s text flow,
- * rather than forming their own block in the output.
+ * We define an "inlineRoles" set that contains the roles we still treat as inline:
+ *  - "StaticText" typically.
+ *  - "link" (including comma‐separated variations, like "scrollable, link").
+ * Everything else is considered block-level by default.
  */
-export const BLOCK_LEVEL_ROLES = new Set([
-  "paragraph",
-  "heading",
-  "list",
-  "listitem",
-  "div",
-  "checkbox",
-  "combobox",
-  "option",
+const INLINE_ROLES = new Set([
+  "statictext",
+  "link",
+  "image",
+  "superscript",
+  "Abbr",
 ]);
 
 /**
@@ -36,17 +20,23 @@ export const BLOCK_LEVEL_ROLES = new Set([
 export const MAX_LINE_WIDTH = 100;
 
 /**
- * Determines if a node is "block-level".
+ * Determines if a node is considered block-level. By default, we treat
+ * everything as block-level unless it specifically matches one of our
+ * "inline" roles (StaticText or link).
  *
  * @param node - The accessibility node to evaluate.
- * @returns true if the node's role matches or includes a block-level role.
+ * @returns true if the node is *not* in our inline roles, meaning it's block-level.
  */
 export function isBlockLevel(node: AccessibilityNode): boolean {
+  // Convert the node's role to lowercase, then split on commas to handle roles like "scrollable, link"
   const parts = node.role
     .toLowerCase()
     .split(",")
     .map((r) => r.trim());
-  return parts.some((p) => BLOCK_LEVEL_ROLES.has(p));
+
+  // If *any* part is in INLINE_ROLES, we consider it inline. Otherwise, block-level.
+  const isInline = parts.some((p) => INLINE_ROLES.has(p));
+  return !isInline;
 }
 
 /**
@@ -59,55 +49,54 @@ export function isBlockLevel(node: AccessibilityNode): boolean {
  * @returns true if the node can be treated as inline-only with no block substructure.
  */
 export function isInlineLeaf(node: AccessibilityNode): boolean {
+  // If the node is block-level, it can't be an inline leaf
   if (isBlockLevel(node)) return false;
 
   if (!node.children || node.children.length === 0) {
     return true; // no children => definitely a leaf
   }
+  // If *any* child is block-level or has children, this isn't a simple inline leaf
   for (const child of node.children) {
     if (isBlockLevel(child)) {
-      return false; // if any child is block-level, this node isn't purely inline
+      return false;
     }
     if (child.children && child.children.length > 0) {
-      return false; // any grand-children => not a simple leaf
+      return false;
     }
   }
   return true;
 }
 
 /**
- * Collects text for a node that has been deemed an "inline leaf."
+ * Gathers text from a node that is known to be an inline leaf.
  *
- * How it works:
- * - If the node is StaticText, we split its .name into individual words/tokens.
- * - If the node is a link, we produce an inline reference like ["[@123]", "some", "text"]
- *   so we can show "[@123] some text" inline.
- * - If the node has children but is still considered an inline leaf overall,
- *   we gather text from each child, concatenating everything into a single array of tokens.
- *
- * @param node - The node to gather text from.
- * @returns An array of string tokens representing the node’s text content.
+ * - If role is "StaticText", we split .name into words
+ * - If role includes "link", we display [@nodeId] plus link text
+ * - Otherwise, we gather from its children (recursively) if they're also inline leaves
  */
 export function gatherInlineLeafText(node: AccessibilityNode): string[] {
-  // 1) Handle StaticText directly
-  if (node.role === "StaticText") {
+  // Convert role to lowercase and split on commas
+  const parts = node.role
+    .toLowerCase()
+    .split(",")
+    .map((r) => r.trim());
+
+  // 1) If it's static text
+  if (parts.includes("statictext")) {
     const text = (node.name || "").trim();
     return text ? text.split(/\s+/) : [];
   }
 
-  // 2) If it's a link (including comma‐separated roles like "scrollable, link"),
-  //    produce an inline reference and the link text as separate tokens.
-  const parts = node.role.split(",").map((r) => r.trim());
+  // 2) If it's a link
   if (parts.includes("link")) {
     const linkText = (node.name || "").trim();
     if (linkText) {
-      return [`[@${node.nodeId}]`, ...linkText.split(/\s+/)];
+      return [`<[${node.nodeId}] (${linkText})>`];
     }
-    return [`[@${node.nodeId}]`];
+    return [`<[${node.nodeId}] link:>`];
   }
 
-  // 3) Otherwise, if it’s some container that is still considered an inline leaf,
-  //    we gather text from its children (recursively).
+  // 3) Otherwise, if it's some inline container, gather text from children
   const result: string[] = [];
   if (node.children) {
     for (const child of node.children) {
@@ -120,15 +109,7 @@ export function gatherInlineLeafText(node: AccessibilityNode): string[] {
 }
 
 /**
- * Splits an array of words or tokens into wrapped lines, ensuring
- * lines do not exceed `maxWidth` characters. Each line is prefixed
- * with the given `indent` string (for hierarchical display).
- *
- * @param segments - Array of individual text tokens.
- * @param indent - A string (e.g., "  ") prepended to each line.
- * @param maxWidth - Maximum line length (including indentation).
- * @returns A multi-line string with the tokens wrapped,
- *          ensuring lines don't exceed `maxWidth` characters.
+ * Splits an array of tokens into wrapped lines (up to maxWidth), prefixing each line with indent.
  */
 export function wrapTextSegments(
   segments: string[],
@@ -139,13 +120,13 @@ export function wrapTextSegments(
   let currentLine = indent;
 
   for (const seg of segments) {
-    // +1 for a space between existing content and the new segment.
+    // +1 for space
     if (currentLine.length + seg.length + 1 > maxWidth) {
       lines.push(currentLine);
       currentLine = indent + seg;
     } else {
       if (currentLine === indent) {
-        currentLine += seg; // first token on the line
+        currentLine += seg;
       } else {
         currentLine += " " + seg;
       }
@@ -160,24 +141,10 @@ export function wrapTextSegments(
 }
 
 /**
- * Formats an accessibility tree for display, producing a simplified
- * multi-line string representation.
- *
- * How it works:
- * 1) Print a line describing the current node, e.g. "[nodeId] role(: name?)"
- * 2) Collect inline-leaf children’s text in a local buffer (inlineBuffer).
- *    - If we encounter a block-level child, we first flush the inlineBuffer
- *      by word-wrapping it beneath the current node's line.
- *    - Then we recursively format the block-level child, increasing indentation.
- * 3) After processing all children, if the inlineBuffer is still non-empty,
- *    we do one final flush, appending the wrapped text to the output.
- *
- * This approach preserves the node hierarchy (by indentation)
- * and avoids duplicating text from inline children.
- *
- * @param node - The root or subnode to format.
- * @param level - The current indentation level (defaults to 0).
- * @returns A string with line-breaks reflecting the node hierarchy and wrapped text.
+ * Formats an accessibility node into a multi-line string:
+ *  1) Print "[nodeId] role(: name?)"
+ *  2) If child is inline, accumulate its text in inlineBuffer
+ *  3) If child is block-level, flush inlineBuffer, then recurse deeper
  */
 export function formatSimplifiedTree(
   node: AccessibilityNode,
@@ -185,8 +152,14 @@ export function formatSimplifiedTree(
 ): string {
   const indent = "  ".repeat(level);
 
-  // Print a line for the current node
-  let output = `${indent}[${node.nodeId}] ${node.role}`;
+  // Print a line for the current node: [nodeId] role(: name?)
+  let output = ``;
+  if (node.role === "link") {
+    output = `${indent}<[${node.nodeId}]>`;
+  } else {
+    output = `${indent}[${node.nodeId}] ${node.role}`;
+  }
+
   if (node.name) output += `: ${node.name}`;
   output += "\n";
 
@@ -215,7 +188,7 @@ export function formatSimplifiedTree(
     }
   }
 
-  // If there's leftover inline text at the end, flush it
+  // Flush any leftover inline text
   if (inlineBuffer.length > 0) {
     const wrapped = wrapTextSegments(
       inlineBuffer,
