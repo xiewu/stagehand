@@ -459,7 +459,6 @@ export async function findScrollableElementIds(
   return scrollableBackendIds;
 }
 
-
 /**
  * Removes any StaticText children whose combined text equals the parent's name.
  * This is most often used to avoid duplicating a link's accessible name in separate child nodes.
