@@ -25,6 +25,9 @@ export const BLOCK_LEVEL_ROLES = new Set([
   "list",
   "listitem",
   "div",
+  "checkbox",
+  "combobox",
+  "option",
 ]);
 
 /**
