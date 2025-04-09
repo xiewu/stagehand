@@ -378,7 +378,6 @@ async function applyStealthScripts(context: BrowserContext) {
 export class Stagehand {
   private stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
-
   public browserbaseSessionID?: string;
   public readonly domSettleTimeoutMs: number;
   public readonly debugDom: boolean;
@@ -386,7 +385,6 @@ export class Stagehand {
   public verbose: 0 | 1 | 2;
   public llmProvider: LLMProvider;
   public enableCaching: boolean;
-
   private apiKey: string | undefined;
   private projectId: string | undefined;
   private externalLogger?: (logLine: LogLine) => void;
@@ -406,6 +404,7 @@ export class Stagehand {
   public readonly logInferenceToFile?: boolean;
   private stagehandLogger: StagehandLogger;
   private disablePino: boolean;
+  private _env: "LOCAL" | "BROWSERBASE";
 
   protected setActivePage(page: StagehandPage): void {
     this.stagehandPage = page;
@@ -524,10 +523,21 @@ export class Stagehand {
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
 
-    if (this.env === "BROWSERBASE" && !this.apiKey) {
-      throw new Error(
-        'Stagehand is set to use "BROWSERBASE" but no BROWSERBASE_API_KEY was found. Please set it in your .env or pass it explicitly.',
-      );
+    // Store the environment value
+    this._env = env ?? "BROWSERBASE";
+
+    if (this._env === "BROWSERBASE") {
+      if (!this.apiKey) {
+        throw new MissingEnvironmentVariableError(
+          "BROWSERBASE_API_KEY",
+          "Browserbase",
+        );
+      } else if (!this.projectId) {
+        throw new MissingEnvironmentVariableError(
+          "BROWSERBASE_PROJECT_ID",
+          "Browserbase",
+        );
+      }
     }
 
     this.verbose = verbose ?? 0;
@@ -612,7 +622,7 @@ export class Stagehand {
   }
 
   public get env(): "LOCAL" | "BROWSERBASE" {
-    if (this.env === "BROWSERBASE") {
+    if (this._env === "BROWSERBASE") {
       if (!this.apiKey) {
         throw new MissingEnvironmentVariableError(
           "BROWSERBASE_API_KEY",
