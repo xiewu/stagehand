@@ -378,7 +378,6 @@ async function applyStealthScripts(context: BrowserContext) {
 export class Stagehand {
   private stagehandPage!: StagehandPage;
   private stagehandContext!: StagehandContext;
-  private intEnv: "LOCAL" | "BROWSERBASE";
 
   public browserbaseSessionID?: string;
   public readonly domSettleTimeoutMs: number;
@@ -522,11 +521,10 @@ export class Stagehand {
     this.llmProvider =
       llmProvider || new LLMProvider(this.logger, this.enableCaching);
 
-    this.intEnv = env;
     this.apiKey = apiKey ?? process.env.BROWSERBASE_API_KEY;
     this.projectId = projectId ?? process.env.BROWSERBASE_PROJECT_ID;
 
-    if (this.intEnv === "BROWSERBASE" && !this.apiKey) {
+    if (this.env === "BROWSERBASE" && !this.apiKey) {
       throw new Error(
         'Stagehand is set to use "BROWSERBASE" but no BROWSERBASE_API_KEY was found. Please set it in your .env or pass it explicitly.',
       );
@@ -614,10 +612,22 @@ export class Stagehand {
   }
 
   public get env(): "LOCAL" | "BROWSERBASE" {
-    if (this.intEnv === "BROWSERBASE" && this.apiKey && this.projectId) {
+    if (this.env === "BROWSERBASE") {
+      if (!this.apiKey) {
+        throw new MissingEnvironmentVariableError(
+          "BROWSERBASE_API_KEY",
+          "Browserbase",
+        );
+      } else if (!this.projectId) {
+        throw new MissingEnvironmentVariableError(
+          "BROWSERBASE_PROJECT_ID",
+          "Browserbase",
+        );
+      }
       return "BROWSERBASE";
+    } else {
+      return "LOCAL";
     }
-    return "LOCAL";
   }
 
   public get context(): EnhancedContext {
@@ -683,7 +693,6 @@ export class Stagehand {
         };
         return br;
       });
-    this.intEnv = env;
     this.contextPath = contextPath;
 
     this.stagehandContext = await StagehandContext.init(context, this);
