@@ -310,6 +310,10 @@
     {
       "name": "prevChunk",
       "categories": ["act"]
+    },
+    {
+      "name": "google_flights",
+      "categories": ["act"]
     }
   ]
 }
