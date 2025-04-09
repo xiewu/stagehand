@@ -79,19 +79,16 @@ async function getBrowser(
 ): Promise<BrowserResult> {
   if (env === "BROWSERBASE") {
     if (!apiKey) {
-      logger({
-        category: "init",
-        message: "BROWSERBASE_API_KEY is required to use BROWSERBASE env.",
-        level: 0,
-      });
+      throw new MissingEnvironmentVariableError(
+        "BROWSERBASE_API_KEY",
+        "Browserbase",
+      );
     }
     if (!projectId) {
-      logger({
-        category: "init",
-        message:
-          "BROWSERBASE_PROJECT_ID is required for some Browserbase features that may not work without it.",
-        level: 1,
-      });
+      throw new MissingEnvironmentVariableError(
+        "BROWSERBASE_PROJECT_ID",
+        "Browserbase",
+      );
     }
 
     let debugUrl: string | undefined = undefined;
@@ -117,17 +114,6 @@ async function getBrowser(
 
         sessionId = browserbaseSessionID;
         connectUrl = session.connectUrl;
-        logger({
-          category: "init",
-          message: "connect:",
-          level: 1,
-          auxiliary: {
-            connectUrl: {
-              value: connectUrl,
-              type: "string",
-            },
-          },
-        });
 
         logger({
           category: "init",
@@ -196,30 +182,7 @@ async function getBrowser(
       });
     }
 
-    logger({
-      category: "init",
-      message: "Connecting to CDP URL:",
-      level: 2,
-      auxiliary: {
-        connectUrl: {
-          value: connectUrl,
-          type: "string",
-        },
-      },
-    });
-
     const browser = await chromium.connectOverCDP(connectUrl);
-    logger({
-      category: "init",
-      message: "Connected to CDP URL:",
-      level: 2,
-      auxiliary: {
-        connectUrl: {
-          value: connectUrl,
-          type: "string",
-        },
-      },
-    });
 
     const { debuggerUrl } = await browserbase.sessions.debug(sessionId);
 
