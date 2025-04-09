@@ -194,7 +194,6 @@ jobs:
     outputs:
       regression_llm_providers_score: ${{ steps.set-llm-providers-score.outputs.regression_llm_providers_score }}
     env:
-      EVAL_MODELS: "gpt-4o-mini"
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       BRAINTRUST_API_KEY: ${{ secrets.BRAINTRUST_API_KEY }}
       BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
@@ -223,7 +222,7 @@ jobs:
         run: npm exec playwright install --with-deps
 
       - name: Run Regression Evals (llmProviders)
-        run: npm run evals category regression_llm_providers trials=2 concurrency=12 env=BROWSERBASE -- --extract-method=llmProviders
+        run: npm run evals category regression_llm_providers trials=2 concurrency=12 env=BROWSERBASE
 
       - name: Save Regression llmProviders Results
         run: mv eval-summary.json eval-summary-regression-llm-providers.json
@@ -236,12 +235,6 @@ jobs:
           echo "regression_llm_providers category score: ${regression_llm_providers_score}%"
           echo "View regression_llm_providers results: https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentNameRegressionLlmProviders}"
           echo "regression_llm_providers_score=$regression_llm_providers_score" >> "$GITHUB_OUTPUT"
-
-          # Fail if regression_llm_providers_score is below 83%
-          if (( $(echo "${regression_llm_providers_score} < 83" | bc -l) )); then
-            echo "regression_llm_providers score is below 83%. Failing CI."
-            exit 1
-          fi
 
   run-regression-evals-dom-extract:
     needs:
@@ -346,7 +339,12 @@ jobs:
           echo "regression_text_score=$regression_text_score" >> "$GITHUB_OUTPUT"
 
   check-regression-evals-score:
-    needs: [run-regression-evals-text-extract, run-regression-evals-dom-extract]
+    needs:
+      [
+        run-regression-evals-text-extract,
+        run-regression-evals-dom-extract,
+        run-regression-evals-llm-providers,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -354,8 +352,9 @@ jobs:
         run: |
           regression_dom_score="${{ needs.run-regression-evals-dom-extract.outputs.regression_dom_score }}"
           regression_text_score="${{ needs.run-regression-evals-text-extract.outputs.regression_text_score }}"
+          regression_llm_providers_score="${{ needs.run-llm-providers-score.outputs.regression_llm_providers_score }}"
 
-          overall_score=$(echo "(${regression_dom_score} + ${regression_text_score}) / 2" | bc -l)
+          overall_score=$(echo "(${regression_dom_score} + ${regression_text_score} + ${regression_llm_providers_score}) / 3" | bc -l)
           echo "Overall regression score: ${overall_score}%"
 
           # Fail if overall score is below 90%
