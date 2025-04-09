@@ -399,10 +399,25 @@ export async function clickElement(ctx: MethodHandlerContext) {
           message: "First click attempt timed out, retrying with force...",
           level: 2,
         });
-        await finalLocator.click({
-          ...clickArg,
-          force: true,
-        });
+        try {
+          await finalLocator.click({
+            ...clickArg,
+            force: true,
+          });
+        } catch (forceError) {
+          // If forced click also fails, throw a more descriptive error
+          throw new PlaywrightCommandException(
+            `Failed to click element at [${xpath}]. ` +
+              `Timeout after 5s, then force-click also failed. ` +
+              `Original timeout error: ${error.message}, ` +
+              `Force-click error: ${forceError.message}`,
+          );
+        }
+      } else {
+        // Non-timeout error on the first click
+        throw new PlaywrightCommandException(
+          `Failed to click element at [${xpath}]. ` + `Error: ${error.message}`,
+        );
       }
     }
   } catch (e) {
@@ -418,7 +433,10 @@ export async function clickElement(ctx: MethodHandlerContext) {
         args: { value: JSON.stringify(args), type: "object" },
       },
     });
-    throw new PlaywrightCommandException(e.message);
+
+    throw new PlaywrightCommandException(
+      `Could not complete click action at [${xpath}]. Reason: ${e.message}`,
+    );
   }
 
   await handlePossiblePageNavigation(
