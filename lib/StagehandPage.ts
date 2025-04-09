@@ -32,13 +32,6 @@ import {
 } from "../types/stagehandErrors";
 import { StagehandAPIError } from "@/types/stagehandApiErrors";
 
-// const BROWSERBASE_REGION_DOMAIN = {
-//   "us-west-2": "wss://connect.usw2.browserbase.com",
-//   "us-east-1": "wss://connect.use1.browserbase.com",
-//   "eu-central-1": "wss://connect.euc1.browserbase.com",
-//   "ap-southeast-1": "wss://connect.apse1.browserbase.com",
-// };
-
 export class StagehandPage {
   private stagehand: Stagehand;
   private intPage: Page;
@@ -137,21 +130,7 @@ export class StagehandPage {
     });
 
     const sessionStatus = await browserbase.sessions.retrieve(sessionId);
-    this.stagehand.log({
-      category: "browserbase",
-      message: "Connecting to Browserbase session",
-      level: 1,
-      auxiliary: {
-        sessionId: {
-          value: sessionId,
-          type: "string",
-        },
-        connectUrl: {
-          value: sessionStatus.connectUrl,
-          type: "string",
-        },
-      },
-    });
+
     const connectUrl = sessionStatus.connectUrl;
     const browser = await chromium.connectOverCDP(connectUrl);
     const context = browser.contexts()[0];
