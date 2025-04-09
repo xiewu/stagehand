@@ -200,6 +200,7 @@ jobs:
       BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
       HEADLESS: true
       EVAL_ENV: browserbase
+      EVAL_MODELS: "gpt-4o-mini"
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
