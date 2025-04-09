@@ -136,7 +136,6 @@ export class StagehandPage {
       apiKey: process.env.BROWSERBASE_API_KEY,
     });
 
-
     const sessionStatus = await browserbase.sessions.retrieve(sessionId);
     this.stagehand.log({
       category: "browserbase",
