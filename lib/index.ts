@@ -672,7 +672,7 @@ export class Stagehand {
       this.browserbaseSessionID = sessionId;
     }
 
-    const { context, debugUrl, sessionUrl, contextPath, sessionId, env } =
+    const { context, debugUrl, sessionUrl, contextPath, sessionId } =
       await getBrowser(
         this.apiKey,
         this.projectId,
