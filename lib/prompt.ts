@@ -18,7 +18,7 @@ ${userProvidedInstructions}`;
 // extract
 export function buildExtractSystemPrompt(
   isUsingPrintExtractedDataTool: boolean = false,
-  useTextExtract: boolean = true,
+  useTextExtract: boolean = false,
   userProvidedInstructions?: string,
 ): ChatMessage {
   const baseContent = `You are extracting content on behalf of a user.
