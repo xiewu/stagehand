@@ -528,11 +528,10 @@ export class Stagehand {
 
     if (this.intEnv === "BROWSERBASE" && !this.apiKey) {
       throw new Error(
-        'Stagehand is set to use "BROWSERBASE" but no BROWSERBASE_API_KEY was found. Please set it in your .env or pass it explicitly.'
+        'Stagehand is set to use "BROWSERBASE" but no BROWSERBASE_API_KEY was found. Please set it in your .env or pass it explicitly.',
       );
     }
 
-    
     this.verbose = verbose ?? 0;
     // Update logger verbosity level
     this.stagehandLogger.setVerbosity(this.verbose);
