@@ -16,7 +16,7 @@ export const allrecipes: EvalFunction = async ({
     action: 'Type "chocolate chip cookies" in the search bar',
   });
   await stagehand.page.act({
-    action: "click the search icon button",
+    action: "press enter",
   });
 
   const recipeDetails = await stagehand.page.extract({
