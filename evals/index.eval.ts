@@ -264,16 +264,17 @@ const generateFilteredTestcases = (): Testcase[] => {
           }
 
           // Execute the task
-          let llmClient: LLMClient = new CustomOpenAIClient({
-            modelName: input.modelName as AvailableModel,
-            client: wrapOpenAI(
-              new OpenAI({
-                apiKey: process.env.BRAINTRUST_API_KEY,
-                baseURL: "https://api.braintrust.dev/v1/proxy",
-              }),
-            ),
-          });
-          if (input.modelName.startsWith("gemini")) {
+          let llmClient: LLMClient;
+          if (input.modelName.startsWith("gpt")) {
+            llmClient = new CustomOpenAIClient({
+              modelName: input.modelName as AvailableModel,
+              client: wrapOpenAI(
+                new OpenAI({
+                  apiKey: process.env.OPENAI_API_KEY,
+                }),
+              ),
+            });
+          } else if (input.modelName.startsWith("gemini")) {
             llmClient = new AISdkClient({
               model: wrapAISDKModel(google(input.modelName)),
             });
