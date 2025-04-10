@@ -672,13 +672,18 @@ export class Stagehand {
         projectId: this.projectId,
         logger: this.logger,
       });
+      const modelApiKey =
+        LLMProvider.getModelProvider(this.modelName) === "openai"
+          ? process.env.OPENAI_API_KEY
+          : LLMProvider.getModelProvider(this.modelName) === "anthropic"
+            ? process.env.ANTHROPIC_API_KEY
+            : LLMProvider.getModelProvider(this.modelName) === "google"
+              ? process.env.GOOGLE_API_KEY
+              : undefined;
 
       const { sessionId } = await this.apiClient.init({
         modelName: this.modelName,
-        modelApiKey:
-          LLMProvider.getModelProvider(this.modelName) === "openai"
-            ? process.env.OPENAI_API_KEY
-            : process.env.ANTHROPIC_API_KEY,
+        modelApiKey: modelApiKey,
         domSettleTimeoutMs: this.domSettleTimeoutMs,
         verbose: this.verbose,
         debugDom: this.debugDom,
@@ -856,6 +861,8 @@ export class Stagehand {
             options.options.apiKey = process.env.ANTHROPIC_API_KEY;
           } else if (options.provider === "openai") {
             options.options.apiKey = process.env.OPENAI_API_KEY;
+          } else if (options.provider === "google") {
+            options.options.apiKey = process.env.GOOGLE_API_KEY;
           }
 
           if (!options.options.apiKey) {
