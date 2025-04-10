@@ -62,6 +62,7 @@ export class GoogleClient extends LLMClient {
   private enableCaching: boolean;
   public clientOptions: ClientOptions;
   public hasVision: boolean;
+  private logger: (message: LogLine) => void;
 
   constructor({
     logger, // Added logger based on other clients
@@ -91,6 +92,7 @@ export class GoogleClient extends LLMClient {
     this.cache = cache;
     this.enableCaching = enableCaching;
     this.modelName = modelName;
+    this.logger = logger;
     // Determine vision capability based on model name (adjust as needed)
     this.hasVision =
       modelName.includes("vision") || modelName.includes("gemini-1.5"); // Example logic
@@ -107,7 +109,11 @@ export class GoogleClient extends LLMClient {
     messages.forEach((msg, index) => {
       const role = roleMap[msg.role];
       if (!role) {
-        console.warn(`Unsupported role: ${msg.role}`);
+        this.logger({
+          category: "google",
+          message: `WARNING: Unsupported role: ${msg.role}`,
+          level: 1,
+        });
         return; // Skip unsupported roles
       }
 
@@ -138,7 +144,11 @@ export class GoogleClient extends LLMClient {
                   inlineData: { mimeType: mimeTypeMatch[1], data: base64Data },
                 });
               } else {
-                console.warn("Could not parse image data URI format");
+                this.logger({
+                  category: "google",
+                  message: "WARNING: Could not parse image data URI format",
+                  level: 1,
+                });
               }
             }
           }
@@ -321,7 +331,6 @@ export class GoogleClient extends LLMClient {
         ...generationConfig,
         safetySettings: safetySettings,
         tools: formattedTools,
-        // systemInstruction: // Add system instruction here if handled separately
       },
     };
 
