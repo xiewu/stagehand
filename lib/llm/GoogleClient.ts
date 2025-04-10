@@ -306,33 +306,53 @@ export class GoogleClient extends LLMClient {
       auxiliary: {
         modelName: { value: this.modelName, type: "string" },
         requestId: { value: requestId, type: "string" },
-        requestPayload: {
-          value:
-            JSON.stringify({
-              model: this.modelName,
-              contents: formattedMessages.slice(0, 2),
-              config: {
-                ...generationConfig,
-                safetySettings,
-                tools: formattedTools?.slice(0, 1),
-              },
-            }).substring(0, 500) + "...",
-          type: "object",
+        requestPayloadSummary: {
+          value: `Model: ${this.modelName}, Messages: ${formattedMessages.length}, Config Keys: ${Object.keys(generationConfig).join(", ")}, Tools: ${formattedTools ? formattedTools.length : 0}, Safety Categories: ${safetySettings.map((s) => s.category).join(", ")}`,
+          type: "string",
         },
       },
     });
 
+    // Construct the full request object
+    const requestPayload = {
+      model: this.modelName,
+      contents: formattedMessages,
+      config: {
+        ...generationConfig,
+        safetySettings: safetySettings,
+        tools: formattedTools,
+        // systemInstruction: // Add system instruction here if handled separately
+      },
+    };
+
+    // Log the full payload safely
     try {
-      const result = await this.client.models.generateContent({
-        model: this.modelName,
-        contents: formattedMessages,
-        config: {
-          ...generationConfig,
-          safetySettings: safetySettings,
-          tools: formattedTools,
-          // systemInstruction: // Add system instruction here if handled separately
+      logger({
+        category: "google",
+        message: "Full request payload",
+        level: 2,
+        auxiliary: {
+          requestId: { value: requestId, type: "string" },
+          fullPayload: {
+            value: JSON.stringify(requestPayload),
+            type: "object",
+          },
         },
       });
+    } catch (e) {
+      logger({
+        category: "google",
+        message: "Failed to stringify full request payload for logging",
+        level: 0,
+        auxiliary: {
+          requestId: { value: requestId, type: "string" },
+          error: { value: e.message, type: "string" },
+        },
+      });
+    }
+
+    try {
+      const result = await this.client.models.generateContent(requestPayload); // Pass the constructed payload
 
       logger({
         category: "google",
@@ -341,7 +361,7 @@ export class GoogleClient extends LLMClient {
         auxiliary: {
           requestId: { value: requestId, type: "string" },
           response: {
-            value: JSON.stringify(result).substring(0, 500) + "...",
+            value: JSON.stringify(result),
             type: "object",
           },
         },
@@ -467,7 +487,10 @@ export class GoogleClient extends LLMClient {
         message: `Error during Google AI chat completion: ${error.message}`,
         level: 0,
         auxiliary: {
-          error: { value: JSON.stringify(error), type: "object" },
+          errorDetails: {
+            value: `Message: ${error.message}${error.stack ? "\nStack: " + error.stack : ""}`,
+            type: "string",
+          },
           requestId: { value: requestId, type: "string" },
         },
       });
