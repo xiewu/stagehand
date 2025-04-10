@@ -1,5 +1,6 @@
 import { Stagehand } from "@/dist";
 import { EvalFunction } from "@/types/evals";
+import { ObserveResult } from "@/types/stagehand";
 
 export const observe_iframes2: EvalFunction = async ({
   logger,
@@ -17,9 +18,21 @@ export const observe_iframes2: EvalFunction = async ({
   );
   await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  const observations = await stagehand.page.observe({
-    instruction: "find the main header of the page",
-  });
+  let observations: ObserveResult[];
+  try {
+    observations = await stagehand.page.observe({
+      instruction: "find the main header of the page",
+    });
+  } catch (err) {
+    await stagehand.close();
+    return {
+      _success: false,
+      message: err.message,
+      debugUrl,
+      sessionUrl,
+      logs: logger.getLogs(),
+    };
+  }
 
   if (observations.length === 0) {
     await stagehand.close();
