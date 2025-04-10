@@ -222,7 +222,7 @@ jobs:
       - name: Install Playwright browsers
         run: npm exec playwright install --with-deps
 
-      - name: Run Regression Evals (domExtract)
+      - name: Run Regression Evals
         run: npm run evals category regression trials=2 concurrency=20 env=BROWSERBASE
 
       - name: Log Regression Evals Performance
