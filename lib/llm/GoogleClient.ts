@@ -92,11 +92,15 @@ export class GoogleClient extends LLMClient {
     this.enableCaching = enableCaching;
     this.modelName = modelName;
     // Determine vision capability based on model name (adjust as needed)
-    this.hasVision = modelName.includes("vision") || modelName.includes("gemini-1.5"); // Example logic
+    this.hasVision =
+      modelName.includes("vision") || modelName.includes("gemini-1.5"); // Example logic
   }
 
   // Helper to convert project's ChatMessage[] to Gemini's Content[]
-  private formatMessages(messages: ChatMessage[], image?: ChatCompletionOptions['image']): Content[] {
+  private formatMessages(
+    messages: ChatMessage[],
+    image?: ChatCompletionOptions["image"],
+  ): Content[] {
     const contents: Content[] = [];
     let systemInstruction: string | null = null;
 
@@ -109,8 +113,9 @@ export class GoogleClient extends LLMClient {
 
       // Handle system messages - prepend to the first user message or use system_instruction if available
       if (msg.role === "system") {
-        if (typeof msg.content === 'string') {
-          systemInstruction = (systemInstruction ? systemInstruction + "\n\n" : "") + msg.content;
+        if (typeof msg.content === "string") {
+          systemInstruction =
+            (systemInstruction ? systemInstruction + "\n\n" : "") + msg.content;
         }
         return; // Don't add system messages directly to contents yet
       }
@@ -119,27 +124,31 @@ export class GoogleClient extends LLMClient {
 
       if (Array.isArray(msg.content)) {
         msg.content.forEach((partContent) => {
-          if (partContent.type === 'text') {
+          if (partContent.type === "text") {
             parts.push({ text: partContent.text });
-          } else if (partContent.type === 'image_url') {
-            if ('image_url' in partContent && partContent.image_url?.url) {
+          } else if (partContent.type === "image_url") {
+            if ("image_url" in partContent && partContent.image_url?.url) {
               // Assuming base64 data URI format: data:[<mediatype>];base64,<data>
-              const base64Data = partContent.image_url.url.split(',')[1];
-              const mimeTypeMatch = partContent.image_url.url.match(/^data:(image\/\w+);base64,/);
+              const base64Data = partContent.image_url.url.split(",")[1];
+              const mimeTypeMatch = partContent.image_url.url.match(
+                /^data:(image\/\w+);base64,/,
+              );
               if (base64Data && mimeTypeMatch) {
-                parts.push({ inlineData: { mimeType: mimeTypeMatch[1], data: base64Data } });
+                parts.push({
+                  inlineData: { mimeType: mimeTypeMatch[1], data: base64Data },
+                });
               } else {
-                 console.warn("Could not parse image data URI format");
+                console.warn("Could not parse image data URI format");
               }
             }
           }
         });
-      } else if (typeof msg.content === 'string') {
+      } else if (typeof msg.content === "string") {
         parts.push({ text: msg.content });
       }
 
-       // Add image from options if this is the last message and it's a user message
-       if (image && index === messages.length - 1 && msg.role === 'user') {
+      // Add image from options if this is the last message and it's a user message
+      if (image && index === messages.length - 1 && msg.role === "user") {
         const imageDesc = image.description || AnnotatedScreenshotText;
         parts.push({ text: imageDesc }); // Add description first
         parts.push({
@@ -151,9 +160,9 @@ export class GoogleClient extends LLMClient {
       }
 
       // Apply system instruction to the first non-system message if needed
-      if (systemInstruction && contents.length === 0 && role === 'user') {
-        const firstPartText = parts.find(p => 'text' in p);
-        if (firstPartText && 'text' in firstPartText) {
+      if (systemInstruction && contents.length === 0 && role === "user") {
+        const firstPartText = parts.find((p) => "text" in p);
+        if (firstPartText && "text" in firstPartText) {
           firstPartText.text = `${systemInstruction}\n\n${firstPartText.text}`;
         } else {
           parts.unshift({ text: systemInstruction });
@@ -168,14 +177,16 @@ export class GoogleClient extends LLMClient {
 
     // If system instruction wasn't applied (e.g., no user messages followed it), add it as a final user message
     if (systemInstruction) {
-       contents.unshift({ role: 'user', parts: [{ text: systemInstruction }] });
+      contents.unshift({ role: "user", parts: [{ text: systemInstruction }] });
     }
 
     return contents;
   }
 
   // Helper to convert LLMTool[] to Gemini's Tool[]
-  private formatTools(tools?: ChatCompletionOptions['tools']): Tool[] | undefined {
+  private formatTools(
+    tools?: ChatCompletionOptions["tools"],
+  ): Tool[] | undefined {
     if (!tools || tools.length === 0) {
       return undefined;
     }
@@ -187,7 +198,9 @@ export class GoogleClient extends LLMClient {
           if (tool.parameters) {
             parameters = {
               type: Type.OBJECT,
-              properties: tool.parameters.properties as { [key: string]: Schema },
+              properties: tool.parameters.properties as {
+                [key: string]: Schema;
+              },
               required: tool.parameters.required as string[] | undefined,
             };
           }
@@ -201,12 +214,21 @@ export class GoogleClient extends LLMClient {
     ];
   }
 
-  async createChatCompletion<T = LLMResponse>({ // Ensure LLMResponse is compatible
+  async createChatCompletion<T = LLMResponse>({
+    // Ensure LLMResponse is compatible
     options,
     logger,
     retries = 3,
   }: CreateChatCompletionOptions): Promise<T> {
-    const { image, requestId, response_model, tools, temperature, top_p, maxTokens } = options;
+    const {
+      image,
+      requestId,
+      response_model,
+      tools,
+      temperature,
+      top_p,
+      maxTokens,
+    } = options;
 
     const cacheKeyOptions = {
       model: this.modelName,
@@ -214,14 +236,24 @@ export class GoogleClient extends LLMClient {
       temperature: temperature,
       top_p: top_p,
       // frequency_penalty and presence_penalty are not directly supported in Gemini API
-      image: image ? { description: image.description, bufferLength: image.buffer.length } : undefined, // Use buffer length for caching key stability
-      response_model: response_model ? { name: response_model.name, schema: JSON.stringify(zodToJsonSchema(response_model.schema)) } : undefined,
+      image: image
+        ? { description: image.description, bufferLength: image.buffer.length }
+        : undefined, // Use buffer length for caching key stability
+      response_model: response_model
+        ? {
+            name: response_model.name,
+            schema: JSON.stringify(zodToJsonSchema(response_model.schema)),
+          }
+        : undefined,
       tools: tools,
       maxTokens: maxTokens,
     };
 
     if (this.enableCaching) {
-      const cachedResponse = await this.cache.get<T>(cacheKeyOptions, requestId);
+      const cachedResponse = await this.cache.get<T>(
+        cacheKeyOptions,
+        requestId,
+      );
       if (cachedResponse) {
         logger({
           category: "llm_cache",
@@ -244,23 +276,27 @@ export class GoogleClient extends LLMClient {
     const formattedTools = this.formatTools(tools);
 
     const generationConfig = {
-       maxOutputTokens: maxTokens,
-       temperature: temperature,
-       topP: top_p,
-       responseMimeType: response_model ? "application/json" : undefined,
+      maxOutputTokens: maxTokens,
+      temperature: temperature,
+      topP: top_p,
+      responseMimeType: response_model ? "application/json" : undefined,
     };
 
     // Handle JSON mode instructions
     if (response_model) {
-        // Prepend instructions for JSON output if needed (similar to o1 handling)
-        const schemaString = JSON.stringify(zodToJsonSchema(response_model.schema));
-        formattedMessages.push({
-            role: 'user',
-            parts: [{
-                 text: `Please respond ONLY with a valid JSON object that strictly adheres to the following JSON schema. Do not include any other text, explanations, or markdown formatting like \`\`\`json ... \`\`\`. Just the JSON object.\n\nSchema:\n${schemaString}`
-            }]
-        })
-        formattedMessages.push({ role: 'model', parts: [{ text: '{'}]}) // Prime the model
+      // Prepend instructions for JSON output if needed (similar to o1 handling)
+      const schemaString = JSON.stringify(
+        zodToJsonSchema(response_model.schema),
+      );
+      formattedMessages.push({
+        role: "user",
+        parts: [
+          {
+            text: `Please respond ONLY with a valid JSON object that strictly adheres to the following JSON schema. Do not include any other text, explanations, or markdown formatting like \`\`\`json ... \`\`\`. Just the JSON object.\n\nSchema:\n${schemaString}`,
+          },
+        ],
+      });
+      formattedMessages.push({ role: "model", parts: [{ text: "{" }] }); // Prime the model
     }
 
     logger({
@@ -270,7 +306,19 @@ export class GoogleClient extends LLMClient {
       auxiliary: {
         modelName: { value: this.modelName, type: "string" },
         requestId: { value: requestId, type: "string" },
-        requestPayload: { value: JSON.stringify({ model: this.modelName, contents: formattedMessages.slice(0, 2), config: { ...generationConfig, safetySettings, tools: formattedTools?.slice(0,1) } }).substring(0, 500) + '...', type: "object" }
+        requestPayload: {
+          value:
+            JSON.stringify({
+              model: this.modelName,
+              contents: formattedMessages.slice(0, 2),
+              config: {
+                ...generationConfig,
+                safetySettings,
+                tools: formattedTools?.slice(0, 1),
+              },
+            }).substring(0, 500) + "...",
+          type: "object",
+        },
       },
     });
 
@@ -283,7 +331,7 @@ export class GoogleClient extends LLMClient {
           safetySettings: safetySettings,
           tools: formattedTools,
           // systemInstruction: // Add system instruction here if handled separately
-        }
+        },
       });
 
       logger({
@@ -292,26 +340,36 @@ export class GoogleClient extends LLMClient {
         level: 2,
         auxiliary: {
           requestId: { value: requestId, type: "string" },
-          response: { value: JSON.stringify(result).substring(0, 500) + '...', type: "object" }
+          response: {
+            value: JSON.stringify(result).substring(0, 500) + "...",
+            type: "object",
+          },
         },
       });
 
-      const finishReason = result.candidates?.[0]?.finishReason || 'unknown';
-      const toolCalls = result.functionCalls?.map((fc: FunctionCall, index: number) => ({
-        id: `tool_call_${requestId}_${index}`,
-        type: "function" as const,
-        function: {
-          name: fc.name,
-          arguments: JSON.stringify(fc.args),
-        },
-      }));
+      const finishReason = result.candidates?.[0]?.finishReason || "unknown";
+      const toolCalls = result.functionCalls?.map(
+        (fc: FunctionCall, index: number) => ({
+          id: `tool_call_${requestId}_${index}`,
+          type: "function" as const,
+          function: {
+            name: fc.name,
+            arguments: JSON.stringify(fc.args),
+          },
+        }),
+      );
 
       let content: string | null = null;
       try {
-         content = result.text;
+        content = result.text;
       } catch (e) {
-          logger({ category: 'google', message: `Could not extract text content: ${e.message}`, level: 1, auxiliary: { requestId: { value: requestId, type: 'string' } } });
-          content = null;
+        logger({
+          category: "google",
+          message: `Could not extract text content: ${e.message}`,
+          level: 1,
+          auxiliary: { requestId: { value: requestId, type: "string" } },
+        });
+        content = null;
       }
 
       // Construct LLMResponse shape
@@ -342,35 +400,59 @@ export class GoogleClient extends LLMClient {
       if (response_model) {
         let parsedData;
         try {
-            // Need to handle potential markdown fences if the model didn't follow instructions perfectly
-            const potentialJson = content?.trim().replace(/^```json\n?|\n?```$/g, '') || '{}';
-            parsedData = JSON.parse(potentialJson);
+          // Need to handle potential markdown fences if the model didn't follow instructions perfectly
+          const potentialJson =
+            content?.trim().replace(/^```json\n?|\n?```$/g, "") || "{}";
+          parsedData = JSON.parse(potentialJson);
         } catch (e) {
-            logger({ category: 'google', message: `Failed to parse JSON response: ${e.message}`, level: 0, auxiliary: { content: { value: content || 'null', type: 'string' } } });
-            if (retries > 0) {
-                return this.createChatCompletion({ options, logger, retries: retries - 1 });
-            }
-            throw new CreateChatCompletionResponseError(`Failed to parse JSON response: ${e.message}`);
+          logger({
+            category: "google",
+            message: `Failed to parse JSON response: ${e.message}`,
+            level: 0,
+            auxiliary: {
+              content: { value: content || "null", type: "string" },
+            },
+          });
+          if (retries > 0) {
+            return this.createChatCompletion({
+              options,
+              logger,
+              retries: retries - 1,
+            });
+          }
+          throw new CreateChatCompletionResponseError(
+            `Failed to parse JSON response: ${e.message}`,
+          );
         }
 
         if (!validateZodSchema(response_model.schema, parsedData)) {
-          logger({ category: 'google', message: 'Response failed Zod schema validation', level: 0 });
+          logger({
+            category: "google",
+            message: "Response failed Zod schema validation",
+            level: 0,
+          });
           if (retries > 0) {
-            return this.createChatCompletion({ options, logger, retries: retries - 1 });
+            return this.createChatCompletion({
+              options,
+              logger,
+              retries: retries - 1,
+            });
           }
-          throw new CreateChatCompletionResponseError("Invalid response schema");
+          throw new CreateChatCompletionResponseError(
+            "Invalid response schema",
+          );
         }
 
-         // If schema validation passes, structure the response for extraction use case
-         const extractionResult = {
-            data: parsedData,
-            usage: llmResponse.usage,
-          };
+        // If schema validation passes, structure the response for extraction use case
+        const extractionResult = {
+          data: parsedData,
+          usage: llmResponse.usage,
+        };
 
-         if (this.enableCaching) {
-           await this.cache.set(cacheKeyOptions, extractionResult, requestId);
-         }
-         return extractionResult as T;
+        if (this.enableCaching) {
+          await this.cache.set(cacheKeyOptions, extractionResult, requestId);
+        }
+        return extractionResult as T;
       }
 
       // Cache the standard response if not using response_model
@@ -379,7 +461,6 @@ export class GoogleClient extends LLMClient {
       }
 
       return llmResponse as T;
-
     } catch (error) {
       logger({
         category: "google",
@@ -393,16 +474,28 @@ export class GoogleClient extends LLMClient {
 
       // Basic retry logic
       if (retries > 0) {
-        logger({ category: 'google', message: `Retrying... (${retries} attempts left)`, level: 1 });
-        await new Promise(resolve => setTimeout(resolve, 1000 * (4 - retries))); // Simple backoff
-        return this.createChatCompletion({ options, logger, retries: retries - 1 });
+        logger({
+          category: "google",
+          message: `Retrying... (${retries} attempts left)`,
+          level: 1,
+        });
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * (4 - retries)),
+        ); // Simple backoff
+        return this.createChatCompletion({
+          options,
+          logger,
+          retries: retries - 1,
+        });
       }
 
       // Re-throw specific Stagehand errors or a generic one
       if (error instanceof StagehandError) {
-          throw error;
+        throw error;
       }
-      throw new StagehandError(`Google AI API request failed: ${error.message}`);
+      throw new StagehandError(
+        `Google AI API request failed: ${error.message}`,
+      );
     }
   }
 }

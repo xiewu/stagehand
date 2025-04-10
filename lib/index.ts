@@ -589,7 +589,10 @@ export class Stagehand {
       this.llmClient.type !== "anthropic" &&
       this.llmClient.type !== "google"
     ) {
-      throw new UnsupportedModelError(["openai", "anthropic", "google"], "API mode");
+      throw new UnsupportedModelError(
+        ["openai", "anthropic", "google"],
+        "API mode",
+      );
     }
     this.waitForCaptchaSolves = waitForCaptchaSolves;
     this.localBrowserLaunchOptions = localBrowserLaunchOptions;
@@ -677,9 +680,11 @@ export class Stagehand {
         LLMProvider.getModelProvider(this.modelName) === "openai"
           ? process.env.OPENAI_API_KEY || this.llmClient.clientOptions.apiKey
           : LLMProvider.getModelProvider(this.modelName) === "anthropic"
-            ? process.env.ANTHROPIC_API_KEY || this.llmClient.clientOptions.apiKey
+            ? process.env.ANTHROPIC_API_KEY ||
+              this.llmClient.clientOptions.apiKey
             : LLMProvider.getModelProvider(this.modelName) === "google"
-              ? process.env.GOOGLE_API_KEY || this.llmClient.clientOptions.apiKey
+              ? process.env.GOOGLE_API_KEY ||
+                this.llmClient.clientOptions.apiKey
               : undefined;
 
       const { sessionId } = await this.apiClient.init({
