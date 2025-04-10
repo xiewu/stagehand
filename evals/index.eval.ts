@@ -357,8 +357,6 @@ const generateFilteredTestcases = (): Testcase[] => {
       trialCount: TRIAL_COUNT,
     });
 
-    if (!process.env.WRITE_FILE) return;
-
     // Map results to the SummaryResult format
     const summaryResults: SummaryResult[] = evalResult.results.map((result) => {
       const output =
