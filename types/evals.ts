@@ -2,7 +2,18 @@ import { z } from "zod";
 import type { AvailableModel } from "../types/model";
 import type { LogLine } from "../types/log";
 import type { EvalCase } from "braintrust";
-import { StagehandInitResult } from "@/evals/initStagehand";
+import { Stagehand } from "@/dist";
+import { ConstructorParams } from "@/dist";
+import { EvalLogger } from "@/evals/logger";
+
+export type StagehandInitResult = {
+  stagehand: Stagehand;
+  logger: EvalLogger;
+  debugUrl: string;
+  sessionUrl: string;
+  useTextExtract: boolean;
+  stagehandConfig: ConstructorParams;
+};
 
 export type EvalFunction = (taskInput: StagehandInitResult) => Promise<{
   _success: boolean;

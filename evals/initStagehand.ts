@@ -13,15 +13,7 @@
 import { enableCaching, env } from "./env";
 import { ConstructorParams, LLMClient, Stagehand } from "@/dist";
 import { EvalLogger } from "./logger";
-
-export type StagehandInitResult = {
-  stagehand: Stagehand;
-  logger: EvalLogger;
-  debugUrl: string;
-  sessionUrl: string;
-  useTextExtract: boolean;
-  stagehandConfig: ConstructorParams;
-};
+import type { StagehandInitResult } from "@/types/evals";
 
 /**
  * StagehandConfig:
