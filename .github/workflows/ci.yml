@@ -231,8 +231,8 @@ jobs:
           echo "View results at https://www.braintrust.dev/app/Browserbase/p/stagehand/experiments/${experimentName}"
           if [ -f eval-summary.json ]; then
             regression_score=$(jq '.categories.regression' eval-summary.json)
-            echo "Regression category score: regression_score%"
-            if (( $(echo "regression_score < 90" | bc -l) )); then
+            echo "Regression category score: $regression_score%"
+            if (( $(echo "$regression_score < 90" | bc -l) )); then
               echo "Regression category score is below 90%. Failing CI."
               exit 1
             fi
