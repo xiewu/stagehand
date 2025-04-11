@@ -1,4 +1,3 @@
-import { initStagehand } from "@/evals/initStagehand";
 import { EvalFunction } from "@/types/evals";
 import { ObserveResult } from "@/types/stagehand";
 
@@ -12,14 +11,12 @@ import { ObserveResult } from "@/types/stagehand";
  * pass the actionability check.
  */
 
-export const google_flights: EvalFunction = async ({ modelName, logger }) => {
-  const { stagehand, initResponse } = await initStagehand({
-    modelName,
-    logger,
-  });
-
-  const { debugUrl, sessionUrl } = initResponse;
-
+export const google_flights: EvalFunction = async ({
+  debugUrl,
+  sessionUrl,
+  stagehand,
+  logger,
+}) => {
   await stagehand.page.goto(
     "https://browserbase.github.io/stagehand-eval-sites/sites/google-flights/",
   );
