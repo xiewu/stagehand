@@ -180,17 +180,19 @@ async function getBrowser(
         },
       });
     }
-    logger({
-      category: "init",
-      message: "connecting to browserbase session",
-      level: 1,
-      auxiliary: {
-        connectUrl: {
-          value: connectUrl,
-          type: "string",
+    if (!connectUrl.includes("connect.connect")) {
+      logger({
+        category: "init",
+        message: "connecting to browserbase session",
+        level: 1,
+        auxiliary: {
+          connectUrl: {
+            value: connectUrl,
+            type: "string",
+          },
         },
-      },
-    });
+      });
+    }
     const browser = await chromium.connectOverCDP(connectUrl);
 
     const { debuggerUrl } = await browserbase.sessions.debug(sessionId);
@@ -248,17 +250,19 @@ async function getBrowser(
     }
 
     if (localBrowserLaunchOptions?.cdpUrl) {
-      logger({
-        category: "init",
-        message: "connecting to local browser via CDP URL",
-        level: 1,
-        auxiliary: {
-          cdpUrl: {
-            value: localBrowserLaunchOptions.cdpUrl,
-            type: "string",
+      if (!localBrowserLaunchOptions.cdpUrl.includes("connect.connect")) {
+        logger({
+          category: "init",
+          message: "connecting to local browser via CDP URL",
+          level: 1,
+          auxiliary: {
+            cdpUrl: {
+              value: localBrowserLaunchOptions.cdpUrl,
+              type: "string",
+            },
           },
-        },
-      });
+        });
+      }
 
       const browser = await chromium.connectOverCDP(
         localBrowserLaunchOptions.cdpUrl,
@@ -586,9 +590,13 @@ export class Stagehand {
       this.usingAPI &&
       this.llmClient &&
       this.llmClient.type !== "openai" &&
-      this.llmClient.type !== "anthropic"
+      this.llmClient.type !== "anthropic" &&
+      this.llmClient.type !== "google"
     ) {
-      throw new UnsupportedModelError(["openai", "anthropic"], "API mode");
+      throw new UnsupportedModelError(
+        ["openai", "anthropic", "google"],
+        "API mode",
+      );
     }
     this.waitForCaptchaSolves = waitForCaptchaSolves;
     this.localBrowserLaunchOptions = localBrowserLaunchOptions;
@@ -672,13 +680,20 @@ export class Stagehand {
         projectId: this.projectId,
         logger: this.logger,
       });
+      const modelApiKey =
+        LLMProvider.getModelProvider(this.modelName) === "openai"
+          ? process.env.OPENAI_API_KEY || this.llmClient.clientOptions.apiKey
+          : LLMProvider.getModelProvider(this.modelName) === "anthropic"
+            ? process.env.ANTHROPIC_API_KEY ||
+              this.llmClient.clientOptions.apiKey
+            : LLMProvider.getModelProvider(this.modelName) === "google"
+              ? process.env.GOOGLE_API_KEY ||
+                this.llmClient.clientOptions.apiKey
+              : undefined;
 
       const { sessionId } = await this.apiClient.init({
         modelName: this.modelName,
-        modelApiKey:
-          LLMProvider.getModelProvider(this.modelName) === "openai"
-            ? process.env.OPENAI_API_KEY
-            : process.env.ANTHROPIC_API_KEY,
+        modelApiKey: modelApiKey,
         domSettleTimeoutMs: this.domSettleTimeoutMs,
         verbose: this.verbose,
         debugDom: this.debugDom,
@@ -856,6 +871,8 @@ export class Stagehand {
             options.options.apiKey = process.env.ANTHROPIC_API_KEY;
           } else if (options.provider === "openai") {
             options.options.apiKey = process.env.OPENAI_API_KEY;
+          } else if (options.provider === "google") {
+            options.options.apiKey = process.env.GOOGLE_API_KEY;
           }
 
           if (!options.options.apiKey) {
