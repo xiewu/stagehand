@@ -205,7 +205,7 @@
     },
     {
       "name": "vanta_h",
-      "categories": ["observe"]
+      "categories": ["experimental"]
     },
     {
       "name": "extract_area_codes",
