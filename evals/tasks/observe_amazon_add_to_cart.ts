@@ -7,7 +7,7 @@ export const observe_amazon_add_to_cart: EvalFunction = async ({
   logger,
 }) => {
   await stagehand.page.goto(
-    "https://www.amazon.com/Laptop-MacBook-Surface-Water-Resistant-Accessories/dp/B0D5M4H5CD",
+    "https://browserbase.github.io/stagehand-eval-sites/sites/amazon/",
   );
 
   await stagehand.page.waitForTimeout(5000);
@@ -40,7 +40,8 @@ export const observe_amazon_add_to_cart: EvalFunction = async ({
   await stagehand.page.waitForTimeout(2000);
 
   const currentUrl = stagehand.page.url();
-  const expectedUrlPrefix = "https://www.amazon.com/ap/signin";
+  const expectedUrlPrefix =
+    "https://browserbase.github.io/stagehand-eval-sites/sites/amazon/sign-in.html";
 
   await stagehand.close();
 
