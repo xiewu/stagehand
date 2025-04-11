@@ -489,7 +489,7 @@ export class StagehandExtractHandler {
     }
 
     if (urlField) {
-      this.replaceIdsInField(output, urlField, idToUrlMapping);
+      this.replaceIdsWithUrls(output, urlField, idToUrlMapping);
     }
     return output;
   }
@@ -499,7 +499,7 @@ export class StagehandExtractHandler {
    * in `obj` (including nested objects/arrays).
    * Replaces bracketed IDs in those fields if they are strings.
    */
-  private replaceIdsInField(
+  private replaceIdsWithUrls(
     obj: unknown,
     fieldKey: string,
     idToUrlMapping: Record<string, string>,
@@ -507,7 +507,7 @@ export class StagehandExtractHandler {
     if (Array.isArray(obj)) {
       // For arrays, recurse on each element
       for (const item of obj) {
-        this.replaceIdsInField(item, fieldKey, idToUrlMapping);
+        this.replaceIdsWithUrls(item, fieldKey, idToUrlMapping);
       }
       return;
     }
@@ -523,7 +523,7 @@ export class StagehandExtractHandler {
             (match, p1) => idToUrlMapping[p1] ?? match,
           );
         } else {
-          this.replaceIdsInField(value, fieldKey, idToUrlMapping);
+          this.replaceIdsWithUrls(value, fieldKey, idToUrlMapping);
         }
       }
     }
