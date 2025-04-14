@@ -120,9 +120,6 @@ Refined content:`,
 
 const metadataSystemPrompt = `You are an AI assistant tasked with evaluating the progress and completion status of an extraction task.
 Analyze the extraction response and determine if the task is completed or if more information is needed.
-
-If a user's instruction indicates that they are attempting to extract links, you must indicate which field that they wish to have the links populated into.
-
 Strictly abide by the following criteria:
 1. Once the instruction has been satisfied by the current extraction response, ALWAYS set completion status to true and stop processing, regardless of remaining chunks.
 2. Only set completion status to false if BOTH of these conditions are true:
