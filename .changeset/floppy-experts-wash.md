@@ -2,4 +2,4 @@
 "@browserbasehq/stagehand": patch
 ---
 
-fix press enter
+remove unnecessary log
