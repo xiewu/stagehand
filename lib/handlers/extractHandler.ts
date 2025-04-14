@@ -887,7 +887,7 @@ export function injectUrls(
       const fieldValue = record[key];
       if (typeof fieldValue === "number") {
         const mappedUrl = idToUrlMapping[String(fieldValue)];
-        record[key] = mappedUrl ?? `UNMAPPED_ID_${fieldValue}`;
+        record[key] = mappedUrl ?? ``;
       }
     } else {
       injectUrls(record[key], rest, idToUrlMapping);
