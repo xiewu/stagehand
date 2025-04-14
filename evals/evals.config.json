@@ -313,6 +313,10 @@
     {
       "name": "extract_jfk_links",
       "categories": ["extract"]
+    },
+    {
+      "name": "extract_single_link",
+      "categories": ["extract"]
     }
   ]
 }
