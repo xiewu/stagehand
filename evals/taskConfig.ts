@@ -145,13 +145,10 @@ const filterModelByProvider = (model: string, provider: string): boolean => {
   } else if (provider === "cerebras") {
     return modelLower.startsWith("cerebras");
   }
-  // If provider doesn't match known ones, maybe return all? Or throw error?
-  // For now, let's assume if provider is specified, it must match.
-  // Returning false if provider is unknown or model doesn't match.
   console.warn(
     `Unknown provider specified or model doesn't match: ${provider}`,
   );
-  return false; // Or true if you want unmatched providers to allow all models
+  return false;
 };
 
 const MODELS: AvailableModel[] = getModelList().map((model) => {
