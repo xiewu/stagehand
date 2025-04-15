@@ -13,7 +13,7 @@ export const google_flights: EvalFunction = async ({
   const agent = stagehand.agent({
     model: modelName,
     provider: modelName.startsWith("claude") ? "anthropic" : "openai",
-    instructions: `You are a helpful assistant that can help me with my tasks. Today is ${new Date().toISOString().slice(0, 10)}. The current page is ${await stagehand.page.title()}`,
+    instructions: `You are a helpful assistant that can help me with my tasks. You are given a task and you need to complete it without asking follow up questions. Today is ${new Date().toISOString().slice(0, 10)}. The current page is ${await stagehand.page.title()}`,
   });
 
   const agentResult = await agent.execute({
@@ -25,7 +25,7 @@ export const google_flights: EvalFunction = async ({
 
   const evaluator = new Evaluator(stagehand);
   const result = await evaluator.evaluate({
-    question: "Does the page show flights from San Francisco to New York?",
+    question: "Does the page show flights (options, available flights, not a search form) from San Francisco to New York?",
     strictResponse: true,
   });
 

@@ -22,6 +22,7 @@ export const iframe_form_multiple: EvalFunction = async ({
   });
   logger.log(agentResult);
 
+  await stagehand.page.mouse.wheel(0, -1000);
   const evaluator = new Evaluator(stagehand);
   const results = await evaluator.batchEvaluate({
     questions: [

@@ -13,7 +13,7 @@ export const sf_library_card: EvalFunction = async ({
   const agent = stagehand.agent({
     model: modelName,
     provider: modelName.startsWith("claude") ? "anthropic" : "openai",
-    instructions: `You are a helpful assistant that can help me with my tasks. The current page is ${await stagehand.page.title()}`,
+    instructions: `You are a helpful assistant that can help me with my tasks. You are given a task and you need to complete it without asking follow up questions. The current page is ${await stagehand.page.title()}`,
   });
 
   const agentResult = await agent.execute({
@@ -22,6 +22,7 @@ export const sf_library_card: EvalFunction = async ({
   });
   logger.log(agentResult);
 
+  await stagehand.page.mouse.wheel(0, -1000);
   const evaluator = new Evaluator(stagehand);
   const result = await evaluator.evaluate({
     question:

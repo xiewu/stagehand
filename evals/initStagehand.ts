@@ -34,6 +34,15 @@ const StagehandConfig = {
   enableCaching,
   domSettleTimeoutMs: 30_000,
   disablePino: true,
+  browserbaseSessionCreateParams: {
+    projectId: process.env.BROWSERBASE_PROJECT_ID!,
+    browserSettings: {
+      viewport: {
+        width: 1024,
+        height: 768,
+      },
+    },
+  },
 };
 
 /**
