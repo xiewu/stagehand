@@ -14,6 +14,7 @@ import { enableCaching, env } from "./env";
 import { ConstructorParams, LLMClient, Stagehand } from "@/dist";
 import { EvalLogger } from "./logger";
 import type { StagehandInitResult } from "@/types/evals";
+import { AvailableModel } from "@/dist";
 
 /**
  * StagehandConfig:
@@ -53,6 +54,7 @@ export const initStagehand = async ({
   configOverrides,
   actTimeoutMs,
   useTextExtract,
+  modelName,
 }: {
   llmClient: LLMClient;
   domSettleTimeoutMs?: number;
@@ -60,6 +62,7 @@ export const initStagehand = async ({
   configOverrides?: Partial<ConstructorParams>;
   actTimeoutMs?: number;
   useTextExtract?: boolean;
+  modelName: AvailableModel;
 }): Promise<StagehandInitResult> => {
   const config = {
     ...StagehandConfig,
@@ -83,5 +86,6 @@ export const initStagehand = async ({
     debugUrl,
     sessionUrl,
     useTextExtract,
+    modelName,
   };
 };

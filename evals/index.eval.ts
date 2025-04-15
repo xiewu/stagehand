@@ -23,9 +23,9 @@ import {
 } from "./args";
 import { generateExperimentName } from "./utils";
 import { exactMatch, errorMatch } from "./scoring";
-import { tasksByName, MODELS, tasksConfig } from "./taskConfig";
+import { tasksByName, tasksConfig, getModelList } from "./taskConfig";
 import { Eval, wrapAISDKModel, wrapOpenAI } from "braintrust";
-import { EvalFunction, SummaryResult, Testcase } from "@/types/evals";
+import { SummaryResult, Testcase } from "@/types/evals";
 import { EvalLogger } from "./logger";
 import { AvailableModel, LLMClient } from "@/dist";
 import { env } from "./env";
@@ -142,16 +142,63 @@ const generateSummary = async (
  * of a task and a model.
  *
  * Steps:
- * - Start with all combinations of tasks (from `tasksByName`) and models (`MODELS`).
+ * - Dynamically determine the list of models based on filters.
+ * - Start with all combinations of tasks (from `tasksByName`) and the determined models.
  * - Filter by category if a category filter was specified.
  * - Filter by evaluation name if specified.
  * - In the BROWSERBASE environment, exclude certain tasks that are not suitable.
  */
 const generateFilteredTestcases = (): Testcase[] => {
-  // Create a list of all testcases for each model-task combination.
-  let allTestcases = MODELS.flatMap((model) =>
-    Object.keys(tasksByName).map((testName) => ({
-      input: { name: testName, modelName: model },
+  let taskNamesToRun: string[];
+  let effectiveCategory: string | null = filterByCategory; // Start with the command-line filter
+
+  if (filterByEvalName) {
+    // If a specific task name is given, that's the only one we run
+    taskNamesToRun = [filterByEvalName];
+    // Check if this single task belongs *only* to the agent category to override models
+    const taskCategories = tasksByName[filterByEvalName]?.categories || [];
+    if (taskCategories.length === 1 && taskCategories[0] === "agent") {
+      // Treat this run as an 'agent' category run for model selection
+      effectiveCategory = "agent";
+      console.log(
+        `Task ${filterByEvalName} is agent-specific, using agent models.`,
+      );
+    } else if (taskCategories.includes("agent")) {
+      // If it's in multiple categories including agent, we might still want agent models?
+      // For now, let's stick to default if it's multi-category unless --category=agent is explicitly passed.
+      // If effectiveCategory wasn't set by the command line, it remains null here.
+      console.log(
+        `Task ${filterByEvalName} includes 'agent' but has other categories. Using default models unless --category=agent was specified.`,
+      );
+    }
+  } else if (filterByCategory) {
+    // If filtering by category, get all tasks in that category
+    taskNamesToRun = Object.keys(tasksByName).filter((name) =>
+      tasksByName[name].categories.includes(filterByCategory!),
+    );
+    // effectiveCategory is already set from the command line
+  } else {
+    // If no specific task or category filter, run tasks from default categories
+    taskNamesToRun = Object.keys(tasksByName).filter((name) =>
+      DEFAULT_EVAL_CATEGORIES.some((category) =>
+        tasksByName[name].categories.includes(category),
+      ),
+    );
+    // effectiveCategory remains null, so default models will be used
+  }
+
+  // Dynamically determine the MODELS based on the effective category
+  const currentModels = getModelList(effectiveCategory);
+
+  console.log(
+    `Using models for this run (${effectiveCategory || "default"}):`,
+    currentModels,
+  );
+
+  // Create a list of all testcases using the determined task names and models
+  let allTestcases = currentModels.flatMap((model) =>
+    taskNamesToRun.map((testName) => ({
+      input: { name: testName, modelName: model as AvailableModel },
       name: testName,
       tags: [
         model,
@@ -161,7 +208,7 @@ const generateFilteredTestcases = (): Testcase[] => {
         ),
       ],
       metadata: {
-        model,
+        model: model as AvailableModel,
         test: testName,
         categories: tasksConfig.find((t) => t.name === testName)?.categories,
       },
@@ -169,26 +216,12 @@ const generateFilteredTestcases = (): Testcase[] => {
     })),
   );
 
-  // Filter test cases to match default eval categories
-  allTestcases = allTestcases.filter((testcase) =>
-    DEFAULT_EVAL_CATEGORIES.some((category) =>
-      tasksByName[testcase.name].categories.includes(category),
-    ),
-  );
-
-  // Filter by category if a category is specified
+  // This filtering step might now be redundant if taskNamesToRun is already filtered,
+  // but keeping it ensures consistency if the logic above changes.
+  // Filter by category if a category is specified (applies AFTER model selection)
   if (filterByCategory) {
     allTestcases = allTestcases.filter((testcase) =>
       tasksByName[testcase.name].categories.includes(filterByCategory!),
-    );
-  }
-
-  // Filter by a specific evaluation (task) name if specified
-  if (filterByEvalName) {
-    allTestcases = allTestcases.filter(
-      (testcase) =>
-        testcase.name === filterByEvalName ||
-        testcase.input.name === filterByEvalName,
     );
   }
 
@@ -200,7 +233,7 @@ const generateFilteredTestcases = (): Testcase[] => {
   }
 
   console.log(
-    "All test cases:",
+    "Final test cases to run:",
     allTestcases
       .map(
         (t, i) =>
@@ -252,14 +285,47 @@ const generateFilteredTestcases = (): Testcase[] => {
             "tasks",
             `${input.name}.ts`,
           );
-          const taskModule = (await import(taskModulePath)) as {
-            [key: string]: EvalFunction;
-          };
-          const taskFunction = taskModule[input.name];
+
+          // Check if file exists at direct path
+          let taskModule;
+          try {
+            // First try to import directly (for backward compatibility)
+            taskModule = await import(taskModulePath);
+          } catch (error) {
+            if (input.name.includes("/")) {
+              // If the name includes a path separator, try to import from subdirectory
+              const subDirPath = path.join(
+                __dirname,
+                "tasks",
+                `${input.name}.ts`,
+              );
+              try {
+                taskModule = await import(subDirPath);
+              } catch (subError) {
+                throw new StagehandEvalError(
+                  `Failed to import task module for ${input.name}. Tried paths:\n` +
+                    `- ${taskModulePath}\n` +
+                    `- ${subDirPath}\n` +
+                    `Error: ${subError.message}`,
+                );
+              }
+            } else {
+              throw new StagehandEvalError(
+                `Failed to import task module for ${input.name} at path ${taskModulePath}: ${error.message}`,
+              );
+            }
+          }
+
+          // Extract the task function
+          const taskName = input.name.includes("/")
+            ? input.name.split("/").pop() // Get the last part of the path for nested tasks
+            : input.name;
+
+          const taskFunction = taskModule[taskName];
 
           if (typeof taskFunction !== "function") {
             throw new StagehandEvalError(
-              `No Eval function found for task name: ${input.name}`,
+              `No Eval function found for task name: ${taskName} in module ${input.name}`,
             );
           }
           let shouldUseTextExtract = useTextExtract;
@@ -322,6 +388,7 @@ const generateFilteredTestcases = (): Testcase[] => {
             logger,
             llmClient,
             useTextExtract: shouldUseTextExtract,
+            modelName: input.modelName,
           });
           let result;
           try {
