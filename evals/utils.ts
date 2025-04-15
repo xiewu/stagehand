@@ -11,6 +11,22 @@
 import { LogLine } from "@/dist";
 import stringComparison from "string-comparison";
 const { jaroWinkler } = stringComparison;
+import OpenAI from "openai";
+import { wrapAISDKModel, wrapOpenAI } from "braintrust";
+import { anthropic } from "@ai-sdk/anthropic";
+import { google } from "@ai-sdk/google";
+import { groq } from "@ai-sdk/groq";
+import { cerebras } from "@ai-sdk/cerebras";
+import { LLMClient } from "@/dist";
+import { AISdkClient } from "@/examples/external_clients/aisdk";
+import { CustomOpenAIClient } from "@/examples/external_clients/customOpenAI";
+import { OpenAIClient } from "@/lib/llm/OpenAIClient";
+import { AnthropicClient } from "@/lib/llm/AnthropicClient";
+import { GoogleClient } from "@/lib/llm/GoogleClient";
+import { GroqClient } from "@/lib/llm/GroqClient";
+import { CerebrasClient } from "@/lib/llm/CerebrasClient";
+import { CreateLLMClientOptions } from "@/types/evals";
+import { StagehandEvalError } from "@/types/stagehandErrors";
 
 /**
  * normalizeString:
@@ -117,5 +133,125 @@ export function logLineToString(logLine: LogLine): string {
   } catch (error) {
     console.error(`Error logging line:`, error);
     return "error logging line";
+  }
+}
+
+export function createLLMClient({
+  modelName,
+  useExternalClients,
+  logger,
+  openAiKey,
+  googleKey,
+  anthropicKey,
+  groqKey,
+  cerebrasKey,
+  togetherKey,
+}: CreateLLMClientOptions): LLMClient {
+  const isOpenAIModel = modelName.startsWith("gpt") || modelName.includes("/");
+  const isGoogleModel = modelName.startsWith("gemini");
+  const isAnthropicModel = modelName.startsWith("claude");
+  const isGroqModel = modelName.includes("groq");
+  const isCerebrasModel = modelName.includes("cerebras");
+
+  if (useExternalClients) {
+    if (isOpenAIModel) {
+      if (modelName.includes("/")) {
+        return new CustomOpenAIClient({
+          modelName,
+          client: wrapOpenAI(
+            new OpenAI({
+              apiKey: togetherKey,
+              baseURL: "https://api.together.xyz/v1",
+            }),
+          ),
+        });
+      }
+      return new CustomOpenAIClient({
+        modelName,
+        client: wrapOpenAI(
+          new OpenAI({
+            apiKey: openAiKey,
+          }),
+        ),
+      });
+    } else if (isGoogleModel) {
+      return new AISdkClient({
+        model: wrapAISDKModel(google(modelName)),
+      });
+    } else if (isAnthropicModel) {
+      return new AISdkClient({
+        model: wrapAISDKModel(anthropic(modelName)),
+      });
+    } else if (isGroqModel) {
+      const groqModel = modelName.substring(modelName.indexOf("/") + 1);
+      return new AISdkClient({
+        model: wrapAISDKModel(groq(groqModel)),
+      });
+    } else if (isCerebrasModel) {
+      const cerebrasModel = modelName.substring(modelName.indexOf("/") + 1);
+      return new AISdkClient({
+        model: wrapAISDKModel(cerebras(cerebrasModel)),
+      });
+    }
+    throw new StagehandEvalError(`Unknown modelName: ${modelName}`);
+  } else {
+    if (isOpenAIModel) {
+      if (modelName.includes("/")) {
+        return new CustomOpenAIClient({
+          modelName,
+          client: wrapOpenAI(
+            new OpenAI({
+              apiKey: togetherKey,
+              baseURL: "https://api.together.xyz/v1",
+            }),
+          ),
+        });
+      }
+      return new OpenAIClient({
+        logger,
+        modelName,
+        enableCaching: false,
+        clientOptions: {
+          apiKey: openAiKey,
+        },
+      });
+    } else if (isGoogleModel) {
+      return new GoogleClient({
+        logger,
+        modelName,
+        enableCaching: false,
+        clientOptions: {
+          apiKey: googleKey,
+        },
+      });
+    } else if (isAnthropicModel) {
+      return new AnthropicClient({
+        logger,
+        modelName,
+        enableCaching: false,
+        clientOptions: {
+          apiKey: anthropicKey,
+        },
+      });
+    } else if (isGroqModel) {
+      return new GroqClient({
+        logger,
+        modelName,
+        enableCaching: false,
+        clientOptions: {
+          apiKey: groqKey,
+        },
+      });
+    } else if (isCerebrasModel) {
+      return new CerebrasClient({
+        logger,
+        modelName,
+        enableCaching: false,
+        clientOptions: {
+          apiKey: cerebrasKey,
+        },
+      });
+    }
+    throw new StagehandEvalError(`Unknown modelName: ${modelName}`);
   }
 }

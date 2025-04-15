@@ -95,7 +95,7 @@ if (filterByEvalName && !tasksByName[filterByEvalName]) {
  */
 const DEFAULT_EVAL_MODELS = process.env.EVAL_MODELS
   ? process.env.EVAL_MODELS.split(",")
-  : ["claude-3-5-sonnet-latest", "gpt-4o-mini", "gpt-4o"];
+  : ["gpt-4o-mini"];
 
 /**
  * getModelList:
