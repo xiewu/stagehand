@@ -163,20 +163,12 @@ const generateFilteredTestcases = (): Testcase[] => {
       console.log(
         `Task ${filterByEvalName} is agent-specific, using agent models.`,
       );
-    } else if (taskCategories.includes("agent")) {
-      // If it's in multiple categories including agent, we might still want agent models?
-      // For now, let's stick to default if it's multi-category unless --category=agent is explicitly passed.
-      // If effectiveCategory wasn't set by the command line, it remains null here.
-      console.log(
-        `Task ${filterByEvalName} includes 'agent' but has other categories. Using default models unless --category=agent was specified.`,
-      );
     }
   } else if (filterByCategory) {
     // If filtering by category, get all tasks in that category
     taskNamesToRun = Object.keys(tasksByName).filter((name) =>
       tasksByName[name].categories.includes(filterByCategory!),
     );
-    // effectiveCategory is already set from the command line
   } else {
     // If no specific task or category filter, run tasks from default categories
     taskNamesToRun = Object.keys(tasksByName).filter((name) =>
@@ -184,7 +176,6 @@ const generateFilteredTestcases = (): Testcase[] => {
         tasksByName[name].categories.includes(category),
       ),
     );
-    // effectiveCategory remains null, so default models will be used
   }
 
   // Dynamically determine the MODELS based on the effective category
@@ -216,9 +207,7 @@ const generateFilteredTestcases = (): Testcase[] => {
     })),
   );
 
-  // This filtering step might now be redundant if taskNamesToRun is already filtered,
-  // but keeping it ensures consistency if the logic above changes.
-  // Filter by category if a category is specified (applies AFTER model selection)
+  // This filtering step might now be redundant if taskNamesToRun is already filtered
   if (filterByCategory) {
     allTestcases = allTestcases.filter((testcase) =>
       tasksByName[testcase.name].categories.includes(filterByCategory!),
