@@ -80,12 +80,10 @@ export type LogLineEval = LogLine & {
 
 export interface CreateLLMClientOptions {
   modelName: AvailableModel;
-  useExternalClients: boolean;
+  useExternalClients?: boolean;
   logger?: (msg: LogLine) => void;
   openAiKey?: string;
   googleKey?: string;
   anthropicKey?: string;
-  groqKey?: string;
-  cerebrasKey?: string;
   togetherKey?: string;
 }
