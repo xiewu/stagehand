@@ -34,7 +34,6 @@ export const iframe_form_multiple: EvalFunction = async ({
   });
 
   for (const r of results) {
-    console.log("\n\n\nr", r);
     if (r.evaluation !== "YES" && r.evaluation !== "NO") {
       await stagehand.close();
       return {
