@@ -254,7 +254,11 @@ export class CerebrasClient extends LLMClient {
             usage: response.usage,
           };
           if (this.enableCaching) {
-            await this.cache.set(cacheOptions, finalResponse, options.requestId);
+            await this.cache.set(
+              cacheOptions,
+              finalResponse,
+              options.requestId,
+            );
           }
           return finalResponse as T;
         } catch (e) {
@@ -284,7 +288,11 @@ export class CerebrasClient extends LLMClient {
               usage: response.usage,
             };
             if (this.enableCaching) {
-              await this.cache.set(cacheOptions, finalResponse, options.requestId);
+              await this.cache.set(
+                cacheOptions,
+                finalResponse,
+                options.requestId,
+              );
             }
             return finalResponse as T;
           }
