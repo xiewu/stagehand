@@ -274,8 +274,6 @@ const generateFilteredTestcases = (): Testcase[] => {
             openAiKey: process.env.OPENAI_API_KEY,
             googleKey: process.env.GOOGLE_API_KEY,
             anthropicKey: process.env.ANTHROPIC_API_KEY,
-            groqKey: process.env.GROQ_API_KEY,
-            cerebrasKey: process.env.CEREBRAS_API_KEY,
             togetherKey: process.env.TOGETHER_AI_API_KEY,
           });
           const taskInput = await initStagehand({

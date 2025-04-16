@@ -23,8 +23,6 @@ import { CustomOpenAIClient } from "@/examples/external_clients/customOpenAI";
 import { OpenAIClient } from "@/lib/llm/OpenAIClient";
 import { AnthropicClient } from "@/lib/llm/AnthropicClient";
 import { GoogleClient } from "@/lib/llm/GoogleClient";
-import { GroqClient } from "@/lib/llm/GroqClient";
-import { CerebrasClient } from "@/lib/llm/CerebrasClient";
 import { CreateLLMClientOptions } from "@/types/evals";
 import { StagehandEvalError } from "@/types/stagehandErrors";
 
@@ -143,11 +141,9 @@ export function createLLMClient({
   openAiKey,
   googleKey,
   anthropicKey,
-  groqKey,
-  cerebrasKey,
   togetherKey,
 }: CreateLLMClientOptions): LLMClient {
-  const isOpenAIModel = modelName.startsWith("gpt") || modelName.includes("/");
+  const isOpenAIModel = modelName.startsWith("gpt");
   const isGoogleModel = modelName.startsWith("gemini");
   const isAnthropicModel = modelName.startsWith("claude");
   const isGroqModel = modelName.includes("groq");
@@ -233,24 +229,10 @@ export function createLLMClient({
           apiKey: anthropicKey,
         },
       });
-    } else if (isGroqModel) {
-      return new GroqClient({
-        logger,
-        modelName,
-        enableCaching: false,
-        clientOptions: {
-          apiKey: groqKey,
-        },
-      });
-    } else if (isCerebrasModel) {
-      return new CerebrasClient({
-        logger,
-        modelName,
-        enableCaching: false,
-        clientOptions: {
-          apiKey: cerebrasKey,
-        },
-      });
+    } else if (isGroqModel || isCerebrasModel) {
+      throw new StagehandEvalError(
+        `${modelName} can only be used when useExternalClients=true`,
+      );
     }
     throw new StagehandEvalError(`Unknown modelName: ${modelName}`);
   }
