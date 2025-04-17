@@ -7,7 +7,10 @@ async function formFillingSensible() {
     ...StagehandConfig,
     // Uncomment the following lines to run locally or use a different model
     env: "LOCAL",
-    modelName: "gpt-4o-mini",
+    modelName: "gemini-2.5-flash-preview-04-17",
+    modelClientOptions: {
+      apiKey: process.env.GOOGLE_API_KEY,
+    },
   });
   await stagehand.init();
 
